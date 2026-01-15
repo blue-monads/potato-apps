@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { createSale, updateSale, getSale, type Sale } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
-import { useModal } from '../../lib/modal/modal';
+import { useModal } from '../../lib/shared/modal/modal';
 import SalesItemPicker from './components/SalesItemPicker';
 import OverallDiscountPicker from './components/OverallDiscountPicker';
 import OverallTaxPicker from './components/OverallTaxPicker';

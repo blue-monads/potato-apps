@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { Plus, Edit, Trash2, ArrowRight } from 'lucide-react';
 import { listAccounts, deleteAccount, type Account } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
-import { useModal } from '../../lib/modal/modal';
+import { useModal } from '../../lib/shared/modal/modal';
 import AccountForm from './AccountForm';
 
 const ACCOUNT_TYPES: Record<string, string> = {

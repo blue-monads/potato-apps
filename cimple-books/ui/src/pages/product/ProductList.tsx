@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { listProducts, deleteProduct, listCategories, type Product, type Category } from '../../lib/api';
-import { useModal } from '../../lib/modal/modal';
+import { useModal } from '../../lib/shared/modal/modal';
 import ProductForm from './ProductForm';
 
 const ProductList = () => {

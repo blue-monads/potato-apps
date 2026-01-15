@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useModal } from '../../../lib/modal/modal';
+import { useModal } from '../../../lib/shared/modal/modal';
 
 interface OverallTaxPickerProps {
     subTotal: number;

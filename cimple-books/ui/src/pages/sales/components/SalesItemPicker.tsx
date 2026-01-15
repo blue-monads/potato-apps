@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
 import { listProducts, type Product } from '../../../lib/api';
-import { useModal } from '../../../lib/modal/modal';
+import { useModal } from '../../../lib/shared/modal/modal';
 
 interface SalesItemLine {
     info: string;

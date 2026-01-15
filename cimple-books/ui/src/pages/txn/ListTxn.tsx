@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router';
 import { Plus, Trash2, Edit, ArrowLeft } from 'lucide-react';
 import { listTransactions, deleteTransaction, listAccounts, type Transaction, type Account } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
-import { useModal } from '../../lib/modal/modal';
+import { useModal } from '../../lib/shared/modal/modal';
 import TransactionForm from './TransactionForm';
 
 const ListTxn = () => {
