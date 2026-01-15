@@ -37,3 +37,4 @@ server_url = "http://localhost:7777"
 token_env = "SIMPLE_DEV_TOKEN"
 output_zip_file = "package.spk.zip"
 include_files = [ "ui/dist/**/*,public", "server.lua", "init/init.html,public/init.html", "init/schema.sql,schema.sql", "meta/spec.json,spec.json"  ]
+build_command = "cd ui && bun run build"
