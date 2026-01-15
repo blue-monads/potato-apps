@@ -1,0 +1,4 @@
+output/
+package.spk.zip
+tsconfig.tsbuildinfo
+.env.potato

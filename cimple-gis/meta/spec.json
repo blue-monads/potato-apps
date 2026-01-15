@@ -1,0 +1,496 @@
+{
+    "space_specs": {
+        "cimple-gis": {
+            "scopes": [],
+            "events_outputs": [
+                {
+                    "name": "feature_created",
+                    "description": "A feature has been created",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "feature_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "feature_updated",
+                    "description": "A feature has been updated",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "feature_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "feature_deleted",
+                    "description": "A feature has been deleted",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "feature_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "event_type_added",
+                    "description": "A event type added",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "event_type_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "event_type_updated",
+                    "description": "A event type updated",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "event_type_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "event_type_deleted",
+                    "description": "A event type deleted",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "event_type_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "event_added",
+                    "description": "A event added",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "event_id": {
+                                "type": "number"
+                            },
+                            "event_type_id": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                }
+            ],
+            "event_slots": [
+                {
+                    "name": "add_event_type",
+                    "description": "Add a event type",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "event_type": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number",
+                                "description": "The id of the created event type"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_event_type",
+                    "description": "Get a event type",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "object",
+                                "$ref": "#/models/EventType"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "list_event_types",
+                    "description": "List all event types",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "result": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/models/EventType"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "update_event_type",
+                    "description": "Update a event type",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    },
+                                    "payload": {
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "delete_event_type",
+                    "description": "Delete a event type",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "add_event",
+                    "description": "Add a event",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "info": {
+                                        "type": "string"
+                                    },
+                                    "event_type_id": {
+                                        "type": "number"
+                                    },
+                                    "event_data": {
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number",
+                                "description": "The id of the created event"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_event",
+                    "description": "Get a event",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "object",
+                                "$ref": "#/models/Event"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "update_event",
+                    "description": "Update a event",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    },
+                                    "payload": {
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "delete_event",
+                    "description": "Delete a event",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "boolean",
+                                "description": "True if the event was deleted"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "add_feature",
+                    "description": "Add a feature",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "color": {
+                                        "type": "string"
+                                    },
+                                    "feature_type": {
+                                        "type": "string"
+                                    },
+                                    "geometry": {
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number",
+                                "description": "The id of the created feature"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "update_feature",
+                    "description": "Update a feature",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    },
+                                    "payload": {
+                                        "type": "object"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "number",
+                                "description": "The id of the updated feature"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "delete_feature",
+                    "description": "Delete a feature",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "boolean",
+                                "description": "True if the feature was deleted"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "get_feature",
+                    "description": "Get a feature",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "args": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "number"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "object",
+                                "$ref": "#/models/Feature"
+                            }
+                        }
+                    }
+                },
+                {
+                    "name": "list_features",
+                    "description": "List all features",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "result": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/models/Feature"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "models": [
+        {
+            "name": "Feature",
+            "description": "A feature",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "number"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "feature_type": {
+                        "type": "string"
+                    },
+                    "geometry_data": {
+                        "type": "object"
+                    }
+                },
+                "required": ["id", "name", "description", "color", "feature_type", "geometry_data"]
+            }
+        },
+        {
+            "name": "EventType",
+            "description": "A event type",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "number"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "event_type": {
+                        "type": "string"
+                    }
+                },
+                "required": ["id", "name", "event_type"]
+            }
+        },
+        {
+            "name": "Event",
+            "description": "A event",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "number"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "info": {
+                        "type": "string"
+                    },
+                    "event_type_id": {
+                        "type": "number"
+                    },
+                    "event_data": {
+                        "type": "object"
+                    },
+                    "lat": {
+                        "type": "number"
+                    },
+                    "lng": {
+                        "type": "number"
+                    },
+                    "event_start": {
+                        "type": "string"
+                    },
+                    "event_end": {
+                        "type": "string"
+                    }
+                },
+                "required": ["id", "title", "info", "event_type_id", "event_data", "lat", "lng", "event_start", "event_end"]
+            }
+        }
+    ]
+}

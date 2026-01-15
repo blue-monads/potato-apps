@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/zz/static/libspace.js"></script>
+    <title>Init Cimple Books</title>
+</head>
+<body>
+    <h1>Init Cimple Books</h1>
+    <button id="runSchemaSqlButton" style="display: block;" onclick="runSchemaSql()">Run Schema SQL</button>
+    <button id="goHomeButton" style="display: none;" onclick="goHome()">Go Home</button>
+
+</body>
+
+<script>
+    if (!window.spaceGetToken('cimple-table')) {
+        window.spaceRedirrectToAuth('/zz/space/cimple-table', 'init.html');
+    }
+
+    function goHome() {
+        window.location.href = '/zz/space/cimple-table';
+    }
+
+    function runSchemaSql() {
+        fetch('/zz/api/space/cimple-table/run_schema_sql', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': window.spaceGetToken('cimple-table'),
+            },
+        }).then(data => {
+            document.getElementById('runSchemaSqlButton').style.display = 'none';
+            document.getElementById('goHomeButton').style.display = 'block';
+        });
+    }
+
+
+</script>
+</html>

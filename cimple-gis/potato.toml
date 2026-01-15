@@ -1,0 +1,39 @@
+name = "Simple GIS"
+info = "Simple GIS app"
+slug = "cimple-gis"
+tags = [ "gis" ]
+format_version = "0.0.1"
+author_name = "Bornjre"
+author_email = "bornjre@gmail.com"
+author_site = "https://github.com/bornjre"
+license = "MIT"
+version = "0.0.1"
+init_page = "init.html"
+update_page = "update_1.html"
+
+[[artifacts]]
+kind = "space"
+namespace = "cimple-gis"
+executor_type = "luaz"
+server_file = "server.lua"
+
+  [artifacts.route_options]
+  serve_folder = "public"
+  force_html_extension = false
+  force_index_html_file = true
+  on_not_found_file = "index.html"
+
+  [artifacts.mcp_options]
+  enabled = false
+
+[[artifacts]]
+kind = "capability"
+name = "easy-ws"
+type = "easy-ws"
+spaces = [ "cimple-gis" ]
+
+[developer]
+server_url = "http://localhost:7777"
+token_env = "SIMPLE_DEV_TOKEN"
+output_zip_file = "package.spk.zip"
+include_files = [ "ui/dist/**/*,public", "server.lua", "init/init.html,public/init.html", "init/schema.sql,schema.sql", "meta/spec.json,spec.json"  ]
