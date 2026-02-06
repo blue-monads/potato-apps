@@ -7,7 +7,7 @@ author_name = "Bornjre"
 author_email = "bornjre@gmail.com"
 author_site = "https://github.com/bornjre"
 license = "MIT"
-version = "0.0.1"
+version = "0.0.2"
 init_page = "init.html"
 update_page = "update_1.html"
 
