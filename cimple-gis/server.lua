@@ -157,6 +157,20 @@ function create_event(ctx)
         print("Warning: Failed to broadcast event creation: " .. tostring(broadcastErr))
     end
 
+    -- Publish event creation event to event hub
+    local eventOpts = {
+        name = "event_added",
+        payload = {
+            event_id = createdEvent.id,
+            event_type_id = createdEvent.event_type_id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        -- Log error but don't fail the request
+        print("Warning: Failed to publish event_added event: " .. tostring(publishErr))
+    end
+
     req.json(201, createdEvent)
 end
 
@@ -238,7 +252,145 @@ function create_event_type(ctx)
         print("Warning: Failed to broadcast event type creation: " .. tostring(broadcastErr))
     end
 
+    -- Publish event type creation event to event hub
+    local eventOpts = {
+        name = "event_type_added",
+        payload = {
+            event_type_id = createdEventType.id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        -- Log error but don't fail the request
+        print("Warning: Failed to publish event_type_added event: " .. tostring(publishErr))
+    end
+
     req.json(201, createdEventType)
+end
+
+function update_event_type(ctx, event_type_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local body = req.bind_json()
+
+    -- Get existing event type
+    local existingEventType, err = potato.db.find_by_id("EventTypes", event_type_id)
+    if err ~= nil then
+        req.json(404, {
+            error = "Event type not found: " .. tostring(err)
+        })
+        return
+    end
+
+    -- Update fields if provided
+    if body.name ~= nil then
+        existingEventType.name = body.name
+    end
+    if body.event_type ~= nil then
+        existingEventType.event_type = body.event_type
+    end
+    if body.icon ~= nil then
+        existingEventType.icon = body.icon
+    end
+    if body.color ~= nil then
+        existingEventType.color = body.color
+    end
+
+    -- Update event type in database
+    local updateErr = potato.db.update_by_id("EventTypes", event_type_id, existingEventType)
+    if updateErr ~= nil then
+        req.json(500, {
+            error = "Failed to update event type: " .. tostring(updateErr)
+        })
+        return
+    end
+
+    -- Get updated event type
+    local updatedEventType, fetchErr = potato.db.find_by_id("EventTypes", event_type_id)
+    if fetchErr ~= nil then
+        req.json(500, {
+            error = "Failed to fetch updated event type: " .. tostring(fetchErr)
+        })
+        return
+    end
+
+    -- Broadcast event type update via WebSocket
+    local broadcastParams = {
+        type = "event_type_updated",
+        data = updatedEventType
+    }
+    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    if broadcastErr ~= nil then
+        print("Warning: Failed to broadcast event type update: " .. tostring(broadcastErr))
+    end
+
+    -- Publish event type update event to event hub
+    local eventOpts = {
+        name = "event_type_updated",
+        payload = {
+            event_type_id = updatedEventType.id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        print("Warning: Failed to publish event_type_updated event: " .. tostring(publishErr))
+    end
+
+    req.json(200, updatedEventType)
+end
+
+function delete_event_type(ctx, event_type_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    -- Check if event type exists
+    local existingEventType, err = potato.db.find_by_id("EventTypes", event_type_id)
+    if err ~= nil then
+        req.json(404, {
+            error = "Event type not found: " .. tostring(err)
+        })
+        return
+    end
+
+    -- Delete event type
+    local deleteErr = potato.db.delete_by_id("EventTypes", event_type_id)
+    if deleteErr ~= nil then
+        req.json(500, {
+            error = "Failed to delete event type: " .. tostring(deleteErr)
+        })
+        return
+    end
+
+    -- Broadcast event type deletion via WebSocket
+    local broadcastParams = {
+        type = "event_type_deleted",
+        data = {
+            event_type_id = event_type_id
+        }
+    }
+    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    if broadcastErr ~= nil then
+        print("Warning: Failed to broadcast event type deletion: " .. tostring(broadcastErr))
+    end
+
+    -- Publish event type deletion event to event hub
+    local eventOpts = {
+        name = "event_type_deleted",
+        payload = {
+            event_type_id = event_type_id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        print("Warning: Failed to publish event_type_deleted event: " .. tostring(publishErr))
+    end
+
+    req.json(200, {
+        message = "Event type deleted"
+    })
 end
 
 function on_http(ctx)
@@ -289,8 +441,14 @@ function on_http(ctx)
     local event_type_id_match = string.match(path, "^/event-types/(%d+)$")
     if event_type_id_match then
         local event_type_id = tonumber(event_type_id_match)
-        if event_type_id ~= nil and method == "GET" then
-            return get_event_type(ctx, event_type_id)
+        if event_type_id ~= nil then
+            if method == "GET" then
+                return get_event_type(ctx, event_type_id)
+            elseif method == "PUT" then
+                return update_event_type(ctx, event_type_id)
+            elseif method == "DELETE" then
+                return delete_event_type(ctx, event_type_id)
+            end
         end
     end
 
@@ -309,6 +467,8 @@ function on_http(ctx)
         if feature_id ~= nil then
             if method == "GET" then
                 return get_feature(ctx, feature_id)
+            elseif method == "PUT" then
+                return update_feature(ctx, feature_id)
             elseif method == "DELETE" then
                 return delete_feature(ctx, feature_id)
             end
@@ -497,7 +657,122 @@ function create_feature(ctx)
         print("Warning: Failed to broadcast feature creation: " .. tostring(broadcastErr))
     end
 
+    -- Publish feature creation event to event hub
+    local eventOpts = {
+        name = "feature_created",
+        payload = {
+            feature_id = createdFeature.id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        -- Log error but don't fail the request
+        print("Warning: Failed to publish feature_created event: " .. tostring(publishErr))
+    end
+
     req.json(201, createdFeature)
+end
+
+function update_feature(ctx, feature_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local body = req.bind_json()
+
+    -- Get existing feature
+    local existingFeature, err = potato.db.find_by_id("Features", feature_id)
+    if err ~= nil then
+        req.json(404, {
+            error = "Feature not found: " .. tostring(err)
+        })
+        return
+    end
+
+    -- Update fields if provided
+    if body.name ~= nil then
+        existingFeature.name = body.name
+    end
+    if body.description ~= nil then
+        existingFeature.description = body.description
+    end
+    if body.color ~= nil then
+        existingFeature.color = body.color
+    end
+    if body.feature_type ~= nil then
+        existingFeature.feature_type = body.feature_type
+    end
+    if body.geometry ~= nil then
+        existingFeature.geometry_data = require("json").encode(body.geometry)
+    end
+
+    -- Update feature in database
+    local updateErr = potato.db.update_by_id("Features", feature_id, existingFeature)
+    if updateErr ~= nil then
+        req.json(500, {
+            error = "Failed to update feature: " .. tostring(updateErr)
+        })
+        return
+    end
+
+    -- Update geopoly table if geometry changed
+    if body.geometry ~= nil then
+        -- Delete existing geopoly entry
+        local delete_geopoly = "DELETE FROM FeatureLocations WHERE feature_id = ?"
+        potato.db.run_query(delete_geopoly, feature_id)
+        
+        -- Insert new geopoly entry
+        local geopoly_coords = geometry_to_geopoly(body.geometry, body.feature_type or existingFeature.feature_type or "point")
+        if geopoly_coords ~= nil then
+            local geopoly_json = require("json").encode(geopoly_coords)
+            local geopoly_insert = "INSERT INTO FeatureLocations(feature_id, _shape) VALUES (?, ?)"
+            local _, geopolyErr = potato.db.run_query(geopoly_insert, feature_id, geopoly_json)
+            if geopolyErr ~= nil then
+                print("Warning: Failed to insert into geopoly table: " .. tostring(geopolyErr))
+            end
+        end
+    end
+
+    -- Get updated feature
+    local updatedFeature, fetchErr = potato.db.find_by_id("Features", feature_id)
+    if fetchErr ~= nil then
+        req.json(500, {
+            error = "Failed to fetch updated feature: " .. tostring(fetchErr)
+        })
+        return
+    end
+
+    -- Parse geometry_data back to table for response
+    if updatedFeature.geometry_data ~= nil and updatedFeature.geometry_data ~= "" and updatedFeature.geometry_data ~= "{}" then
+        local geometry, parseErr = require("json").decode(updatedFeature.geometry_data)
+        if parseErr == nil then
+            updatedFeature.geometry = geometry
+        end
+    end
+
+    -- Broadcast feature update via WebSocket
+    local broadcastParams = {
+        type = "feature_updated",
+        data = updatedFeature
+    }
+    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    if broadcastErr ~= nil then
+        print("Warning: Failed to broadcast feature update: " .. tostring(broadcastErr))
+    end
+
+    -- Publish feature update event to event hub
+    local eventOpts = {
+        name = "feature_updated",
+        payload = {
+            feature_id = updatedFeature.id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        print("Warning: Failed to publish feature_updated event: " .. tostring(publishErr))
+    end
+
+    req.json(200, updatedFeature)
 end
 
 function delete_feature(ctx, feature_id)
@@ -516,6 +791,30 @@ function delete_feature(ctx, feature_id)
             error = "Failed to delete feature: " .. tostring(err)
         })
         return
+    end
+
+    -- Broadcast feature deletion via WebSocket
+    local broadcastParams = {
+        type = "feature_deleted",
+        data = {
+            feature_id = feature_id
+        }
+    }
+    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    if broadcastErr ~= nil then
+        print("Warning: Failed to broadcast feature deletion: " .. tostring(broadcastErr))
+    end
+
+    -- Publish feature deletion event to event hub
+    local eventOpts = {
+        name = "feature_deleted",
+        payload = {
+            feature_id = feature_id
+        }
+    }
+    local _, publishErr = potato.core.publish_event(eventOpts)
+    if publishErr ~= nil then
+        print("Warning: Failed to publish feature_deleted event: " .. tostring(publishErr))
     end
 
     req.json(200, {
