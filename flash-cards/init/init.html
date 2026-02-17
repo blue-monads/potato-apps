@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/zz/static/libspace.js"></script>
+    <title>Init Flash Cards</title>
+</head>
+<body>
+    <h1>Initialize Flash Card Database</h1>
+    <p>Click the button below to set up your tables and audio storage.</p>
+    <button id="runSchemaSqlButton" style="display: block" onClick="runSchemaSql()">Run Schema SQL</button>
+    <button id="goHomeButton" style="display: none;" onclick="goHome()">Go Home</button>
+</body>
+<script>
+    const NAMESPACE = 'flash-cards';
+    if (!window.spaceGetToken(NAMESPACE)){
+        window.spaceRedirrectToAuth(`/zz/space/${NAMESPACE}`, 'init.html');
+    }
+    function goHome() {
+        window.location.href = `/zz/space/${NAMESPACE}`;
+    }
+
+    function runSchemaSql() {
+        fetch(`/zz/api/space/${NAMESPACE}/run_schema_sql`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': window.spaceGetToken(NAMESPACE),
+            },
+        }).then(response => {
+            if(response.ok) {
+                document.getElementById('runSchemaSqlButton').style.display = 'none';
+                document.getElementById('goHomeButton').style.display = 'block';
+                alert("Database Initialized!");
+            } else {
+                alert("Initialization failed. Check server logs.");
+            }
+        })
+    }
+</script>
+</html>

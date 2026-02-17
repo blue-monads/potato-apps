@@ -1,5 +1,5 @@
-package.spk.zip
+output/
 .env.potato
+package.spk.zip
 tsconfig.tsbuildinfo
 pdata/
-config.yaml
