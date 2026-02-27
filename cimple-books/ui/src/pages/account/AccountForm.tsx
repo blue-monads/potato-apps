@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createAccount, updateAccount, type Account } from '../../lib/api';
+import { ACCOUNT_TYPES } from './atypes';
 
-const ACCOUNT_TYPES = [
-    { value: 'expenses', label: 'Expenses' },
-    { value: 'revenue', label: 'Revenue' },
-    { value: 'assets', label: 'Assets' },
-    { value: 'liabilities', label: 'Liabilities' },
-    { value: 'equity', label: 'Equity' },
-];
+
 
 interface AccountFormProps {
     account?: Account | null;
