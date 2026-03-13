@@ -402,7 +402,7 @@ const Table = () => {
         <div className="flex min-h-screen bg-white">
             <aside className="fixed left-0 top-0 h-full w-64 bg-[#f9fafb] text-surface-900 flex flex-col border-r border-surface-200">
                 <div className="p-4">
-                    <h1 className="text-base font-bold text-surface-900 uppercase">SIMPLE BOOKS</h1>
+                    <h1 className="text-base font-bold text-surface-900 uppercase">SIMPLE Datatable</h1>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
