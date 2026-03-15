@@ -159,22 +159,33 @@ const EventsList = ({
                                     key={event.id}
                                     onClick={() => handleEventClick(event)}
                                     className={`${showHeader
-                                            ? `p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                                            }`
-                                            : `bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500' : ''
-                                            }`
+                                        ? `p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                                        }`
+                                        : `bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500' : ''
+                                        }`
                                         }`}
                                 >
                                     <div className="flex items-start gap-3">
-                                        {eventType ? (
-                                            <i
-                                                className={`fa ${eventType.icon.startsWith('fa-') ? eventType.icon : `fa-${eventType.icon}`} text-lg mt-0.5`}
-                                                style={{ color: eventType.color || '#3B82F6' }}
-                                            ></i>
-                                        ) : (
-                                            <MapPin className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-blue-500' : 'text-gray-400'
-                                                }`} />
-                                        )}
+
+                                        <div>
+                                            <span className="text-gray-500 text-xs">{`#${event.id}`}</span>
+                                            {eventType ? (
+                                                <i
+                                                    className={`fa ${eventType.icon.startsWith('fa-') ? eventType.icon : `fa-${eventType.icon}`} text-lg mt-0.5`}
+                                                    style={{ color: eventType.color || '#3B82F6' }}
+                                                ></i>
+                                            ) : (
+                                                
+                                                <i className={"fa fa-map-marker-alt text-lg mt-0.5 text-gray-400"} style={{ color: '#3B82F6' }}></i>
+
+                                            )}
+
+                                        </div>
+
+
+
+
+
                                         <div className="flex-1 min-w-0">
                                             <h3 className={`font-semibold text-gray-900 ${showHeader ? 'truncate' : 'text-lg'}`}>
                                                 {event.title || 'Untitled Event'}
