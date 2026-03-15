@@ -312,6 +312,10 @@ const Maps = () => {
                         hasMore={hasMoreEvents}
                         loadingMore={loadingMoreEvents}
                         onLoadMore={loadMoreEvents}
+                        onRefresh={() => {
+                            loadEvents();
+                            loadEventTypes();
+                        }}
                     />
                 </div>
             )}

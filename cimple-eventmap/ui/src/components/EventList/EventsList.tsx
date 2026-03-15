@@ -26,6 +26,8 @@ export interface EventsListProps {
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  /** Called when header refresh is clicked. When not provided and list loads its own data, refresh reloads events. */
+  onRefresh?: () => void;
 }
 
 function formatDateDefault(dateString: string | null): string {
@@ -44,6 +46,7 @@ const EventsList = ({
   hasMore: externalHasMore,
   loadingMore: externalLoadingMore,
   onLoadMore: externalOnLoadMore,
+  onRefresh: externalOnRefresh,
 }: EventsListProps) => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
@@ -130,6 +133,15 @@ const EventsList = ({
     [onEventClick]
   );
 
+  const handleRefresh = useCallback(() => {
+    if (useExternalData && externalOnRefresh) {
+      externalOnRefresh();
+    } else if (!useExternalData) {
+      loadEvents();
+      loadEventTypes();
+    }
+  }, [useExternalData, externalOnRefresh, loadEvents]);
+
   const showLoadMore =
     (!useExternalData && hasMore) ||
     (useExternalData === true && externalHasMore && externalOnLoadMore);
@@ -142,6 +154,7 @@ const EventsList = ({
         <EventsListHeader
           showCreateButton={showCreateButton}
           onNavigateCreate={handleNavigateCreate}
+          onRefresh={handleRefresh}
         />
       )}
 
