@@ -74,7 +74,7 @@ function EventImagesCollage({ images, title }: { images: EventImage[]; title: st
     const extra = n - 4;
 
     return (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 w-full max-h-64 rounded-lg overflow-hidden">
+        <div className="mt-2 grid grid-cols-2 gap-1.5 w-full max-h-64 rounded-lg">
             {show.map((img, i) => (
                 <div
                     key={img.event_image_id}
