@@ -101,12 +101,13 @@ function event_query(ctx)
     end
 
     -- Chronological feed: sort by id descending (newest first)
-    table.sort(events, function(a, b) return (a.id or 0) > (b.id or 0) end)
+    local function id_num(e) return tonumber(e.id) or 0 end
+    table.sort(events, function(a, b) return id_num(a) > id_num(b) end)
 
     if offset_id ~= nil then
         local filtered = {}
         for _, e in ipairs(events) do
-            if (e.id or 0) < offset_id then
+            if id_num(e) < offset_id then
                 table.insert(filtered, e)
             end
         end
@@ -164,6 +165,22 @@ function create_event(ctx)
             error = "Failed to create event: " .. tostring(insertErr)
         })
         return
+    end
+
+    -- Insert event images (EventImages table)
+    local image_urls = body.image_urls
+    if image_urls and type(image_urls) == "table" then
+        for _, image_url in ipairs(image_urls) do
+            if type(image_url) == "string" and #image_url > 0 then
+                local _, imgErr = potato.db.insert("EventImages", {
+                    event_id = id,
+                    image_url = image_url
+                })
+                if imgErr ~= nil then
+                    print("Warning: Failed to insert event image: " .. tostring(imgErr))
+                end
+            end
+        end
     end
 
     local createdEvent, fetchErr = potato.db.find_by_id("Events", id)

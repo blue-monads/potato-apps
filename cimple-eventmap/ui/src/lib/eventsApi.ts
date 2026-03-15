@@ -83,7 +83,7 @@ export const eventsApi = {
         return response.data!;
     },
 
-    create: async (event: Partial<Event>): Promise<Event> => {
+    create: async (event: Partial<Event> & { image_urls?: string[] }): Promise<Event> => {
         const response = await apiRequest<Event>('/events', {
             method: 'POST',
             body: JSON.stringify(event),

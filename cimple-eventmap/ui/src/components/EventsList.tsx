@@ -175,7 +175,7 @@ const EventsList = ({
                                                     style={{ color: eventType.color || '#3B82F6' }}
                                                 ></i>
                                             ) : (
-                                                
+
                                                 <i className={"fa fa-map-marker-alt text-lg mt-0.5 text-gray-400"} style={{ color: '#3B82F6' }}></i>
 
                                             )}
@@ -223,32 +223,6 @@ const EventsList = ({
                     </div>
                 )}
             </div>
-
-            {/* <div className="p-4">
-                <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                    onClick={() => {
-
-
-                        if (typeof window === 'undefined') return;
-
-                        if (!window.spaceFilePicker) return;
-                        if (!window.spaceGetToken) return;
-
-                        const token = window.spaceGetToken('cimple-eventmap');
-                        if (!token) return;
-
-                        const picker = window.spaceFilePicker(token);
-                        if (!picker) return;
-                        picker.showModal((file) => {
-                            console.log(file);
-                        })
-
-                    }}
-
-                >
-                    Show File Picker
-                </button>
-            </div> */}
         </div>
     );
 };

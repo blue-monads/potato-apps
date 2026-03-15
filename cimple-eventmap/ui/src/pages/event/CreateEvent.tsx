@@ -6,8 +6,18 @@ import 'leaflet/dist/leaflet.css';
 import { eventsApi } from '../../lib/eventsApi';
 import { eventTypesApi } from '../../lib/eventTypesApi';
 import { type EventType } from '../../lib/eventTypesApi';
-import { MapPin, Save, X, Plus } from 'lucide-react';
+import { MapPin, Save, X, Plus, ImagePlus } from 'lucide-react';
 import { BASE_PATH } from '../../lib/base';
+
+/** File object returned by window.spaceFilePicker(token).showModal(onSelect) */
+interface SpaceFile {
+    id: string;
+    name: string;
+    path?: string;
+    size?: number;
+    mime?: string;
+    is_folder?: boolean;
+}
 
 // Fix for default marker icons in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -40,6 +50,8 @@ const CreateEvent = () => {
         lat: 0,
         lng: 0,
     });
+    /** Image URLs (space file ids or URLs) to attach to the event */
+    const [imageUrls, setImageUrls] = useState<string[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [mapCenter, setMapCenter] = useState<[number, number]>([51.505, -0.09]);
@@ -73,6 +85,27 @@ const CreateEvent = () => {
             lng: parseFloat(lng.toFixed(6)),
         });
         setError(null);
+    };
+
+    const openImagePicker = () => {
+        if (typeof window === 'undefined') return;
+        const win = window as unknown as { spaceFilePicker?: (token: string) => { showModal: (cb: (file: SpaceFile) => void) => void }; spaceGetToken?: (app: string) => string | null };
+        if (!win.spaceFilePicker || !win.spaceGetToken) return;
+        const token = win.spaceGetToken('cimple-eventmap');
+        if (!token) return;
+        const picker = win.spaceFilePicker(token);
+        if (!picker) return;
+        picker.showModal((file: SpaceFile) => {
+            if (file.is_folder) return;
+            const url = file.id || (file.path ? `${file.path}/${file.name}`.replace(/^\/+/, '') : file.name);
+            if (url && !imageUrls.includes(url)) {
+                setImageUrls((prev) => [...prev, url]);
+            }
+        });
+    };
+
+    const removeImage = (index: number) => {
+        setImageUrls((prev) => prev.filter((_, i) => i !== index));
     };
 
     // Create custom icon from selected event type
@@ -147,6 +180,7 @@ const CreateEvent = () => {
                 event_type_id: formData.event_type_id,
                 lat: formData.lat,
                 lng: formData.lng,
+                image_urls: imageUrls.length > 0 ? imageUrls : undefined,
             });
 
             setSuccess(true);
@@ -327,6 +361,44 @@ const CreateEvent = () => {
                             </div>
                         </div>
                     )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Images <span className="text-xs text-gray-500 font-normal">(optional)</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2 items-center">
+                        <button
+                            type="button"
+                            onClick={openImagePicker}
+                            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                            <ImagePlus className="w-4 h-4" />
+                            Add image
+                        </button>
+                        {imageUrls.length > 0 && (
+                            <ul className="flex flex-wrap gap-2 mt-2">
+                                {imageUrls.map((url, index) => (
+                                    <li
+                                        key={`${url}-${index}`}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-sm"
+                                    >
+                                        <span className="text-gray-700 truncate max-w-[180px]" title={url}>
+                                            Image {index + 1}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(index)}
+                                            className="p-0.5 text-gray-500 hover:text-red-600 rounded"
+                                            aria-label="Remove image"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
 
                 <div>
