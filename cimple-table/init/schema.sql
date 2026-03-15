@@ -15,6 +15,7 @@ create table DatatableColumns(
     name TEXT NOT NULL DEFAULT '',
     -- text, number, date, boolean, image, file, link, dropdown, multiselect, checkbox, radio, textarea
     column_type TEXT NOT NULL DEFAULT '', 
+    order_index INTEGER NOT NULL DEFAULT 0,
     info TEXT NOT NULL DEFAULT '',
     required BOOLEAN NOT NULL DEFAULT FALSE,
     options TEXT NOT NULL DEFAULT '', -- Comma-separated options for dropdown/multiselect/radio
