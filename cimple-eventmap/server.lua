@@ -89,35 +89,16 @@ function event_query(ctx)
 
     print("offset_id: " .. tostring(offset_id))
 
-    local findByJoin = {
-        joins = {
-            {
-                left_table = "Events",
-                right_table = "EventImages",
-                left_on = "id",
-                right_on = "event_id"
-            }
-        },
-        cond = {
-            ["Events.id >"] = offset_id or 0,
-        },
-        fields = {
-            "Events.id",
-            "Events.title",
-            "Events.event_type_id",
-            "Events.event_data",
-            "Events.lat",
-            "Events.lng",
-            "Events.event_start",
-            "Events.event_end",
-            "EventImages.id AS event_image_id",
-            "EventImages.event_id",
-            "EventImages.image_url",
-        },
-    }
-
-
-    local events, err = potato.db.find_by_join(findByJoin)
+    local offset = offset_id or 0
+    local sql = [[
+        SELECT e.id, e.title, e.info, e.event_type_id, e.event_data, e.lat, e.lng, e.event_start, e.event_end, e.created_at,
+               i.id AS event_image_id, i.event_id, i.image_url
+        FROM Events e
+        LEFT JOIN EventImages i ON i.event_id = e.id
+        WHERE e.id IN (SELECT id FROM Events WHERE id > ? ORDER BY id LIMIT ?)
+        ORDER BY e.id, i.id
+    ]]
+    local rows, err = potato.db.run_query(sql, offset, EVENT_QUERY_PAGE_SIZE)
     if err ~= nil then
         req.json(500, {
             error = "Failed to list events: " .. tostring(err)
@@ -125,16 +106,42 @@ function event_query(ctx)
         return
     end
 
-    print("events: " .. tostring(#events))
-
-    if events == nil then
-        events = {}
+    if rows == nil then
+        rows = {}
     end
 
-    -- Apply page size (find_by_join has no limit support)
+    -- Group join rows by event id; each event gets an "images" array
+    local by_id = {}
+    local order = {}
+    for _, row in ipairs(rows) do
+        local eid = row.id
+        if by_id[eid] == nil then
+            by_id[eid] = {
+                id = row.id,
+                title = row.title,
+                info = row.info,
+                event_type_id = row.event_type_id,
+                event_data = row.event_data,
+                lat = row.lat,
+                lng = row.lng,
+                event_start = row.event_start,
+                event_end = row.event_end,
+                created_at = row.created_at,
+                images = {},
+            }
+            order[#order + 1] = eid
+        end
+        if row.event_image_id ~= nil and row.image_url ~= nil then
+            by_id[eid].images[#by_id[eid].images + 1] = {
+                event_image_id = row.event_image_id,
+                image_url = row.image_url,
+            }
+        end
+    end
+
     local page = {}
-    for i = 1, math.min(EVENT_QUERY_PAGE_SIZE, #events) do
-        page[i] = events[i]
+    for i = 1, #order do
+        page[i] = by_id[order[i]]
     end
 
     req.json_array(200, page)

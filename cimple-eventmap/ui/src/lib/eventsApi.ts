@@ -39,6 +39,11 @@ async function apiRequest<T>(
     };
 }
 
+export interface EventImage {
+    event_image_id: number;
+    image_url: string;
+}
+
 export interface Event {
     id: number;
     title: string;
@@ -50,6 +55,7 @@ export interface Event {
     event_start: string | null;
     event_end: string | null;
     created_at: string;
+    images?: EventImage[];
 }
 
 
@@ -67,9 +73,26 @@ export const eventsApi = {
         const data = response.data;
         if (!data) return [];
         if (!Array.isArray(data)) {
-            console.warn('API returned non-array data:', data);
+            console.warn('API returned non-array data:', data);            
             return [];
         }
+
+        data.forEach(event => {
+
+            // if images is not an array but object, convert it to an array
+            if (typeof event.images === 'object' && event.images !== null) {
+                event.images = Object.values(event.images);
+            }
+
+            event.images = event.images?.map(image => ({
+                event_image_id: image.event_image_id,
+                image_url: image.image_url,
+            }));
+        });
+
+        console.log('data', data);
+
+
         return data;
     },
 
