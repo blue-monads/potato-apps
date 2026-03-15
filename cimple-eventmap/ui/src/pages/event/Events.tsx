@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Plus, Calendar, Tag } from 'lucide-react';
 import { BASE_PATH } from '../../lib/base';
-import EventsList from '../../components/EventsList';
+import EventsList from '../../components/EventList/EventsList';
 import EventTypesList from '../../components/EventTypesList';
 
 type TabType = 'events' | 'event-types';

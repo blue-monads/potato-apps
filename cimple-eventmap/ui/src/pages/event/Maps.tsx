@@ -8,7 +8,7 @@ import { eventTypesApi } from '../../lib/eventTypesApi';
 import { type EventType } from '../../lib/eventTypesApi';
 import { featuresApi, type Feature } from '../../lib/featuresApi';
 import { getWsToken } from '../../lib/api';
-import EventsList from '../../components/EventsList';
+import EventsList from '../../components/EventList/EventsList';
 
 // Fix for default marker icons in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
