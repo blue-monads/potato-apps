@@ -16,16 +16,23 @@ interface EventsListProps {
     className?: string;
     events?: Event[]; // Optional: if provided, use this instead of loading
     eventTypes?: EventType[]; // Optional: if provided, use this instead of loading
+    /** When using external events (e.g. Maps page): show Load more and call this when clicked */
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    onLoadMore?: () => void;
 }
 
-const EventsList = ({ 
-    selectedEventId, 
-    onEventClick, 
+const EventsList = ({
+    selectedEventId,
+    onEventClick,
     showHeader = true,
     showCreateButton = true,
     className = '',
     events: externalEvents,
-    eventTypes: externalEventTypes
+    eventTypes: externalEventTypes,
+    hasMore: externalHasMore,
+    loadingMore: externalLoadingMore,
+    onLoadMore: externalOnLoadMore,
 }: EventsListProps) => {
     const navigate = useNavigate();
     const [events, setEvents] = useState<Event[]>([]);
@@ -121,7 +128,7 @@ const EventsList = ({
                     )}
                 </div>
             )}
-            
+
             <div className="flex-1 overflow-y-auto">
                 {loading ? (
                     <div className="p-4 text-center text-gray-500">Loading events...</div>
@@ -146,31 +153,27 @@ const EventsList = ({
                         {displayEvents.map((event) => {
                             const eventType = getEventType(event.event_type_id);
                             const isSelected = selectedEventId === event.id;
-                            
+
                             return (
                                 <div
                                     key={event.id}
                                     onClick={() => handleEventClick(event)}
-                                    className={`${
-                                        showHeader 
-                                            ? `p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
-                                                isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                                    className={`${showHeader
+                                            ? `p-4 cursor-pointer hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                                             }`
-                                            : `bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${
-                                                isSelected ? 'ring-2 ring-blue-500' : ''
+                                            : `bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow ${isSelected ? 'ring-2 ring-blue-500' : ''
                                             }`
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-start gap-3">
                                         {eventType ? (
-                                            <i 
+                                            <i
                                                 className={`fa ${eventType.icon.startsWith('fa-') ? eventType.icon : `fa-${eventType.icon}`} text-lg mt-0.5`}
                                                 style={{ color: eventType.color || '#3B82F6' }}
                                             ></i>
                                         ) : (
-                                            <MapPin className={`w-5 h-5 mt-0.5 ${
-                                                isSelected ? 'text-blue-500' : 'text-gray-400'
-                                            }`} />
+                                            <MapPin className={`w-5 h-5 mt-0.5 ${isSelected ? 'text-blue-500' : 'text-gray-400'
+                                                }`} />
                                         )}
                                         <div className="flex-1 min-w-0">
                                             <h3 className={`font-semibold text-gray-900 ${showHeader ? 'truncate' : 'text-lg'}`}>
@@ -194,15 +197,15 @@ const EventsList = ({
                                 </div>
                             );
                         })}
-                        {!useExternalData && hasMore && (
+                        {((!useExternalData && hasMore) || (useExternalData && externalHasMore && externalOnLoadMore)) && (
                             <div className="p-4 flex justify-center border-t border-gray-100">
                                 <button
                                     type="button"
-                                    onClick={loadMore}
-                                    disabled={loadingMore}
+                                    onClick={useExternalData ? externalOnLoadMore : loadMore}
+                                    disabled={useExternalData ? externalLoadingMore : loadingMore}
                                     className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    {loadingMore ? 'Loading…' : 'Load more'}
+                                    {(useExternalData ? externalLoadingMore : loadingMore) ? 'Loading…' : 'Load more'}
                                 </button>
                             </div>
                         )}
@@ -210,31 +213,31 @@ const EventsList = ({
                 )}
             </div>
 
-            <div className="p-4">
-        <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        onClick={() => {
+            {/* <div className="p-4">
+                <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    onClick={() => {
 
 
-            if (typeof window === 'undefined') return;
+                        if (typeof window === 'undefined') return;
 
-            if (!window.spaceFilePicker) return;
-            if (!window.spaceGetToken) return;
+                        if (!window.spaceFilePicker) return;
+                        if (!window.spaceGetToken) return;
 
-            const token = window.spaceGetToken('cimple-eventmap');
-            if (!token) return;
+                        const token = window.spaceGetToken('cimple-eventmap');
+                        if (!token) return;
 
-            const picker = window.spaceFilePicker(token);
-            if (!picker) return;
-            picker.showModal((file) => {
-                console.log(file);
-            })
+                        const picker = window.spaceFilePicker(token);
+                        if (!picker) return;
+                        picker.showModal((file) => {
+                            console.log(file);
+                        })
 
-        }}
-        
-        >
-            Show File Picker
-        </button>
-    </div>
+                    }}
+
+                >
+                    Show File Picker
+                </button>
+            </div> */}
         </div>
     );
 };

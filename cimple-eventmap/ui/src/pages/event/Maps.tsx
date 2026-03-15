@@ -29,12 +29,16 @@ function MapViewUpdater({ center, zoom }: { center: [number, number]; zoom: numb
     return null;
 }
 
+const EVENT_PAGE_SIZE = 1000;
+
 const Maps = () => {
     const [events, setEvents] = useState<Event[]>([]);
     const [eventTypes, setEventTypes] = useState<EventType[]>([]);
     const [features, setFeatures] = useState<Feature[]>([]);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadingMoreEvents, setLoadingMoreEvents] = useState(false);
+    const [hasMoreEvents, setHasMoreEvents] = useState(true);
     const [showEventsList, setShowEventsList] = useState(true);
     const [mapCenter, setMapCenter] = useState<[number, number]>([51.505, -0.09]);
     const [mapZoom, setMapZoom] = useState(13);
@@ -71,10 +75,12 @@ const Maps = () => {
     const loadEvents = async () => {
         try {
             setLoading(true);
-            const data = await eventsApi.list();
+            setHasMoreEvents(true);
+            const data = await eventsApi.query();
             const eventsArray = Array.isArray(data) ? data : [];
             setEvents(eventsArray);
-            
+            setHasMoreEvents(eventsArray.length >= EVENT_PAGE_SIZE);
+
             // Set map center to first event or default
             if (eventsArray.length > 0 && eventsArray[0].lat !== 0 && eventsArray[0].lng !== 0) {
                 setMapCenter([eventsArray[0].lat, eventsArray[0].lng]);
@@ -84,6 +90,22 @@ const Maps = () => {
             setEvents([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMoreEvents = async () => {
+        if (loadingMoreEvents || !hasMoreEvents || events.length === 0) return;
+        const last = events[events.length - 1];
+        try {
+            setLoadingMoreEvents(true);
+            const data = await eventsApi.query({ offset_id: last.id });
+            const next = Array.isArray(data) ? data : [];
+            setEvents((prev) => [...prev, ...next]);
+            setHasMoreEvents(next.length >= EVENT_PAGE_SIZE);
+        } catch (error) {
+            console.error('Failed to load more events:', error);
+        } finally {
+            setLoadingMoreEvents(false);
         }
     };
 
@@ -287,6 +309,9 @@ const Maps = () => {
                         showCreateButton={false}
                         events={events}
                         eventTypes={eventTypes}
+                        hasMore={hasMoreEvents}
+                        loadingMore={loadingMoreEvents}
+                        onLoadMore={loadMoreEvents}
                     />
                 </div>
             )}
