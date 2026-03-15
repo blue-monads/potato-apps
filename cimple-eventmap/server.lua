@@ -5,12 +5,11 @@ function get_user_id(req)
     if err then
         req.json(401, {
             error = "Unauthorized"
-        })        
+        })
         return nil
     end
     return userId
 end
-
 
 function run_schema_sql(ctx)
     local req = ctx.request()
@@ -25,7 +24,7 @@ function run_schema_sql(ctx)
         })
         return
     end
-    
+
     local schema, err = potato.core.read_package_file("schema.sql")
     if err ~= nil then
         req.json(500, {
@@ -88,7 +87,37 @@ function event_query(ctx)
         offset_id = tonumber(offset_id)
     end
 
-    local events, err = potato.db.find_all_by_cond("Events", {})
+    print("offset_id: " .. tostring(offset_id))
+
+    local findByJoin = {
+        joins = {
+            {
+                left_table = "Events",
+                right_table = "EventImages",
+                left_on = "id",
+                right_on = "event_id"
+            }
+        },
+        cond = {
+            ["Events.id >"] = offset_id or 0,
+        },
+        fields = {
+            "Events.id",
+            "Events.title",
+            "Events.event_type_id",
+            "Events.event_data",
+            "Events.lat",
+            "Events.lng",
+            "Events.event_start",
+            "Events.event_end",
+            "EventImages.id AS event_image_id",
+            "EventImages.event_id",
+            "EventImages.image_url",
+        },
+    }
+
+
+    local events, err = potato.db.find_by_join(findByJoin)
     if err ~= nil then
         req.json(500, {
             error = "Failed to list events: " .. tostring(err)
@@ -96,30 +125,16 @@ function event_query(ctx)
         return
     end
 
+    print("events: " .. tostring(#events))
+
     if events == nil then
         events = {}
     end
 
-    -- Chronological feed: sort by id descending (newest first)
-    local function id_num(e) return tonumber(e.id) or 0 end
-    table.sort(events, function(a, b) return id_num(a) > id_num(b) end)
-
-    if offset_id ~= nil then
-        local filtered = {}
-        for _, e in ipairs(events) do
-            if id_num(e) < offset_id then
-                table.insert(filtered, e)
-            end
-        end
-        events = filtered
-    end
-
+    -- Apply page size (find_by_join has no limit support)
     local page = {}
-    local n = 0
-    for _, e in ipairs(events) do
-        if n >= EVENT_QUERY_PAGE_SIZE then break end
-        table.insert(page, e)
-        n = n + 1
+    for i = 1, math.min(EVENT_QUERY_PAGE_SIZE, #events) do
+        page[i] = events[i]
     end
 
     req.json_array(200, page)
@@ -236,7 +251,7 @@ function list_event_types(ctx)
     if eventTypes == nil then
         eventTypes = {}
     end
-    
+
     req.json_array(200, eventTypes)
 end
 
@@ -542,7 +557,7 @@ function list_features(ctx)
     if features == nil then
         features = {}
     end
-    
+
     -- Parse geometry_data for each feature
     for i, feature in ipairs(features) do
         if feature.geometry_data ~= nil and feature.geometry_data ~= "" and feature.geometry_data ~= "{}" then
@@ -552,7 +567,7 @@ function list_features(ctx)
             end
         end
     end
-    
+
     req.json_array(200, features)
 end
 
@@ -588,22 +603,22 @@ function geometry_to_geopoly(geometry, feature_type)
     end
 
     local geopoly_coords = {}
-    
+
     if feature_type == "point" then
         -- For points, create a small bounding box (0.0001 degree ~= 11 meters)
         local lat = geometry[1]
         local lng = geometry[2]
         local offset = 0.0001
         geopoly_coords = {
-            {lng - offset, lat - offset},
-            {lng + offset, lat - offset},
-            {lng + offset, lat + offset},
-            {lng - offset, lat + offset}
+            { lng - offset, lat - offset },
+            { lng + offset, lat - offset },
+            { lng + offset, lat + offset },
+            { lng - offset, lat + offset }
         }
     elseif feature_type == "line" then
         -- For lines, use the points directly (geopoly needs closed polygon, so we'll close it)
         for i, point in ipairs(geometry) do
-            table.insert(geopoly_coords, {point[2], point[1]}) -- geopoly uses [lng, lat]
+            table.insert(geopoly_coords, { point[2], point[1] }) -- geopoly uses [lng, lat]
         end
         -- Close the polygon by adding first point at the end
         if #geopoly_coords > 0 then
@@ -612,11 +627,11 @@ function geometry_to_geopoly(geometry, feature_type)
     elseif feature_type == "area" then
         -- For areas, use the polygon points
         for i, point in ipairs(geometry) do
-            table.insert(geopoly_coords, {point[2], point[1]}) -- geopoly uses [lng, lat]
+            table.insert(geopoly_coords, { point[2], point[1] }) -- geopoly uses [lng, lat]
         end
         -- Ensure it's closed
-        if #geopoly_coords > 0 and (geopoly_coords[1][1] ~= geopoly_coords[#geopoly_coords][1] or 
-            geopoly_coords[1][2] ~= geopoly_coords[#geopoly_coords][2]) then
+        if #geopoly_coords > 0 and (geopoly_coords[1][1] ~= geopoly_coords[#geopoly_coords][1] or
+                geopoly_coords[1][2] ~= geopoly_coords[#geopoly_coords][2]) then
             table.insert(geopoly_coords, geopoly_coords[1])
         end
     end
@@ -663,7 +678,7 @@ function create_feature(ctx)
         if geopoly_coords ~= nil then
             -- Convert to geopoly JSON format: [[x1,y1], [x2,y2], ...]
             local geopoly_json = require("json").encode(geopoly_coords)
-            
+
             -- Insert into FeatureLocations geopoly table using parameterized query
             -- Geopoly _shape column expects JSON array of coordinate pairs
             local geopoly_insert = "INSERT INTO FeatureLocations(feature_id, _shape) VALUES (?, ?)"
@@ -765,9 +780,10 @@ function update_feature(ctx, feature_id)
         -- Delete existing geopoly entry
         local delete_geopoly = "DELETE FROM FeatureLocations WHERE feature_id = ?"
         potato.db.run_query(delete_geopoly, feature_id)
-        
+
         -- Insert new geopoly entry
-        local geopoly_coords = geometry_to_geopoly(body.geometry, body.feature_type or existingFeature.feature_type or "point")
+        local geopoly_coords = geometry_to_geopoly(body.geometry,
+            body.feature_type or existingFeature.feature_type or "point")
         if geopoly_coords ~= nil then
             local geopoly_json = require("json").encode(geopoly_coords)
             local geopoly_insert = "INSERT INTO FeatureLocations(feature_id, _shape) VALUES (?, ?)"
