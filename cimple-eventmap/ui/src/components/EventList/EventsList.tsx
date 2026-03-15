@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { eventsApi, type Event } from '../lib/eventsApi';
-import { eventTypesApi } from '../lib/eventTypesApi';
-import type { EventType } from '../lib/eventTypesApi';
-import { BASE_PATH } from '../lib/base';
+import { eventsApi, type Event } from '../../lib/eventsApi';
+import { eventTypesApi } from '../../lib/eventTypesApi';
+import type { EventType } from '../../lib/eventTypesApi';
+import { BASE_PATH } from '../../lib/base';
 import { EventCard } from './EventCard';
 import { EventDetailModal } from './EventDetailModal';
 import { EventsListEmpty } from './EventsListEmpty';

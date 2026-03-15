@@ -1,5 +1,5 @@
-import type { EventImage } from '../lib/eventsApi';
-import { eventImageSrc, PLACEHOLDER_SVG } from '../lib/eventImage';
+import type { EventImage } from '../../lib/eventsApi';
+import { eventImageSrc, PLACEHOLDER_SVG } from '../../lib/eventImage';
 
 export interface EventImageTileProps {
   img: EventImage;

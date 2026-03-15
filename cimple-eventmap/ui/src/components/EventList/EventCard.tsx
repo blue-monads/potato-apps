@@ -1,7 +1,7 @@
 import { Clock, MapPin, PanelRightOpen } from 'lucide-react';
-import type { Event } from '../lib/eventsApi';
-import type { EventType } from '../lib/eventTypesApi';
-import { EventImagesCollage } from './EventImagesCollage';
+import type { Event } from '../../lib/eventsApi';
+import type { EventType } from '../../lib/eventTypesApi';
+import { EventImagesCollage } from '../EventImagesCollage';
 
 function eventTypeIconClass(icon: string): string {
   return icon.startsWith('fa-') ? icon : `fa-${icon}`;

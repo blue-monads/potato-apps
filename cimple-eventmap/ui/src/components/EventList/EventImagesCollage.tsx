@@ -1,4 +1,4 @@
-import type { EventImage } from '../lib/eventsApi';
+import type { EventImage } from '../../lib/eventsApi';
 import { EventImageTile } from './EventImageTile';
 
 export interface EventImagesCollageProps {

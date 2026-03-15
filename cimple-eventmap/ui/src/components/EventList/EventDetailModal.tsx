@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Clock, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
-import type { Event } from '../lib/eventsApi';
-import type { EventType } from '../lib/eventTypesApi';
-import { eventImageSrc, PLACEHOLDER_SVG } from '../lib/eventImage';
+import type { Event } from '../../lib/eventsApi';
+import type { EventType } from '../../lib/eventTypesApi';
+import { eventImageSrc, PLACEHOLDER_SVG } from '../../lib/eventImage';
 
 export interface EventDetailModalProps {
   event: Event;
