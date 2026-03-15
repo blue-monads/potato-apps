@@ -24,6 +24,12 @@ create table if not exists Events(
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+create table if not exists EventImages(
+    id INTEGER PRIMARY KEY,
+    event_id INTEGER NOT NULL,
+    image_url TEXT NOT NULL
+);
+
 create VIRTUAL table if not exists EventLocations using geopoly(
     event_id
 );
