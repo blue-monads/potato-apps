@@ -14,20 +14,20 @@
 </body>
 
 <script>
-    if (!window.spaceGetToken('cimple-gis')) {
-        window.spaceRedirrectToAuth('/zz/space/cimple-gis', 'init.html');
+    if (!window.spaceGetToken('cimple-eventmap')) {
+        window.spaceRedirrectToAuth('/zz/space/cimple-eventmap', 'init.html');
     }
 
     function goHome() {
-        window.location.href = '/zz/space/cimple-gis';
+        window.location.href = '/zz/space/cimple-eventmap';
     }
 
     function runSchemaSql() {
-        fetch('/zz/api/space/cimple-gis/run_schema_sql', {
+        fetch('/zz/api/space/cimple-eventmap/run_schema_sql', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': window.spaceGetToken('cimple-gis'),
+                'Authorization': window.spaceGetToken('cimple-eventmap'),
             },
         }).then(data => {
             document.getElementById('runSchemaSqlButton').style.display = 'none';

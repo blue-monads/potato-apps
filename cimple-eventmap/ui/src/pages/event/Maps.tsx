@@ -105,7 +105,7 @@ const Maps = () => {
             // Build WebSocket URL
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/zz/api/capabilities/cimple-gis/easy-ws?token=${encodeURIComponent(token)}`;
+            const wsUrl = `${protocol}//${host}/zz/api/capabilities/cimple-eventmap/easy-ws?token=${encodeURIComponent(token)}`;
 
             // Create WebSocket connection
             const ws = new WebSocket(wsUrl);

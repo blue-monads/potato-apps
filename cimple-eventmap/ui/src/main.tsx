@@ -23,7 +23,7 @@ const LoadingFallback = () => (
 
 const RootLayout = () => (
     <Suspense fallback={<LoadingFallback />}>
-        <WithSpaceAuth spaceKey="cimple-gis">
+        <WithSpaceAuth spaceKey="cimple-eventmap">
           <ModalProvider>
             <Outlet />
           </ModalProvider>

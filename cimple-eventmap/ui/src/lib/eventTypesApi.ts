@@ -1,10 +1,8 @@
 import { API_BASE_PATH } from "./base";
 
-
-
 const getAuthToken = (): string | null => {
     if (typeof window === 'undefined') return null;
-    return (window as any).spaceGetToken?.('cimple-gis') || null;
+    return (window as any).spaceGetToken?.('cimple-eventmap') || null;
 };
 
 interface ApiResponse<T> {
@@ -13,7 +11,7 @@ interface ApiResponse<T> {
     error?: string;
 }
 
-export async function apiRequest<T>(
+async function apiRequest<T>(
     path: string, 
     options?: RequestInit
 ): Promise<ApiResponse<T>> {
@@ -41,57 +39,48 @@ export async function apiRequest<T>(
     };
 }
 
-export interface Event {
+export interface EventType {
     id: number;
-    title: string;
-    info: string;
-    event_type_id: number | null;
-    event_data: string;
-    lat: number;
-    lng: number;
-    event_start: string | null;
-    event_end: string | null;
+    name: string;
+    event_type: string;
+    icon: string;
+    color: string;
     created_at: string;
 }
 
-export const eventsApi = {
-    list: async (): Promise<Event[]> => {
-        const response = await apiRequest<Event[]>('/events', { method: 'GET' });
+export const eventTypesApi = {
+    list: async (): Promise<EventType[]> => {
+        const response = await apiRequest<EventType[]>('/event-types', { method: 'GET' });
         if (response.error) {
             throw new Error(response.error);
         }
-        return response.data || [];
+        const data = response.data;
+        if (!data) {
+            return [];
+        }
+        if (!Array.isArray(data)) {
+            console.warn('API returned non-array data:', data);
+            return [];
+        }
+        return data;
     },
     
-    get: async (id: number): Promise<Event> => {
-        const response = await apiRequest<Event>(`/events/${id}`, { method: 'GET' });
+    get: async (id: number): Promise<EventType> => {
+        const response = await apiRequest<EventType>(`/event-types/${id}`, { method: 'GET' });
         if (response.error) {
             throw new Error(response.error);
         }
         return response.data!;
     },
     
-    create: async (event: Partial<Event>): Promise<Event> => {
-        const response = await apiRequest<Event>('/events', {
+    create: async (eventType: Partial<EventType>): Promise<EventType> => {
+        const response = await apiRequest<EventType>('/event-types', {
             method: 'POST',
-            body: JSON.stringify(event),
+            body: JSON.stringify(eventType),
         });
         if (response.error) {
             throw new Error(response.error);
         }
         return response.data!;
     },
-};
-
-export interface GetWsTokenResponse {
-    easyws_cap_token: string;
-    conn_id: string;
-}
-
-export const getWsToken = async (): Promise<GetWsTokenResponse> => {
-    const response = await apiRequest<GetWsTokenResponse>('/get-ws-token', { method: 'GET' });
-    if (response.error) {
-        throw new Error(response.error);
-    }
-    return response.data!;
 };

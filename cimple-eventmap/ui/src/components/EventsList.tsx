@@ -186,7 +186,7 @@ const EventsList = ({
             if (!window.spaceFilePicker) return;
             if (!window.spaceGetToken) return;
 
-            const token = window.spaceGetToken('cimple-gis');
+            const token = window.spaceGetToken('cimple-eventmap');
             if (!token) return;
 
             const picker = window.spaceFilePicker(token);

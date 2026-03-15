@@ -2,7 +2,7 @@ import { API_BASE_PATH } from "./base";
 
 const getAuthToken = (): string | null => {
     if (typeof window === 'undefined') return null;
-    return (window as any).spaceGetToken?.('cimple-gis') || null;
+    return (window as any).spaceGetToken?.('cimple-eventmap') || null;
 };
 
 interface ApiResponse<T> {

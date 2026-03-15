@@ -1,8 +1,10 @@
 import { API_BASE_PATH } from "./base";
 
+
+
 const getAuthToken = (): string | null => {
     if (typeof window === 'undefined') return null;
-    return (window as any).spaceGetToken?.('cimple-gis') || null;
+    return (window as any).spaceGetToken?.('cimple-eventmap') || null;
 };
 
 interface ApiResponse<T> {
@@ -11,7 +13,7 @@ interface ApiResponse<T> {
     error?: string;
 }
 
-async function apiRequest<T>(
+export async function apiRequest<T>(
     path: string, 
     options?: RequestInit
 ): Promise<ApiResponse<T>> {
@@ -58,17 +60,7 @@ export const eventsApi = {
         if (response.error) {
             throw new Error(response.error);
         }
-        // Ensure we always return an array
-        const data = response.data;
-        if (!data) {
-            return [];
-        }
-        // If data is not an array, return empty array
-        if (!Array.isArray(data)) {
-            console.warn('API returned non-array data:', data);
-            return [];
-        }
-        return data;
+        return response.data || [];
     },
     
     get: async (id: number): Promise<Event> => {
@@ -89,4 +81,17 @@ export const eventsApi = {
         }
         return response.data!;
     },
+};
+
+export interface GetWsTokenResponse {
+    easyws_cap_token: string;
+    conn_id: string;
+}
+
+export const getWsToken = async (): Promise<GetWsTokenResponse> => {
+    const response = await apiRequest<GetWsTokenResponse>('/get-ws-token', { method: 'GET' });
+    if (response.error) {
+        throw new Error(response.error);
+    }
+    return response.data!;
 };

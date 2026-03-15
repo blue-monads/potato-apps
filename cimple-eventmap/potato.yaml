@@ -1,8 +1,10 @@
-name: Simple GIS
-info: Simple GIS app
-slug: cimple-gis
+name: Simple Event Map
+info: Simple Event Map
+slug: cimple-eventmap
 tags:
   - gis
+  - map
+  - event
 format_version: '0.0.2'
 author_name: Bornjre
 author_email: bornjre@gmail.com
@@ -15,7 +17,7 @@ special_pages:
   update_page: update_1.html
 
 spaces:
-  - namespace: cimple-gis
+  - namespace: cimple-eventmap
     executor_type: luaz
     server_file: server.lua
     is_default: true
@@ -26,10 +28,10 @@ spaces:
       on_not_found_file: index.html
 
 capabilities:
-  - name: easy-ws
-    type: easy-ws
+  - name: xEasyWS
+    type: xEasyWS
     spaces:
-      - cimple-gis
+      - cimple-eventmap
 
 developer:
   server_url: http://localhost:7777
