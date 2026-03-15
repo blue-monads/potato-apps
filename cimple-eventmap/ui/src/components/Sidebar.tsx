@@ -36,7 +36,7 @@ const Sidebar = () => {
 
 
             <div className="pt-2 px-2">
-                <h1 className="text-lg font-semibold uppercase">Simple GIS</h1>
+                <h1 className="text-lg font-semibold uppercase">Simple Eventmap</h1>
             </div>
 
             <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
