@@ -54,15 +54,24 @@ export interface Event {
     created_at: string;
 }
 
+
+
 export const eventsApi = {
-    list: async (): Promise<Event[]> => {
-        const response = await apiRequest<Event[]>('/events', { method: 'GET' });
+    /** Chronological feed: pass offset_id (last visible id) to load older events when scrolling down. */
+    query: async (params?: { offset_id?: number }): Promise<Event[]> => {
+        const body = params?.offset_id != null ? { offset_id: params.offset_id } : {};
+        const response = await apiRequest<Event[]>('/event_query', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
         if (response.error) {
             throw new Error(response.error);
         }
         return response.data || [];
     },
-    
+
+    list: async (): Promise<Event[]> => eventsApi.query(),
+
     get: async (id: number): Promise<Event> => {
         const response = await apiRequest<Event>(`/events/${id}`, { method: 'GET' });
         if (response.error) {

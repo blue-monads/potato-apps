@@ -52,25 +52,29 @@ export interface Event {
     created_at: string;
 }
 
+
 export const eventsApi = {
-    list: async (): Promise<Event[]> => {
-        const response = await apiRequest<Event[]>('/events', { method: 'GET' });
+    /** Chronological feed: pass offset_id (last visible id) to load older events when scrolling down. */
+    query: async (params?: { offset_id?: number }): Promise<Event[]> => {
+        const body = params?.offset_id != null ? { offset_id: params.offset_id } : {};
+        const response = await apiRequest<Event[]>('/event_query', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
         if (response.error) {
             throw new Error(response.error);
         }
-        // Ensure we always return an array
         const data = response.data;
-        if (!data) {
-            return [];
-        }
-        // If data is not an array, return empty array
+        if (!data) return [];
         if (!Array.isArray(data)) {
             console.warn('API returned non-array data:', data);
             return [];
         }
         return data;
     },
-    
+
+    list: async (): Promise<Event[]> => eventsApi.query(),
+
     get: async (id: number): Promise<Event> => {
         const response = await apiRequest<Event>(`/events/${id}`, { method: 'GET' });
         if (response.error) {
@@ -78,7 +82,7 @@ export const eventsApi = {
         }
         return response.data!;
     },
-    
+
     create: async (event: Partial<Event>): Promise<Event> => {
         const response = await apiRequest<Event>('/events', {
             method: 'POST',

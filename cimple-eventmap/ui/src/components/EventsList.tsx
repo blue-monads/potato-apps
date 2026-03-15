@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { eventsApi, type Event } from '../lib/eventsApi';
 import { eventTypesApi } from '../lib/eventTypesApi';
 import { type EventType } from '../lib/eventTypesApi';
 import { Clock, MapPin, Plus } from 'lucide-react';
 import { BASE_PATH } from '../lib/base';
+
+const PAGE_SIZE = 10;
 
 interface EventsListProps {
     selectedEventId?: number | null;
@@ -29,6 +31,8 @@ const EventsList = ({
     const [events, setEvents] = useState<Event[]>([]);
     const [eventTypes, setEventTypes] = useState<EventType[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
 
     // Use external events/eventTypes if provided, otherwise load them
     const useExternalData = externalEvents !== undefined || externalEventTypes !== undefined;
@@ -58,19 +62,37 @@ const EventsList = ({
         return displayEventTypes.find(t => t.id === eventTypeId) || null;
     };
 
-    const loadEvents = async () => {
+    const loadEvents = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await eventsApi.list();
+            setHasMore(true);
+            const data = await eventsApi.query();
             const eventsArray = Array.isArray(data) ? data : [];
             setEvents(eventsArray);
+            setHasMore(eventsArray.length >= PAGE_SIZE);
         } catch (error) {
             console.error('Failed to load events:', error);
             setEvents([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    const loadMore = useCallback(async () => {
+        if (useExternalData || loadingMore || !hasMore || displayEvents.length === 0) return;
+        const last = displayEvents[displayEvents.length - 1];
+        try {
+            setLoadingMore(true);
+            const data = await eventsApi.query({ offset_id: last.id });
+            const next = Array.isArray(data) ? data : [];
+            setEvents((prev) => [...prev, ...next]);
+            setHasMore(next.length >= PAGE_SIZE);
+        } catch (error) {
+            console.error('Failed to load more events:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [useExternalData, loadingMore, hasMore, displayEvents.length, displayEvents]);
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'N/A';
@@ -172,6 +194,18 @@ const EventsList = ({
                                 </div>
                             );
                         })}
+                        {!useExternalData && hasMore && (
+                            <div className="p-4 flex justify-center border-t border-gray-100">
+                                <button
+                                    type="button"
+                                    onClick={loadMore}
+                                    disabled={loadingMore}
+                                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {loadingMore ? 'Loading…' : 'Load more'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

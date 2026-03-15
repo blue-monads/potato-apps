@@ -56,7 +56,7 @@ function get_ws_token(ctx)
     local browser_id = os.time()
     local conn_id = "browser:" .. tostring(browser_id)
 
-    local easyws_cap_token, err = potato.cap.sign_token("easy-ws", {
+    local easyws_cap_token, err = potato.cap.sign_token("xEasyWS", {
         user_id = userId,
         resource_id = conn_id
     })
@@ -75,10 +75,18 @@ function get_ws_token(ctx)
 end
 
 -- Events API
-function list_events(ctx)
+local EVENT_QUERY_PAGE_SIZE = 10
+
+function event_query(ctx)
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
+
+    local body = req.bind_json() or {}
+    local offset_id = body.offset_id
+    if offset_id ~= nil then
+        offset_id = tonumber(offset_id)
+    end
 
     local events, err = potato.db.find_all_by_cond("Events", {})
     if err ~= nil then
@@ -88,12 +96,32 @@ function list_events(ctx)
         return
     end
 
-    -- Ensure we always return an array, even if events is nil
     if events == nil then
         events = {}
     end
-    -- Use json_array to ensure proper array serialization
-    req.json_array(200, events)
+
+    -- Chronological feed: sort by id descending (newest first)
+    table.sort(events, function(a, b) return (a.id or 0) > (b.id or 0) end)
+
+    if offset_id ~= nil then
+        local filtered = {}
+        for _, e in ipairs(events) do
+            if (e.id or 0) < offset_id then
+                table.insert(filtered, e)
+            end
+        end
+        events = filtered
+    end
+
+    local page = {}
+    local n = 0
+    for _, e in ipairs(events) do
+        if n >= EVENT_QUERY_PAGE_SIZE then break end
+        table.insert(page, e)
+        n = n + 1
+    end
+
+    req.json_array(200, page)
 end
 
 function get_event(ctx, event_id)
@@ -151,7 +179,7 @@ function create_event(ctx)
         type = "event_created",
         data = createdEvent
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         -- Log error but don't fail the request
         print("Warning: Failed to broadcast event creation: " .. tostring(broadcastErr))
@@ -246,7 +274,7 @@ function create_event_type(ctx)
         type = "event_type_created",
         data = createdEventType
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         -- Log error but don't fail the request
         print("Warning: Failed to broadcast event type creation: " .. tostring(broadcastErr))
@@ -321,7 +349,7 @@ function update_event_type(ctx, event_type_id)
         type = "event_type_updated",
         data = updatedEventType
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         print("Warning: Failed to broadcast event type update: " .. tostring(broadcastErr))
     end
@@ -371,7 +399,7 @@ function delete_event_type(ctx, event_type_id)
             event_type_id = event_type_id
         }
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         print("Warning: Failed to broadcast event type deletion: " .. tostring(broadcastErr))
     end
@@ -413,8 +441,8 @@ function on_http(ctx)
     end
 
     -- Events routes
-    if path == "/events" and method == "GET" then
-        return list_events(ctx)
+    if path == "/event_query" and method == "POST" then
+        return event_query(ctx)
     end
 
     if path == "/events" and method == "POST" then
@@ -651,7 +679,7 @@ function create_feature(ctx)
         type = "feature_created",
         data = createdFeature
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         -- Log error but don't fail the request
         print("Warning: Failed to broadcast feature creation: " .. tostring(broadcastErr))
@@ -755,7 +783,7 @@ function update_feature(ctx, feature_id)
         type = "feature_updated",
         data = updatedFeature
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         print("Warning: Failed to broadcast feature update: " .. tostring(broadcastErr))
     end
@@ -800,7 +828,7 @@ function delete_feature(ctx, feature_id)
             feature_id = feature_id
         }
     }
-    local _, broadcastErr = potato.cap.execute("easy-ws", "broadcast", broadcastParams)
+    local _, broadcastErr = potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
     if broadcastErr ~= nil then
         print("Warning: Failed to broadcast feature deletion: " .. tostring(broadcastErr))
     end
