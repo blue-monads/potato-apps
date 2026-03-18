@@ -67,12 +67,16 @@ export function EventCard({
           >
             {event.info || 'No description'}
           </p>
-          {event.images && event.images.length > 0 && (
-            <EventImagesCollage
-              images={event.images}
-              title={event.title || 'Event'}
-            />
-          )}
+
+          <div className="overflow-auto">
+            {event.images && event.images.length > 0 && (
+              <EventImagesCollage
+                images={event.images}
+                title={event.title || 'Event'}
+              />
+            )}
+          </div>
+
           <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
             <Clock className="w-3 h-3" />
             <span>{formatDate(event.created_at)}</span>
