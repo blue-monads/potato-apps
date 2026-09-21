@@ -60,45 +60,25 @@ import React, {
   
     return ReactDOM.createPortal(
       <div
-        className="modal-backdrop"
+        className="fixed inset-0 z-[1000] flex items-center justify-center bg-surface-900/40 p-4 animate-fade-in"
         onClick={handleOverlayClick}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-        }}
       >
         <div
-          className="modal-content"
-          style={{
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            minWidth: '300px',
-            maxWidth: maxWidth,
-            width: '90%',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          }}
+          className="w-full min-w-[300px] rounded-lg bg-white shadow-2xl"
+          style={{ maxWidth }}
         >
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '10px' }}>
-            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+          <header className="flex items-center justify-between gap-4 border-b border-surface-200 px-5 py-3">
+            <h3 className="text-[15px] font-semibold text-surface-900">{title}</h3>
             {isClosable && (
-              <button 
-                onClick={handleCloseClick} 
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+              <button
+                onClick={handleCloseClick}
+                className="flex h-6 w-6 items-center justify-center rounded text-surface-400 transition-colors hover:bg-surface-100 hover:text-surface-900"
               >
-                &times;
+                <i className="fa-solid fa-xmark text-[13px]" />
               </button>
             )}
           </header>
-          <div>{content}</div>
+          <div className="px-5 py-4">{content}</div>
         </div>
       </div>,
       document.body // Target element for the portal
