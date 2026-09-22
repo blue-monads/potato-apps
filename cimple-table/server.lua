@@ -171,6 +171,12 @@ local function ensure_actual_table(table_id)
         print("ensure_actual_table run_ddl err:", err)
     end
 
+    local idx_ddl = string.format("CREATE INDEX IF NOT EXISTS idx_%s_updated_at ON %s (updated_at);", table_name, table_name)
+    local _, idx_err = potato.db.run_ddl(idx_ddl)
+    if idx_err ~= nil then
+        print("ensure_actual_table idx_err:", idx_err)
+    end
+
     -- Verify columns in DatatableColumns are present in Actual<table_id>
     local columns = get_table_columns(table_id)
     if columns ~= nil and type(columns) == "table" and #columns > 0 then
@@ -289,6 +295,7 @@ function create_datatable(ctx)
     if ddl_err ~= nil then
         print("Warning: CREATE TABLE " .. table_name .. " error:", ddl_err)
     end
+    potato.db.run_ddl(string.format("CREATE INDEX IF NOT EXISTS idx_%s_updated_at ON %s (updated_at);", table_name, table_name))
     
     local result, fetch_err = potato.db.find_by_id("Datatables", id)
     if fetch_err ~= nil or result == nil then
@@ -760,11 +767,54 @@ function query_datatable(ctx, table_id)
         end
     end
 
+    local last_updated = ""
+    local last_res, _ = potato.db.run_query_one("SELECT MAX(updated_at) as last_updated FROM " .. actual_tbl)
+    if last_res ~= nil and last_res.last_updated ~= nil then
+        last_updated = tostring(last_res.last_updated)
+    end
+    local dt_meta, _ = potato.db.find_by_id("Datatables", n_tid)
+    if dt_meta ~= nil and dt_meta.updated_at ~= nil and tostring(dt_meta.updated_at) > last_updated then
+        last_updated = tostring(dt_meta.updated_at)
+    end
+
     req.json(200, {
         rows = rows,
         total = total,
         offset = offset,
-        limit = limit
+        limit = limit,
+        last_updated = last_updated
+    })
+end
+
+function get_table_last_updated(ctx, table_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if table_id == nil then
+        req.json(400, {
+            error = "table_id is required"
+        })
+        return
+    end
+
+    local n_tid = tonumber(table_id) or table_id
+    local actual_tbl = ensure_actual_table(n_tid)
+
+    local last_updated = ""
+    local last_res, _ = potato.db.run_query_one("SELECT MAX(updated_at) as last_updated FROM " .. actual_tbl)
+    if last_res ~= nil and last_res.last_updated ~= nil then
+        last_updated = tostring(last_res.last_updated)
+    end
+
+    local dt_meta, _ = potato.db.find_by_id("Datatables", n_tid)
+    if dt_meta ~= nil and dt_meta.updated_at ~= nil and tostring(dt_meta.updated_at) > last_updated then
+        last_updated = tostring(dt_meta.updated_at)
+    end
+
+    req.json(200, {
+        table_id = n_tid,
+        last_updated = last_updated
     })
 end
 
@@ -792,8 +842,12 @@ function seed_datatable_rows(ctx, table_id)
     local columns = get_table_columns(n_tid)
 
     local inserted_count = 0
+    local now_ts = os.date("!%Y-%m-%d %H:%M:%SZ")
     for _, r in ipairs(rows_input) do
-        local new_row = {}
+        local new_row = {
+            created_at = now_ts,
+            updated_at = now_ts
+        }
         for _, col in ipairs(columns) do
             if col.slug and col.slug ~= "" and r[col.slug] ~= nil then
                 new_row[col.slug] = r[col.slug]
@@ -803,6 +857,12 @@ function seed_datatable_rows(ctx, table_id)
         if err == nil then
             inserted_count = inserted_count + 1
         end
+    end
+
+    if inserted_count > 0 then
+        potato.db.update_by_id("Datatables", n_tid, {
+            updated_at = now_ts
+        })
     end
 
     req.json(200, {
@@ -862,7 +922,11 @@ function create_row(ctx)
         col_map_by_id[tonumber(col.id) or col.id] = col.slug
     end
 
-    local new_row = {}
+    local now_ts = os.date("!%Y-%m-%d %H:%M:%SZ")
+    local new_row = {
+        created_at = now_ts,
+        updated_at = now_ts
+    }
 
     -- Accept row values by column slug (data.task or data.data.task)
     local source = data.data or data
@@ -889,6 +953,10 @@ function create_row(ctx)
         })
         return
     end
+
+    potato.db.update_by_id("Datatables", tonumber(table_id) or table_id, {
+        updated_at = now_ts
+    })
 
     row_id = tonumber(row_id) or row_id
     local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), row_id)
@@ -941,7 +1009,10 @@ function update_row(ctx, row_id)
         col_map_by_id[tonumber(col.id) or col.id] = col.slug
     end
 
-    local updates = {}
+    local now_ts = os.date("!%Y-%m-%d %H:%M:%SZ")
+    local updates = {
+        updated_at = now_ts
+    }
 
     -- Accept row values by column slug (data.task or data.data.task)
     local source = data.data or data
@@ -961,9 +1032,10 @@ function update_row(ctx, row_id)
         end
     end
 
-    if next(updates) ~= nil then
-        potato.db.update_by_id("Actual" .. tostring(table_id), n_row_id, updates)
-    end
+    potato.db.update_by_id("Actual" .. tostring(table_id), n_row_id, updates)
+    potato.db.update_by_id("Datatables", tonumber(table_id) or table_id, {
+        updated_at = now_ts
+    })
 
     local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), n_row_id)
     if actual_rec == nil then
@@ -1006,8 +1078,12 @@ function delete_row(ctx, row_id)
         end
     end
 
+    local now_ts = os.date("!%Y-%m-%d %H:%M:%SZ")
     if table_id ~= nil and table_id ~= "" then
         potato.db.delete_by_id("Actual" .. tostring(table_id), n_row_id)
+        potato.db.update_by_id("Datatables", tonumber(table_id) or table_id, {
+            updated_at = now_ts
+        })
     else
         local datatables, _ = potato.db.find_all_by_cond("Datatables", { is_deleted = 0 })
         if datatables ~= nil and type(datatables) == "table" then
@@ -1015,6 +1091,9 @@ function delete_row(ctx, row_id)
                 local rec, _ = potato.db.find_by_id("Actual" .. tostring(dt.id), n_row_id)
                 if rec ~= nil then
                     potato.db.delete_by_id("Actual" .. tostring(dt.id), n_row_id)
+                    potato.db.update_by_id("Datatables", dt.id, {
+                        updated_at = now_ts
+                    })
                     break
                 end
             end
@@ -1185,6 +1264,30 @@ function on_http(ctx)
     end
 
     -- Rows & Query routes
+    local last_updated_match = string.match(path, "^/datatables/(%d+)/last_updated$")
+    if last_updated_match and method == "GET" then
+        local table_id = tonumber(last_updated_match)
+        if table_id ~= nil then
+            return get_table_last_updated(ctx, table_id)
+        end
+    end
+
+    if path == "/last_updated" and (method == "GET" or method == "POST") then
+        local table_id = ctx.query("table_id")
+        if table_id == nil or table_id == "" then
+            local data = req.bind_json()
+            if data and data.table_id then
+                table_id = data.table_id
+            end
+        end
+        if table_id ~= nil then
+            return get_table_last_updated(ctx, tonumber(table_id) or table_id)
+        else
+            req.json(400, { error = "table_id is required" })
+            return
+        end
+    end
+
     local query_match = string.match(path, "^/datatables/(%d+)/query$")
     if query_match and method == "POST" then
         local table_id = tonumber(query_match)

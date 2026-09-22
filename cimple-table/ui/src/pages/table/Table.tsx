@@ -14,6 +14,7 @@ import {
     updateRow,
     deleteRow,
     queryTable,
+    getTableLastUpdated,
     type Datatable,
     type DatatableColumn,
     type DatatableRow,
@@ -81,6 +82,9 @@ const Table = () => {
     const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
     const [appsMenuOpen, setAppsMenuOpen] = useState(false);
     const [targetRowOffset, setTargetRowOffset] = useState<number | null>(null);
+    const [loadedLastUpdated, setLoadedLastUpdated] = useState<string | null>(null);
+    const [hasRemoteChanges, setHasRemoteChanges] = useState<boolean>(false);
+    const loadedLastUpdatedRef = useRef<string | null>(null);
     const appsMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -156,6 +160,11 @@ const Table = () => {
             setTotalCount(res.data.total ?? 0);
             setTopOffset(res.data.offset ?? 0);
             setBottomOffset((res.data.offset ?? 0) + returnedRows.length);
+            if (res.data.last_updated !== undefined) {
+                setLoadedLastUpdated(res.data.last_updated);
+                loadedLastUpdatedRef.current = res.data.last_updated;
+            }
+            setHasRemoteChanges(false);
         }
         setLoading(false);
     };
@@ -210,6 +219,45 @@ const Table = () => {
         }, 300);
         return () => clearTimeout(timer);
     }, [search, filter.value]);
+
+    // Poll for changes when table and browser tab are active
+    useEffect(() => {
+        if (!currentTable) return;
+
+        let isMounted = true;
+
+        const checkLatestUpdate = async () => {
+            if (document.visibilityState !== 'visible') return;
+            if (!isMounted || !currentTable) return;
+
+            const res = await getTableLastUpdated(currentTable.id);
+            if (res.data && res.data.last_updated && isMounted) {
+                const latest = res.data.last_updated;
+                const current = loadedLastUpdatedRef.current;
+                if (current && latest && latest !== current) {
+                    setHasRemoteChanges(true);
+                }
+            }
+        };
+
+        const intervalId = setInterval(checkLatestUpdate, 10000);
+
+        const handleVisibilityOrFocus = () => {
+            if (document.visibilityState === 'visible') {
+                checkLatestUpdate();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+        window.addEventListener('focus', handleVisibilityOrFocus);
+
+        return () => {
+            isMounted = false;
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+            window.removeEventListener('focus', handleVisibilityOrFocus);
+        };
+    }, [currentTable?.id]);
 
     const loadMoreDown = async () => {
         if (!currentTable || loadingMoreDown || bottomOffset >= totalCount) return;
@@ -726,11 +774,30 @@ const Table = () => {
                             </button>
                         )}
                         <button
-                            onClick={() => handleRunQuery(topOffset)}
-                            title="Refresh"
-                            className="px-2.5 py-1.5 text-[13px] rounded-md border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 hover:border-surface-300 transition-colors"
+                            onClick={() => {
+                                setHasRemoteChanges(false);
+                                handleRunQuery(topOffset);
+                            }}
+                            title={
+                                hasRemoteChanges
+                                    ? "Data modified - click to refresh to latest"
+                                    : loadedLastUpdated
+                                        ? `Refresh (Last updated: ${loadedLastUpdated})`
+                                        : "Refresh"
+                            }
+                            className={`relative px-2.5 py-1.5 text-[13px] rounded-md border transition-colors cursor-pointer ${
+                                hasRemoteChanges
+                                    ? 'border-amber-400 text-amber-600 bg-amber-50 hover:bg-amber-100/70 ring-1 ring-amber-300'
+                                    : 'border-surface-200 text-surface-500 bg-white hover:bg-surface-50 hover:border-surface-300'
+                            }`}
                         >
                             <i className={`fa-solid fa-rotate-right text-[11px] ${loading ? 'animate-spin' : ''}`} />
+                            {hasRemoteChanges && (
+                                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 ring-1 ring-white"></span>
+                                </span>
+                            )}
                         </button>
                     </div>
 

@@ -146,6 +146,11 @@ export interface DatatableQueryResult {
     total: number;
     offset: number;
     limit: number;
+    last_updated?: string;
+}
+
+export async function getTableLastUpdated(tableId: number): Promise<ApiResponse<{ table_id: number; last_updated: string }>> {
+    return apiRequest<{ table_id: number; last_updated: string }>(`/datatables/${tableId}/last_updated`, { method: 'GET' });
 }
 
 export async function queryTable(
