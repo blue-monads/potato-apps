@@ -31,6 +31,7 @@ import {
     getTypeIcon,
     summarize,
 } from "./sub/columnTypes";
+import { getTableColorConfig } from "../../lib/tableColors";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
 
@@ -512,23 +513,27 @@ const Table = () => {
 
     const sortedColumn = sort ? columns.find(c => c.id === sort.columnId) : null;
     const allVisibleSelected = rows.length > 0 && selectedRowIds.size === rows.length;
+    const activeColorConfig = getTableColorConfig(currentTable?.color);
 
     return (
         <div className="h-screen flex flex-col bg-surface-50 overflow-hidden">
 
             {/* App header */}
-            <header className="flex items-center justify-between gap-4 bg-surface-800 text-white px-4 py-2 shrink-0">
+            <header
+                className="flex items-center justify-between gap-4 text-white px-4 py-2 shrink-0 transition-colors duration-200 shadow-xs"
+                style={{ backgroundColor: activeColorConfig.headerBg }}
+            >
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <i className="fa-solid fa-table-cells text-accent-400 text-sm" />
-                    <span className="font-semibold text-[15px]">Simple Datatable</span>
+                    <i className="fa-solid fa-table-cells text-white/80 text-sm" />
+                    <span className="font-semibold text-[15px] tracking-tight">Simple Datatable</span>
                     {currentTable?.info && (
-                        <span className="hidden md:inline text-[11px] text-surface-400 truncate max-w-md">
+                        <span className="hidden md:inline text-[11px] text-white/70 truncate max-w-md">
                             {currentTable.info}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[12px] text-surface-400">
+                    <span className="text-[12px] text-white/75">
                         {selectedRowIds.size > 0
                             ? `${selectedRowIds.size} row${selectedRowIds.size === 1 ? '' : 's'} selected`
                             : `${totalCount.toLocaleString()} record${totalCount === 1 ? '' : 's'}`}
@@ -540,8 +545,8 @@ const Table = () => {
                             onClick={() => setAppsMenuOpen(o => !o)}
                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                                 appsMenuOpen
-                                    ? 'bg-surface-700 text-white'
-                                    : 'text-surface-300 hover:text-white hover:bg-surface-700'
+                                    ? 'bg-black/30 text-white'
+                                    : 'text-white/70 hover:text-white hover:bg-black/20'
                             }`}
                             title="Apps & Tools"
                         >
@@ -585,29 +590,38 @@ const Table = () => {
             </header>
 
             {/* Table tabs */}
-            <nav className="flex items-center gap-1 bg-surface-900 px-3 overflow-x-auto scrollbar-thin border-b border-surface-700 shrink-0">
+            <nav
+                className="flex items-center gap-1 px-3 overflow-x-auto scrollbar-thin border-b border-black/20 shrink-0 transition-colors duration-200"
+                style={{ backgroundColor: activeColorConfig.navBg }}
+            >
                 {datatables.map(table => {
                     const active = tableId === table.id.toString();
+                    const tableColor = getTableColorConfig(table.color);
                     return (
                         <div
                             key={table.id}
                             onClick={() => navigate(`${BASE_PATH}table/${table.id}`)}
                             onDoubleClick={() => handleEditTable(table)}
-                            className={`group flex items-center gap-2 px-3.5 py-2 text-[13px] rounded-t-md cursor-pointer whitespace-nowrap select-none border border-b-0 transition-colors ${
+                            style={active ? { borderTop: `3px solid ${tableColor.hex}` } : undefined}
+                            className={`group flex items-center gap-2 px-3.5 py-2 text-[13px] rounded-t-md cursor-pointer whitespace-nowrap select-none border border-b-0 transition-all ${
                                 active
-                                    ? 'bg-white text-accent-600 font-semibold border-surface-200'
-                                    : 'text-surface-400 border-transparent hover:text-white hover:bg-surface-800'
+                                    ? 'bg-white font-semibold border-surface-200 shadow-xs'
+                                    : 'text-white/70 border-transparent hover:text-white hover:bg-white/10'
                             }`}
                         >
-                            <i className={`fa-solid fa-${table.icon || 'table'} text-[11px]`} />
-                            <span>{table.name}</span>
+                            <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: tableColor.hex }}
+                            />
+                            <i className={`fa-solid fa-${table.icon || 'table'} text-[11px] ${active ? '' : 'opacity-70'}`} />
+                            <span style={active ? { color: tableColor.hex } : undefined}>{table.name}</span>
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}
                                 title="Table settings"
                                 className={`w-4 h-4 rounded-full inline-flex items-center justify-center transition-opacity ${
                                     active
-                                        ? 'text-surface-400 hover:text-surface-900 hover:bg-surface-200'
-                                        : 'text-surface-500 hover:text-white opacity-0 group-hover:opacity-100'
+                                        ? 'text-surface-400 hover:text-surface-900 hover:bg-surface-100'
+                                        : 'text-white/60 hover:text-white opacity-0 group-hover:opacity-100'
                                 }`}
                             >
                                 <i className="fa-solid fa-gear text-[9px]" />
@@ -617,7 +631,7 @@ const Table = () => {
                 })}
                 <button
                     onClick={handleCreateTable}
-                    className="px-2.5 py-1.5 my-1 text-surface-400 text-[13px] rounded hover:text-white hover:bg-surface-800 whitespace-nowrap transition-colors"
+                    className="px-2.5 py-1.5 my-1 text-white/70 text-[13px] rounded hover:text-white hover:bg-white/10 whitespace-nowrap transition-colors cursor-pointer"
                 >
                     <i className="fa-solid fa-plus text-[11px] mr-1.5" />New Table
                 </button>
@@ -631,7 +645,8 @@ const Table = () => {
                             <button
                                 onClick={handleCreateRow}
                                 disabled={columns.length === 0}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md bg-accent-600 text-white hover:bg-accent-700 disabled:opacity-40 disabled:hover:bg-accent-600 transition-colors"
+                                style={{ backgroundColor: activeColorConfig.hex }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md text-white hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shadow-xs"
                             >
                                 <i className="fa-solid fa-plus text-[11px]" />Add Record
                             </button>

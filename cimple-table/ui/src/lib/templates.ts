@@ -3,6 +3,7 @@ export interface TableTemplate {
     name: string;
     description: string;
     icon: string;
+    color?: string;
     columns: {
         name: string;
         column_type: string;
@@ -18,6 +19,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Blank Table",
         description: "Start from scratch and build your own custom columns",
         icon: "table",
+        color: "slate",
         columns: []
     },
     {
@@ -25,6 +27,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Contacts",
         description: "Manage your contacts, clients, and relationships",
         icon: "address-book",
+        color: "blue",
         columns: [
             { name: "Name", column_type: "text", info: "Full name", required: true },
             { name: "Email", column_type: "text", info: "Email address" },
@@ -39,6 +42,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Task Tracker",
         description: "Track tasks, assignments, deadlines, and project statuses",
         icon: "tasks",
+        color: "emerald",
         columns: [
             { name: "Task", column_type: "text", info: "Task name", required: true },
             { name: "Status", column_type: "dropdown", info: "Task status", options: "Todo, In Progress, Review, Done" },
@@ -53,6 +57,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Inventory",
         description: "Track products, stock levels, pricing, and storage locations",
         icon: "boxes",
+        color: "amber",
         columns: [
             { name: "Product Name", column_type: "text", info: "Product name", required: true },
             { name: "SKU", column_type: "text", info: "Stock keeping unit" },
@@ -67,6 +72,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Events",
         description: "Manage events, conferences, attendees, and schedules",
         icon: "calendar",
+        color: "violet",
         columns: [
             { name: "Event Name", column_type: "text", info: "Event title", required: true },
             { name: "Date", column_type: "date", info: "Event date" },
@@ -81,6 +87,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Expenses",
         description: "Track expenses, payment methods, receipts, and budgets",
         icon: "receipt",
+        color: "rose",
         columns: [
             { name: "Description", column_type: "text", info: "Expense description", required: true },
             { name: "Amount", column_type: "number", info: "Expense amount" },
@@ -95,6 +102,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         name: "Notes",
         description: "Capture quick notes, ideas, tags, and documentation",
         icon: "sticky-note",
+        color: "cyan",
         columns: [
             { name: "Title", column_type: "text", info: "Note title", required: true },
             { name: "Content", column_type: "textarea", info: "Note content" },

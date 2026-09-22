@@ -224,9 +224,19 @@ local function get_table_rows(table_id, cols_array)
     return rows
 end
 
+local _schema_migrated = false
+local function ensure_schema_migrations()
+    if _schema_migrated then return end
+    _schema_migrated = true
+    pcall(function()
+        potato.db.run_ddl("ALTER TABLE Datatables ADD COLUMN color TEXT NOT NULL DEFAULT ''")
+    end)
+end
+
 -- DATATABLES CRUD
 
 function list_datatables(ctx)
+    ensure_schema_migrations()
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
@@ -244,6 +254,7 @@ function list_datatables(ctx)
 end
 
 function create_datatable(ctx)
+    ensure_schema_migrations()
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
@@ -253,6 +264,7 @@ function create_datatable(ctx)
         name = data.name or "",
         info = data.info or "",
         icon = data.icon or "table",
+        color = data.color or "",
         is_deleted = 0
     }
     
@@ -356,6 +368,7 @@ function update_datatable(ctx, table_id)
     if data.name ~= nil then updates.name = data.name end
     if data.info ~= nil then updates.info = data.info end
     if data.icon ~= nil then updates.icon = data.icon end
+    if data.color ~= nil then updates.color = data.color end
 
     local err = potato.db.update_by_id("Datatables", table_id, updates)
     if err ~= nil then

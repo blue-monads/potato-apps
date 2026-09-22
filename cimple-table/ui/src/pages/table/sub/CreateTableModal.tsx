@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TABLE_TEMPLATES, type TableTemplate } from "../../../lib/templates";
 import { getTypeIcon } from "./columnTypes";
+import { TABLE_COLOR_PRESETS } from "../../../lib/tableColors";
 
 export interface ColumnDraft {
     id: string;
@@ -15,6 +16,7 @@ export interface TableCreateData {
     name: string;
     info?: string;
     icon?: string;
+    color?: string;
 }
 
 interface CreateTableModalProps {
@@ -49,6 +51,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
     const [name, setName] = useState("");
     const [info, setInfo] = useState("");
     const [icon, setIcon] = useState("table");
+    const [color, setColor] = useState("blue");
 
     // Columns Builder State
     const [columns, setColumns] = useState<ColumnDraft[]>([]);
@@ -58,6 +61,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
         setName(template.id === "blank" ? "" : template.name);
         setInfo(template.id === "blank" ? "" : template.description);
         setIcon(template.icon || "table");
+        setColor(template.color || "blue");
 
         setColumns(
             template.columns.map((c, i) => ({
@@ -139,7 +143,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
 
         setSubmitting(true);
         try {
-            await onSave({ name: name.trim(), info: info.trim(), icon }, validColumns);
+            await onSave({ name: name.trim(), info: info.trim(), icon, color }, validColumns);
         } finally {
             setSubmitting(false);
         }
@@ -312,6 +316,41 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                             <i className={`fa-solid fa-${ic}`} />
                         </button>
                     ))}
+                </div>
+
+                {/* Table Color Picker */}
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider">
+                            Theme Color
+                        </label>
+                        <span className="text-[11px] font-medium text-surface-500 capitalize">
+                            {TABLE_COLOR_PRESETS.find(c => c.id === color)?.name || color}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {TABLE_COLOR_PRESETS.map((preset) => {
+                            const isSelected = color === preset.id;
+                            return (
+                                <button
+                                    key={preset.id}
+                                    type="button"
+                                    onClick={() => setColor(preset.id)}
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                                        isSelected
+                                            ? "ring-2 ring-offset-2 ring-surface-700 scale-110 shadow-sm"
+                                            : "hover:scale-105 opacity-80 hover:opacity-100"
+                                    }`}
+                                    style={{ backgroundColor: preset.hex }}
+                                    title={preset.name}
+                                >
+                                    {isSelected && (
+                                        <i className="fa-solid fa-check text-white text-[9px]" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div className="space-y-1">
