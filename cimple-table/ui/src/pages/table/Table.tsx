@@ -240,7 +240,7 @@ const Table = () => {
             }
         };
 
-        const intervalId = setInterval(checkLatestUpdate, 10000);
+        const intervalId = setInterval(checkLatestUpdate, 30000);
 
         const handleVisibilityOrFocus = () => {
             if (document.visibilityState === 'visible') {
