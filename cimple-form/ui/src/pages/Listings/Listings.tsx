@@ -229,6 +229,18 @@ const Listings = () => {
                                         </span>
 
                                         <div className="flex items-center gap-2">
+                                            <a
+                                                href={`${basePath}submitter?form_id=${form.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#FAFAF7] hover:bg-[#EEF0EA] border border-[#E1E3DB] text-gray-700 text-[11px] font-semibold transition-colors cursor-pointer"
+                                                title="Open public form submitter"
+                                            >
+                                                <i className="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-500"></i>
+                                                <span>Open</span>
+                                            </a>
+
                                             <button
                                                 type="button"
                                                 onClick={(e) => {

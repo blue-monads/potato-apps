@@ -33,12 +33,13 @@ const Submissions = () => {
           api.getSubmissions().catch(() => []),
         ]);
 
-        const formsList = formsData || [];
+        const formsList: Form[] = Array.isArray(formsData) ? formsData : Object.values(formsData || {}) as Form[];
         setForms(formsList);
 
         // Map form names to submissions
         const formsMap = new Map(formsList.map(f => [f.id, f.name]));
-        const enrichedSubs: DetailedSubmission[] = (subsData || []).map(s => ({
+        const rawSubs: any[] = Array.isArray(subsData) ? subsData : Object.values(subsData || {}) as any[];
+        const enrichedSubs: DetailedSubmission[] = rawSubs.map(s => ({
           ...s,
           formName: formsMap.get(s.form_id) || `Form #${s.form_id}`,
         }));
@@ -51,7 +52,10 @@ const Submissions = () => {
           try {
             const formData = await api.getForm(f.id);
             if (formData && formData.fields) {
-              fieldsMap[f.id] = formData.fields;
+              const rawFields: FormField[] = Array.isArray(formData.fields)
+                ? formData.fields
+                : (Object.values(formData.fields || {}) as FormField[]);
+              fieldsMap[f.id] = rawFields;
             }
           } catch {}
         }

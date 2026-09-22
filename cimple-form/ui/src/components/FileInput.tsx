@@ -1,12 +1,10 @@
 import React, { useState, useRef } from 'react';
 import type { FileValue } from '../pages/Builder/sub/ftype';
 import {
-  openSpaceFilePicker,
   uploadSpaceFile,
   formatFileSize,
   getFileIconClass,
   isImageFile,
-  getSpaceToken,
 } from '../lib/spaceFile';
 
 interface FileInputProps {
@@ -79,21 +77,6 @@ export const FileInput: React.FC<FileInputProps> = ({
       handleNativeUpload(file);
     }
   };
-
-  const handleOpenPicker = () => {
-    if (disabled || isUploading) return;
-    setUploadError(null);
-    const opened = openSpaceFilePicker((file) => {
-      onChange(file);
-    });
-
-    // Fallback: if space picker modal is not available, open native file selector
-    if (!opened && fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const hasSpaceToken = Boolean(getSpaceToken());
 
   return (
     <div className="w-full">
@@ -214,22 +197,11 @@ export const FileInput: React.FC<FileInputProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-[#CBCEC3] rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-100 border border-[#CBCEC3] rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
                 >
-                  <i className="fa-solid fa-laptop text-[11px] text-gray-500"></i>
+                  <i className="fa-solid fa-cloud-arrow-up text-xs text-[#2E6E52]"></i>
                   <span>Upload from device</span>
                 </button>
-
-                {hasSpaceToken && (
-                  <button
-                    type="button"
-                    onClick={handleOpenPicker}
-                    className="px-3 py-1.5 text-xs font-semibold text-[#2E6E52] bg-[#2E6E52]/10 hover:bg-[#2E6E52]/15 border border-[#2E6E52]/20 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5"
-                  >
-                    <i className="fa-solid fa-folder-open text-[11px]"></i>
-                    <span>Space Files</span>
-                  </button>
-                )}
               </div>
             </div>
           )}

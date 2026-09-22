@@ -654,8 +654,21 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
           </button>
         </div>
 
-        {/* Save Action */}
+        {/* Actions */}
         <div className="flex items-center gap-2">
+          {form.id && (
+            <a
+              href={`${basePath}submitter?form_id=${form.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-[#CBCEC3] transition-colors shadow-2xs"
+              title="Open public form submitter in a new tab"
+            >
+              <i className="fa-solid fa-arrow-up-right-from-square text-[10px] text-gray-500"></i>
+              <span>Open Form</span>
+            </a>
+          )}
+
           <button
             onClick={handleSave}
             disabled={status === "saving"}
@@ -1423,9 +1436,9 @@ function renderFieldPreviewInput(f: FormField) {
         <div className="border border-dashed border-[#CBCEC3] rounded-lg p-3 text-center text-xs text-gray-500 bg-[#FAFAF7] flex flex-col items-center justify-center gap-1.5">
           <div className="flex items-center gap-1.5 text-gray-600 font-semibold">
             <i className="fa-solid fa-cloud-arrow-up text-sm text-[#2E6E52]"></i>
-            <span>Upload file or select from space</span>
+            <span>Upload file from device</span>
           </div>
-          <span className="text-[11px] text-gray-400">Supports drag & drop, device files, and Potatoverse storage</span>
+          <span className="text-[11px] text-gray-400">Supports drag & drop or clicking to select from device</span>
         </div>
       );
     case "location":

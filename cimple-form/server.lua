@@ -59,26 +59,7 @@ function list_forms(ctx)
     req.json_array(200, forms)
 end
 
-function get_form(ctx)
-    local req = ctx.request()
-    local userId = get_user_id(req)
-    if userId == nil then return end
-
-    local formIdStr, exists = req.get_query("form_id")
-    if not exists or formIdStr == nil then
-        req.json(400, {
-            error = "form_id is required"
-        })
-        return
-    end
-    local formId = tonumber(formIdStr)
-    if formId == nil then
-        req.json(400, {
-            error = "form_id must be a number"
-        })
-        return
-    end
-
+local function load_form_and_details(req, formId)
     -- Get form
     local form, err = potato.db.find_by_id("forms", formId)
     if err ~= nil then
@@ -179,6 +160,50 @@ function get_form(ctx)
         sections = sectionsArray,
         fields = fieldsArray
     })
+end
+
+function get_form(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local formIdStr, exists = req.get_query("form_id")
+    if not exists or formIdStr == nil then
+        req.json(400, {
+            error = "form_id is required"
+        })
+        return
+    end
+    local formId = tonumber(formIdStr)
+    if formId == nil then
+        req.json(400, {
+            error = "form_id must be a number"
+        })
+        return
+    end
+
+    load_form_and_details(req, formId)
+end
+
+function get_public_form(ctx)
+    local req = ctx.request()
+
+    local formIdStr, exists = req.get_query("form_id")
+    if not exists or formIdStr == nil then
+        req.json(400, {
+            error = "form_id is required"
+        })
+        return
+    end
+    local formId = tonumber(formIdStr)
+    if formId == nil then
+        req.json(400, {
+            error = "form_id must be a number"
+        })
+        return
+    end
+
+    load_form_and_details(req, formId)
 end
 
 function create_form(ctx)
@@ -783,6 +808,10 @@ function on_http(ctx)
         return get_form(ctx)
     end
 
+    if path == "/api/public/form" and method == "GET" then
+        return get_public_form(ctx)
+    end
+
     if path == "/api/form/create" and method == "POST" then
         return create_form(ctx)
     end
@@ -815,7 +844,7 @@ function on_http(ctx)
         return list_submissions(ctx)
     end
 
-    if (path == "/api/form/submit" or path == "/api/submissions") and method == "POST" then
+    if (path == "/api/form/submit" or path == "/api/submissions" or path == "/api/public/form/submit") and method == "POST" then
         return submit_form(ctx)
     end
 

@@ -40,6 +40,10 @@ const getForm = async (formId: number): Promise<{ form: Form; sections: FormSect
     return apiRequest<{ form: Form; sections: FormSection[]; fields: FormField[] }>(`/api/form?form_id=${formId}`);
 }
 
+const getPublicForm = async (formId: number): Promise<{ form: Form; sections: FormSection[]; fields: FormField[] }> => {
+    return apiRequest<{ form: Form; sections: FormSection[]; fields: FormField[] }>(`/api/public/form?form_id=${formId}`);
+}
+
 const createForm = async (form: Omit<Form, 'id'>): Promise<{ id: number }> => {
     return apiRequest<{ id: number }>('/api/form/create', {
         method: 'POST',
@@ -119,6 +123,7 @@ const deleteSubmission = async (submissionId: number): Promise<void> => {
 export default {
     getForms,
     getForm,
+    getPublicForm,
     createForm,
     updateForm,
     deleteForm,

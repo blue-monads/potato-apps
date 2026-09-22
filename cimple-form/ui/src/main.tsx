@@ -9,6 +9,7 @@ import WithSpaceAuth from "./lib/shared/WithSpaceAuth";
 
 const ListingsPage = lazy(() => import("./pages/Listings/ListingsPage"));
 const FormBuilderPage = lazy(() => import("./pages/Builder/FormBuilderPage"));
+const SubmitterPage = lazy(() => import("./pages/Submitter/SubmitterPage"));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -17,12 +18,17 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Root layout with providers
+// Root layout with suspense
 const RootLayout = () => (
+  <Suspense fallback={<LoadingFallback />}>
+    <Outlet />
+  </Suspense>
+);
+
+// Protected layout with space authentication for admin routes
+const ProtectedLayout = () => (
   <WithSpaceAuth spaceKey="cimple-form">
-    <Suspense fallback={<LoadingFallback />}>
-      <Outlet />
-    </Suspense>
+    <App />
   </WithSpaceAuth>
 );
 
@@ -33,7 +39,11 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       {
-        element: <App />,
+        path: "submitter",
+        element: <SubmitterPage />,
+      },
+      {
+        element: <ProtectedLayout />,
         children: [
           {
             index: true,
