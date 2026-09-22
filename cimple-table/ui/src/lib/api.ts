@@ -188,3 +188,13 @@ export async function upsertCell(data: { table_id: number; row_id: number; slug?
     });
 }
 
+// Seeder API
+export async function seedTableRows(
+    tableId: number,
+    rows: Record<string, any>[]
+): Promise<ApiResponse<{ success: boolean; inserted: number; total_requested: number }>> {
+    return apiRequest<{ success: boolean; inserted: number; total_requested: number }>(`/datatables/${tableId}/seed`, {
+        method: 'POST',
+        body: JSON.stringify({ rows }),
+    });
+}

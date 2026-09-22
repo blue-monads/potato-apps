@@ -755,6 +755,50 @@ function query_datatable(ctx, table_id)
     })
 end
 
+function seed_datatable_rows(ctx, table_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if table_id == nil then
+        req.json(400, { error = "table_id is required" })
+        return
+    end
+
+    local n_tid = tonumber(table_id) or table_id
+    local dt, err = potato.db.find_by_id("Datatables", n_tid)
+    if err ~= nil or dt == nil or dt.is_deleted == 1 then
+        req.json(404, { error = "Datatable not found" })
+        return
+    end
+
+    ensure_actual_table(n_tid)
+
+    local data = req.bind_json() or {}
+    local rows_input = data.rows or {}
+    local columns = get_table_columns(n_tid)
+
+    local inserted_count = 0
+    for _, r in ipairs(rows_input) do
+        local new_row = {}
+        for _, col in ipairs(columns) do
+            if col.slug and col.slug ~= "" and r[col.slug] ~= nil then
+                new_row[col.slug] = r[col.slug]
+            end
+        end
+        local _, err = potato.db.insert("Actual" .. tostring(n_tid), new_row)
+        if err == nil then
+            inserted_count = inserted_count + 1
+        end
+    end
+
+    req.json(200, {
+        success = true,
+        inserted = inserted_count,
+        total_requested = #rows_input
+    })
+end
+
 function list_rows(ctx, table_id)
     local req = ctx.request()
     local userId = get_user_id(req)
@@ -1133,6 +1177,14 @@ function on_http(ctx)
         local table_id = tonumber(query_match)
         if table_id ~= nil then
             return query_datatable(ctx, table_id)
+        end
+    end
+
+    local seed_match = string.match(path, "^/datatables/(%d+)/seed$")
+    if seed_match and method == "POST" then
+        local table_id = tonumber(seed_match)
+        if table_id ~= nil then
+            return seed_datatable_rows(ctx, table_id)
         end
     end
 

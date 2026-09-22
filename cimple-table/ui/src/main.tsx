@@ -8,6 +8,7 @@ import { ModalProvider } from "./lib/shared/modal/modal";
 import WithSpaceAuth from "./lib/shared/WithSpaceAuth";
 
 const TablePage = lazy(() => import("./pages/table/Table"));
+const SeederPage = lazy(() => import("./pages/seeder/Seeder"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -45,6 +46,14 @@ const router = createBrowserRouter([
           {
             path: "table/:tableId",
             element: <TablePage />,
+          },
+          {
+            path: "seeder",
+            element: <SeederPage />,
+          },
+          {
+            path: "seeder/:tableId",
+            element: <SeederPage />,
           },
         ]
       },

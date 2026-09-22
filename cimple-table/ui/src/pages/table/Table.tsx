@@ -50,6 +50,12 @@ const EMPTY_FILTER: FilterState = {
 
 const PAGE_SIZE = 100;
 
+const normalizeArray = <T,>(val: any): T[] => {
+    if (Array.isArray(val)) return val;
+    if (val && typeof val === 'object') return Object.values(val);
+    return [];
+};
+
 const Table = () => {
     const { tableId } = useParams<{ tableId: string }>();
     const navigate = useNavigate();
@@ -81,6 +87,10 @@ const Table = () => {
         if (tableId) {
             const rawOffset = searchParams.get('row_offset') || searchParams.get('offset');
             const initialOffset = rawOffset ? Math.max(0, parseInt(rawOffset, 10) || 0) : 0;
+            setSort(null);
+            setFilter(EMPTY_FILTER);
+            setSearch("");
+            setSelectedRowIds(new Set());
             loadTable(parseInt(tableId), initialOffset);
         } else if (datatables.length > 0) {
             navigate(`${BASE_PATH}table/${datatables[0].id}`, { replace: true });
@@ -91,7 +101,7 @@ const Table = () => {
     const loadDatatables = async () => {
         const response = await listDatatables();
         if (response.data) {
-            setDatatables(response.data);
+            setDatatables(normalizeArray<Datatable>(response.data));
         }
     };
 
@@ -110,7 +120,7 @@ const Table = () => {
         const s = overrideSort !== undefined ? overrideSort : sort;
         const q = overrideSearch !== undefined ? overrideSearch : search;
 
-        const tblCols = tbl.columns || [];
+        const tblCols = normalizeArray<DatatableColumn>(tbl.columns);
         const filterCol = f.columnId ? tblCols.find(c => c.id === f.columnId) : null;
         const sortCol = s ? tblCols.find(c => c.id === s.columnId) : null;
 
@@ -123,10 +133,11 @@ const Table = () => {
         });
 
         if (res.data) {
-            setRows(res.data.rows);
-            setTotalCount(res.data.total);
-            setTopOffset(res.data.offset);
-            setBottomOffset(res.data.offset + res.data.rows.length);
+            const returnedRows = normalizeArray<DatatableRow>(res.data.rows);
+            setRows(returnedRows);
+            setTotalCount(res.data.total ?? 0);
+            setTopOffset(res.data.offset ?? 0);
+            setBottomOffset((res.data.offset ?? 0) + returnedRows.length);
         }
         setLoading(false);
     };
@@ -137,14 +148,9 @@ const Table = () => {
         if (response.data) {
             const table = response.data;
             if (table) {
-                table.columns = Array.isArray(table.columns) 
-                    ? table.columns 
-                    : (table.columns && typeof table.columns === 'object' ? Object.values(table.columns) as DatatableColumn[] : []);
-                
-                const tableRows = Array.isArray(table.rows) 
-                    ? table.rows 
-                    : (table.rows && typeof table.rows === 'object' ? Object.values(table.rows) as DatatableRow[] : []);
-                
+                const cols = normalizeArray<DatatableColumn>(table.columns);
+                const tableRows = normalizeArray<DatatableRow>(table.rows);
+                table.columns = cols;
                 table.rows = tableRows;
                 setCurrentTable(table);
                 if (startOffset === 0 && tableRows.length > 0) {
@@ -152,6 +158,11 @@ const Table = () => {
                     setTotalCount(tableRows.length);
                     setTopOffset(0);
                     setBottomOffset(tableRows.length);
+                } else if (startOffset === 0) {
+                    setRows([]);
+                    setTotalCount(0);
+                    setTopOffset(0);
+                    setBottomOffset(0);
                 }
                 await handleRunQuery(startOffset, undefined, undefined, undefined, table);
             } else {
@@ -163,7 +174,7 @@ const Table = () => {
         setLoading(false);
     };
 
-    const columns = currentTable?.columns ?? [];
+    const columns = normalizeArray<DatatableColumn>(currentTable?.columns);
 
     // Debounce search and filter text input
     useEffect(() => {
@@ -178,7 +189,7 @@ const Table = () => {
         if (!currentTable || loadingMoreDown || bottomOffset >= totalCount) return;
         setLoadingMoreDown(true);
 
-        const tblCols = currentTable.columns || [];
+        const tblCols = normalizeArray<DatatableColumn>(currentTable.columns);
         const filterCol = filter.columnId ? tblCols.find(c => c.id === filter.columnId) : null;
         const sortCol = sort ? tblCols.find(c => c.id === sort.columnId) : null;
 
@@ -190,10 +201,11 @@ const Table = () => {
             search: search.trim() || undefined,
         });
 
-        if (res.data && res.data.rows.length > 0) {
-            setRows(prev => [...prev, ...res.data.rows]);
-            setBottomOffset(prev => prev + res.data.rows.length);
-            setTotalCount(res.data.total);
+        const newRows = normalizeArray<DatatableRow>(res.data?.rows);
+        if (newRows.length > 0) {
+            setRows(prev => [...normalizeArray<DatatableRow>(prev), ...newRows]);
+            setBottomOffset(prev => prev + newRows.length);
+            setTotalCount(res.data?.total ?? (bottomOffset + newRows.length));
         }
         setLoadingMoreDown(false);
     };
@@ -207,7 +219,7 @@ const Table = () => {
         const countToLoad = Math.min(PAGE_SIZE, topOffset);
         const newOffset = topOffset - countToLoad;
 
-        const tblCols = currentTable.columns || [];
+        const tblCols = normalizeArray<DatatableColumn>(currentTable.columns);
         const filterCol = filter.columnId ? tblCols.find(c => c.id === filter.columnId) : null;
         const sortCol = sort ? tblCols.find(c => c.id === sort.columnId) : null;
 
@@ -219,8 +231,9 @@ const Table = () => {
             search: search.trim() || undefined,
         });
 
-        if (res.data && res.data.rows.length > 0) {
-            setRows(prev => [...res.data.rows, ...prev]);
+        const newRows = normalizeArray<DatatableRow>(res.data?.rows);
+        if (newRows.length > 0) {
+            setRows(prev => [...newRows, ...normalizeArray<DatatableRow>(prev)]);
             setTopOffset(newOffset);
 
             requestAnimationFrame(() => {
@@ -493,11 +506,21 @@ const Table = () => {
                         </span>
                     )}
                 </div>
-                <span className="text-[12px] text-surface-400 shrink-0">
-                    {selectedRowIds.size > 0
-                        ? `${selectedRowIds.size} row${selectedRowIds.size === 1 ? '' : 's'} selected`
-                        : `${totalCount.toLocaleString()} record${totalCount === 1 ? '' : 's'}`}
-                </span>
+                <div className="flex items-center gap-3 shrink-0">
+                    <button
+                        onClick={() => navigate(`${BASE_PATH}seeder${currentTable ? `/${currentTable.id}` : ''}`)}
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded bg-surface-700 hover:bg-surface-600 text-surface-200 hover:text-white transition-colors cursor-pointer"
+                        title="Generate & Seed Test Data"
+                    >
+                        <i className="fa-solid fa-seedling text-emerald-400" />
+                        <span>Seeder</span>
+                    </button>
+                    <span className="text-[12px] text-surface-400">
+                        {selectedRowIds.size > 0
+                            ? `${selectedRowIds.size} row${selectedRowIds.size === 1 ? '' : 's'} selected`
+                            : `${totalCount.toLocaleString()} record${totalCount === 1 ? '' : 's'}`}
+                    </span>
+                </div>
             </header>
 
             {/* Table tabs */}
