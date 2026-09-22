@@ -42,10 +42,27 @@ export interface FormSection {
   is_modified?: boolean;
 }
 
+export interface FileValue {
+  id: string;
+  name: string;
+  size: number;
+  mime?: string;
+  url?: string;
+  download_url?: string;
+}
+
+export interface LocationValue {
+  lat: number;
+  lng: number;
+  address?: string;
+}
+
 export interface FormSubmission {
   id: number;
   form_id: number;
   data: Record<string, any>;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | string;
   response_messages: string;
+  created_at?: string;
+  extrameta?: Record<string, any>;
 }

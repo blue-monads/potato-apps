@@ -332,6 +332,14 @@ function delete_form(ctx)
         return
     end
 
+    -- Delete submissions first
+    err = potato.db.delete_by_cond("formSubmissions", {
+        form_id = formId
+    })
+    if err ~= nil then
+        print("Warning: Failed to delete submissions for form: " .. tostring(err))
+    end
+
     -- Delete form
     err = potato.db.delete_by_id("forms", formId)
     if err ~= nil then
@@ -573,6 +581,189 @@ function delete_field(ctx)
     })
 end
 
+function list_submissions(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local cond = {}
+    local formIdStr, exists = req.get_query("form_id")
+    if exists and formIdStr ~= nil and formIdStr ~= "" then
+        local formId = tonumber(formIdStr)
+        if formId ~= nil then
+            cond.form_id = formId
+        end
+    end
+
+    local submissions, err = potato.db.find_all_by_cond("formSubmissions", cond)
+    if err ~= nil then
+        req.json(400, {
+            error = tostring(err)
+        })
+        return
+    end
+
+    local json = require("json")
+    local list = {}
+    if submissions ~= nil and type(submissions) == "table" then
+        for _, sub in ipairs(submissions) do
+            local data = sub.data
+            if type(data) == "string" and data ~= "" then
+                local ok, parsed = pcall(json.decode, data)
+                if ok then data = parsed end
+            end
+            local extrameta = sub.extrameta
+            if type(extrameta) == "string" and extrameta ~= "" then
+                local ok, parsed = pcall(json.decode, extrameta)
+                if ok then extrameta = parsed end
+            end
+
+            table.insert(list, {
+                id = sub.id,
+                form_id = sub.form_id,
+                data = data or {},
+                status = sub.status or "pending",
+                response_messages = sub.response_messages or "",
+                created_at = sub.created_at,
+                extrameta = extrameta or {}
+            })
+        end
+    end
+
+    req.json_array(200, list)
+end
+
+function submit_form(ctx)
+    local req = ctx.request()
+
+    local body, err = req.bind_json()
+    if err ~= nil then
+        req.json(400, {
+            error = "Invalid JSON: " .. tostring(err)
+        })
+        return
+    end
+
+    if not body or not body.form_id then
+        req.json(400, {
+            error = "form_id is required"
+        })
+        return
+    end
+
+    local formId = tonumber(body.form_id)
+    if formId == nil then
+        req.json(400, {
+            error = "form_id must be a number"
+        })
+        return
+    end
+
+    local json = require("json")
+    local dataStr = "{}"
+    if body.data ~= nil then
+        dataStr = json.encode(body.data)
+    end
+
+    local extrameta = body.extrameta or {}
+    if type(extrameta) ~= "table" then
+        extrameta = {}
+    end
+    if not extrameta.submitted_at then
+        extrameta.submitted_at = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    end
+    local extrametaStr = json.encode(extrameta)
+
+    local dbData = {
+        form_id = formId,
+        data = dataStr,
+        status = body.status or "pending",
+        response_messages = body.response_messages or "",
+        extrameta = extrametaStr
+    }
+
+    local id, err = potato.db.insert("formSubmissions", dbData)
+    if err ~= nil then
+        req.json(500, {
+            error = "Failed to record submission: " .. tostring(err)
+        })
+        return
+    end
+
+    req.json(201, {
+        id = id,
+        message = "Submission recorded successfully"
+    })
+end
+
+function clear_submissions(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local formIdStr, exists = req.get_query("form_id")
+    if not exists or formIdStr == nil then
+        req.json(400, {
+            error = "form_id is required"
+        })
+        return
+    end
+    local formId = tonumber(formIdStr)
+    if formId == nil then
+        req.json(400, {
+            error = "form_id must be a number"
+        })
+        return
+    end
+
+    local err = potato.db.delete_by_cond("formSubmissions", {
+        form_id = formId
+    })
+    if err ~= nil then
+        req.json(500, {
+            error = "Failed to clear submissions: " .. tostring(err)
+        })
+        return
+    end
+
+    req.json(200, {
+        message = "Submissions cleared successfully"
+    })
+end
+
+function delete_submission(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local idStr, exists = req.get_query("id")
+    if not exists or idStr == nil then
+        req.json(400, {
+            error = "id is required"
+        })
+        return
+    end
+    local id = tonumber(idStr)
+    if id == nil then
+        req.json(400, {
+            error = "id must be a number"
+        })
+        return
+    end
+
+    local err = potato.db.delete_by_id("formSubmissions", id)
+    if err ~= nil then
+        req.json(500, {
+            error = "Failed to delete submission: " .. tostring(err)
+        })
+        return
+    end
+
+    req.json(200, {
+        message = "Submission deleted successfully"
+    })
+end
+
 function on_http(ctx)
     local req = ctx.request()
     local path = ctx.param("subpath")
@@ -618,6 +809,22 @@ function on_http(ctx)
 
     if path == "/api/field/delete" and method == "DELETE" then
         return delete_field(ctx)
+    end
+
+    if path == "/api/submissions" and method == "GET" then
+        return list_submissions(ctx)
+    end
+
+    if (path == "/api/form/submit" or path == "/api/submissions") and method == "POST" then
+        return submit_form(ctx)
+    end
+
+    if path == "/api/submissions/clear" and method == "DELETE" then
+        return clear_submissions(ctx)
+    end
+
+    if path == "/api/submission" and method == "DELETE" then
+        return delete_submission(ctx)
     end
 
     req.json(200, {

@@ -86,14 +86,34 @@ const deleteField = async (fieldId: number): Promise<void> => {
     });
 }
 
-const getSubmissions = async (_formId: number): Promise<FormSubmission[]> => {
-    // TODO: Implement when submissions endpoint is added
-    return [];
+const getSubmissions = async (formId?: number): Promise<FormSubmission[]> => {
+    const query = formId ? `?form_id=${formId}` : '';
+    return apiRequest<FormSubmission[]>(`/api/submissions${query}`);
 }
 
-const addSubmission = async (sub: FormSubmission): Promise<void> => {
-    // TODO: Implement when submissions endpoint is added
-    console.log('Submission:', sub);
+const addSubmission = async (sub: {
+    form_id: number;
+    data: Record<string, any>;
+    status?: string;
+    response_messages?: string;
+    extrameta?: Record<string, any>;
+}): Promise<{ id: number }> => {
+    return apiRequest<{ id: number }>('/api/form/submit', {
+        method: 'POST',
+        body: JSON.stringify(sub),
+    });
+}
+
+const clearSubmissions = async (formId: number): Promise<void> => {
+    await apiRequest(`/api/submissions/clear?form_id=${formId}`, {
+        method: 'DELETE',
+    });
+}
+
+const deleteSubmission = async (submissionId: number): Promise<void> => {
+    await apiRequest(`/api/submission?id=${submissionId}`, {
+        method: 'DELETE',
+    });
 }
 
 export default {
@@ -108,4 +128,6 @@ export default {
     deleteField,
     getSubmissions,
     addSubmission,
+    clearSubmissions,
+    deleteSubmission,
 }

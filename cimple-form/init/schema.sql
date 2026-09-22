@@ -39,5 +39,6 @@ create table formSubmissions(
     data JSON NOT NULL DEFAULT '{}',
     status TEXT NOT NULL DEFAULT 'pending',
     response_messages TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     extrameta JSON NOT NULL DEFAULT '{}'
 );

@@ -3,6 +3,14 @@ import { Link } from "react-router";
 import type { Form, FormField, FormStatus } from "./ftype";
 import api from "../../../lib/api";
 import { basePath } from "../../../lib/base";
+import { FileInput } from "../../../components/FileInput";
+import { LocationPicker } from "../../../components/LocationPicker";
+import {
+  getFilePreviewUrl,
+  getFileDownloadUrl,
+  getFileIconClass,
+  isImageFile,
+} from "../../../lib/spaceFile";
 
 // Accent palettes matching demo design
 export const ACCENTS: Record<string, { main: string; soft: string; name: string }> = {
@@ -48,8 +56,8 @@ interface FormBuilderProps {
 }
 
 interface SubmissionRecord {
-  id: string;
-  submittedAt: number;
+  id: string | number;
+  submittedAt: number | string;
   values: Record<number | string, any>;
 }
 
@@ -61,6 +69,7 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
       setViewMode(initialTab);
     }
   }, [initialTab]);
+
   const [status, setStatus] = useState<"loading" | "ready" | "error" | "saving">("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -82,6 +91,26 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
 
   // Submissions state (stored locally per form)
   const [submissions, setSubmissions] = useState<SubmissionRecord[]>([]);
+
+  // Refresh submissions from database when switching to responses tab
+  useEffect(() => {
+    if (viewMode === "responses" && form.id) {
+      api.getSubmissions(form.id)
+        .then(apiSubs => {
+          if (apiSubs && Array.isArray(apiSubs)) {
+            const mappedSubs: SubmissionRecord[] = apiSubs.map(s => ({
+              id: s.id,
+              submittedAt: s.created_at || (s.extrameta?.submitted_at ? s.extrameta.submitted_at : Date.now()),
+              values: s.data || {},
+            }));
+            setSubmissions(mappedSubs);
+          }
+        })
+        .catch(err => {
+          console.warn("Could not refresh submissions from database:", err);
+        });
+    }
+  }, [viewMode, form.id]);
 
   // Preview form draft state
   const [draftValues, setDraftValues] = useState<Record<number, any>>({});
@@ -188,13 +217,25 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
 
         setFields(mappedFields);
 
-        // Load local submissions cache if any
+        // Load submissions from backend API with local cache fallback
         try {
-          const subsRaw = localStorage.getItem(`form_submissions_${formId}`);
-          if (subsRaw) {
-            setSubmissions(JSON.parse(subsRaw));
+          const apiSubs = await api.getSubmissions(formId);
+          if (apiSubs && Array.isArray(apiSubs)) {
+            const mappedSubs: SubmissionRecord[] = apiSubs.map(s => ({
+              id: s.id,
+              submittedAt: s.created_at || (s.extrameta?.submitted_at ? s.extrameta.submitted_at : Date.now()),
+              values: s.data || {},
+            }));
+            setSubmissions(mappedSubs);
           }
-        } catch {}
+        } catch {
+          try {
+            const subsRaw = localStorage.getItem(`form_submissions_${formId}`);
+            if (subsRaw) {
+              setSubmissions(JSON.parse(subsRaw));
+            }
+          } catch {}
+        }
 
         setStatus("ready");
       } catch (err: any) {
@@ -370,7 +411,7 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
   };
 
   // Preview Submission
-  const handlePreviewSubmit = (e: React.FormEvent) => {
+  const handlePreviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: Record<number, string> = {};
 
@@ -386,10 +427,55 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
     setDraftErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    // Record submission
+    let subId: string | number = Math.random().toString(36).slice(2, 10);
+    const submittedAtIso = new Date().toISOString();
+
+    // Auto-save form if it hasn't been saved yet so we have a valid form ID in SQLite
+    let currentFormId = form.id;
+    if (!currentFormId) {
+      try {
+        const createRes = await api.createForm({
+          name: form.name,
+          description: form.description,
+          status: form.status,
+          accent: form.accent,
+        });
+        if (createRes && createRes.id) {
+          currentFormId = createRes.id;
+          setForm(prev => ({ ...prev, id: createRes.id }));
+          if (fields.length > 0) {
+            await api.bulkUpsertFields(fields.map(f => ({ ...f, form_id: createRes.id, is_new: true })));
+          }
+        }
+      } catch (saveErr) {
+        console.warn("Could not auto-save form before submitting:", saveErr);
+      }
+    }
+
+    // Persist to backend database if form exists
+    if (currentFormId) {
+      try {
+        const res = await api.addSubmission({
+          form_id: currentFormId,
+          data: draftValues,
+          status: "completed",
+          extrameta: {
+            submitted_at: submittedAtIso,
+            source: "preview",
+          },
+        });
+        if (res && res.id) {
+          subId = res.id;
+        }
+      } catch (subErr) {
+        console.warn("Could not save submission to backend, saving locally:", subErr);
+      }
+    }
+
+    // Record submission locally
     const newSub: SubmissionRecord = {
-      id: Math.random().toString(36).slice(2, 10),
-      submittedAt: Date.now(),
+      id: subId,
+      submittedAt: submittedAtIso,
       values: { ...draftValues },
     };
 
@@ -406,13 +492,63 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
     setDraftErrors({});
   };
 
-  const handleClearSubmissions = () => {
-    if (confirm("Delete all responses for this form? This cannot be undone.")) {
-      setSubmissions([]);
-      if (form.id) {
+  const handleClearSubmissions = async () => {
+    if (!confirm("Delete all responses for this form? This cannot be undone.")) return;
+    if (form.id) {
+      try {
+        await api.clearSubmissions(form.id);
+      } catch (err) {
+        console.error("Failed to clear submissions on backend:", err);
+      }
+      try {
         localStorage.removeItem(`form_submissions_${form.id}`);
+      } catch {}
+    }
+    setSubmissions([]);
+  };
+
+  const handleDeleteSubmission = async (subId: string | number) => {
+    if (!confirm("Delete this submission?")) return;
+    const numId = Number(subId);
+    if (!isNaN(numId) && numId > 0) {
+      try {
+        await api.deleteSubmission(numId);
+      } catch (err) {
+        console.error("Failed to delete submission:", err);
       }
     }
+    const updated = submissions.filter(s => String(s.id) !== String(subId));
+    setSubmissions(updated);
+    if (form.id) {
+      try {
+        localStorage.setItem(`form_submissions_${form.id}`, JSON.stringify(updated));
+      } catch {}
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (submissions.length === 0) return;
+    const headers = ["ID", "Submitted At", ...fields.map(f => `"${f.name.replace(/"/g, '""')}"`)];
+    const rows = submissions.map(s => {
+      const dateStr = typeof s.submittedAt === "number" ? new Date(s.submittedAt).toISOString() : String(s.submittedAt);
+      const fieldValues = fields.map(f => {
+        const val = s.values[f.id];
+        if (val === undefined || val === null) return '""';
+        if (typeof val === "object") {
+          return `"${(val.name || val.url || JSON.stringify(val)).replace(/"/g, '""')}"`;
+        }
+        return `"${String(val).replace(/"/g, '""')}"`;
+      });
+      return [s.id, `"${dateStr}"`, ...fieldValues].join(",");
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${(form.name || "form").toLowerCase().replace(/\s+/g, "_")}_submissions.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const activeField = fields.find(f => f.id === activeFieldId);
@@ -788,6 +924,51 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
                   </div>
                 )}
 
+                {/* File Upload Options */}
+                {activeField.field_type === "file" && (
+                  <div className="flex flex-col gap-3 p-3 bg-[#FAFAF7] border border-[#E1E3DB] rounded-lg">
+                    <div className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                      <i className="fa-solid fa-paperclip text-rose-500"></i>
+                      <span>File Upload Options</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">Accepted File Types</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. image/*, .pdf, .docx"
+                        value={activeField.attributes?.accept || ""}
+                        onChange={e =>
+                          handleUpdateField(activeField.id, {
+                            attributes: { ...(activeField.attributes || {}), accept: e.target.value },
+                          })
+                        }
+                        className="w-full text-xs p-1.5 rounded border border-[#CBCEC3] focus:border-[var(--accent)] outline-none"
+                      />
+                      <span className="text-[10px] text-gray-400 mt-0.5 block">
+                        Leave blank for any file type. Supports image/* or .pdf, .docx
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">Max File Size (MB)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        placeholder="32"
+                        value={activeField.attributes?.maxSize || ""}
+                        onChange={e =>
+                          handleUpdateField(activeField.id, {
+                            attributes: { ...(activeField.attributes || {}), maxSize: e.target.value },
+                          })
+                        }
+                        className="w-full text-xs p-1.5 rounded border border-[#CBCEC3] focus:border-[var(--accent)] outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Help text */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">Help text</label>
@@ -1007,12 +1188,21 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
               </div>
 
               {submissions.length > 0 && (
-                <button
-                  onClick={handleClearSubmissions}
-                  className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
-                >
-                  Clear all responses
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-100 border border-[#CBCEC3] rounded-md shadow-2xs transition-colors"
+                  >
+                    <i className="fa-solid fa-file-csv text-emerald-600 text-xs"></i>
+                    <span>Export CSV</span>
+                  </button>
+                  <button
+                    onClick={handleClearSubmissions}
+                    className="px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                  >
+                    Clear all responses
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1044,6 +1234,7 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
                           {f.name}
                         </th>
                       ))}
+                      <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E1E3DB]">
@@ -1059,6 +1250,80 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
                         </td>
                         {fields.map(f => {
                           const val = s.values[f.id];
+
+                          // Handle file value
+                          if (f.field_type === "file" || (val && typeof val === "object" && (val.id || val.url))) {
+                            if (!val) {
+                              return <td key={f.id} className="py-3 px-4 text-gray-400">—</td>;
+                            }
+                            const fileObj = typeof val === "object" ? val : { id: val, name: String(val) };
+                            const previewUrl = fileObj.url || getFilePreviewUrl(fileObj.id);
+                            const downloadUrl = fileObj.download_url || getFileDownloadUrl(fileObj.id);
+                            const isImg = isImageFile(fileObj.name || fileObj.mime);
+
+                            return (
+                              <td key={f.id} className="py-3 px-4 text-gray-800 max-w-xs">
+                                <div className="inline-flex items-center gap-2 p-1 bg-[#FAFAF7] border border-[#E1E3DB] rounded-lg text-xs">
+                                  {isImg && previewUrl ? (
+                                    <img
+                                      src={previewUrl}
+                                      alt={fileObj.name}
+                                      className="w-6 h-6 rounded object-cover border border-[#E1E3DB]"
+                                    />
+                                  ) : (
+                                    <span className="w-6 h-6 flex items-center justify-center">
+                                      <i className={getFileIconClass(fileObj.name || fileObj.mime)}></i>
+                                    </span>
+                                  )}
+                                  <a
+                                    href={previewUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate max-w-[110px]"
+                                    title={fileObj.name}
+                                  >
+                                    {fileObj.name || "View file"}
+                                  </a>
+                                  {downloadUrl && (
+                                    <a
+                                      href={downloadUrl}
+                                      download={fileObj.name}
+                                      className="text-gray-400 hover:text-gray-700 px-1"
+                                      title="Download"
+                                    >
+                                      <i className="fa-solid fa-download text-[10px]"></i>
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          }
+
+                          // Handle location value
+                          if (f.field_type === "location" || (val && typeof val === "object" && typeof val.lat === "number" && typeof val.lng === "number")) {
+                            if (!val) {
+                              return <td key={f.id} className="py-3 px-4 text-gray-400">—</td>;
+                            }
+                            const loc = typeof val === "object" ? val : { lat: 0, lng: 0 };
+                            const mapLink = `https://www.openstreetmap.org/?mlat=${loc.lat}&mlon=${loc.lng}#map=16/${loc.lat}/${loc.lng}`;
+                            return (
+                              <td key={f.id} className="py-3 px-4 text-gray-800 max-w-xs">
+                                <a
+                                  href={mapLink}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-xs transition-colors"
+                                  title={loc.address || `${loc.lat}, ${loc.lng}`}
+                                >
+                                  <i className="fa-solid fa-location-dot text-emerald-600"></i>
+                                  <span className="truncate max-w-[120px]">
+                                    {loc.address || `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`}
+                                  </span>
+                                </a>
+                              </td>
+                            );
+                          }
+
                           let rendered = "—";
                           if (val !== undefined && val !== null && val !== "") {
                             if (Array.isArray(val)) {
@@ -1075,6 +1340,15 @@ export default function FormBuilder({ formId, initialTab = "build" }: FormBuilde
                             </td>
                           );
                         })}
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => handleDeleteSubmission(s.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Delete submission"
+                          >
+                            <i className="fa-regular fa-trash-can text-xs"></i>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1146,16 +1420,28 @@ function renderFieldPreviewInput(f: FormField) {
       );
     case "file":
       return (
-        <div className="border border-dashed border-[#CBCEC3] rounded-lg p-2.5 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
-          <i className="fa-solid fa-cloud-arrow-up text-xs"></i>
-          <span>Upload file</span>
+        <div className="border border-dashed border-[#CBCEC3] rounded-lg p-3 text-center text-xs text-gray-500 bg-[#FAFAF7] flex flex-col items-center justify-center gap-1.5">
+          <div className="flex items-center gap-1.5 text-gray-600 font-semibold">
+            <i className="fa-solid fa-cloud-arrow-up text-sm text-[#2E6E52]"></i>
+            <span>Upload file or select from space</span>
+          </div>
+          <span className="text-[11px] text-gray-400">Supports drag & drop, device files, and Potatoverse storage</span>
         </div>
       );
     case "location":
       return (
-        <div className="flex items-center gap-2 text-xs text-gray-500 bg-[#FAFAF7] border border-[#E1E3DB] p-2 rounded">
-          <i className="fa-solid fa-map-pin text-gray-400"></i>
-          <span>Pick location on map</span>
+        <div className="border border-[#CBCEC3] rounded-lg overflow-hidden bg-[#FAFAF7] text-xs">
+          <div className="h-24 bg-emerald-50/60 flex flex-col items-center justify-center gap-1.5 border-b border-[#E1E3DB] text-gray-500">
+            <div className="w-7 h-7 rounded-full bg-white shadow-xs flex items-center justify-center text-[#2E6E52] border border-[#E1E3DB]">
+              <i className="fa-solid fa-location-dot text-xs"></i>
+            </div>
+            <span className="font-semibold text-gray-700 text-xs">Interactive Map Pin</span>
+            <span className="text-[10px] text-gray-400">Search address, geolocation, or click to pin</span>
+          </div>
+          <div className="p-2 flex items-center justify-between text-[11px] text-gray-400 font-mono bg-white">
+            <span>Lat: 27.7172</span>
+            <span>Lng: 85.3240</span>
+          </div>
         </div>
       );
     case "date":
@@ -1333,6 +1619,23 @@ function renderInteractivePreviewInput(f: FormField, value: any, onChange: (val:
           placeholder={f.placeholder || "name@example.com"}
           onChange={e => onChange(e.target.value)}
           className="w-full text-sm p-2.5 rounded-lg border border-[#CBCEC3] focus:border-[var(--accent)] outline-none transition-colors"
+        />
+      );
+    case "file":
+      return (
+        <FileInput
+          value={value}
+          onChange={onChange}
+          placeholder={f.placeholder || "Upload a document, image, or file"}
+          accept={f.attributes?.accept}
+        />
+      );
+    case "location":
+      return (
+        <LocationPicker
+          value={value}
+          onChange={onChange}
+          placeholder={f.placeholder || "Search address or city..."}
         />
       );
     default:
