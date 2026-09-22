@@ -5,6 +5,7 @@ export interface Form {
   name: string;
   description: string;
   status: FormStatus;
+  accent?: string;
   is_new?: boolean;
   is_modified?: boolean;
 }
@@ -12,7 +13,9 @@ export interface Form {
 export interface FormField {
   id: number;
   name: string;
+  label?: string;
   info?: string;
+  help?: string;
   field_type: string;
   default_value: string;
   placeholder?: string;
@@ -20,7 +23,7 @@ export interface FormField {
   field_options: string[];
   form_id: number;
   required: boolean;
-  section_id: number;
+  section_id?: number;
   attributes?: Record<string, any>;
 
   is_new?: boolean;

@@ -1,1 +1,112 @@
 @import "tailwindcss";
+
+:root {
+  --bg: #F4F5F1;
+  --surface: #FFFFFF;
+  --surface-sunken: #EEF0EA;
+  --border: #E1E3DB;
+  --border-strong: #CBCEC3;
+  --ink-900: #1C1E1A;
+  --ink-700: #3E4139;
+  --ink-500: #6B6E63;
+  --ink-400: #979A8D;
+  --ink-300: #C4C6BB;
+
+  --accent: #2E6E52;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E1EFE7;
+  --accent-soft-ink: #205C41;
+  --danger: #B0473F;
+  --danger-soft: #F7E7E4;
+
+  --type-blue: #3E6DA8;      --type-blue-soft: #E6EDF6;
+  --type-purple: #7A5CA6;    --type-purple-soft: #EFE9F5;
+  --type-amber: #A9782B;     --type-amber-soft: #F5EEDE;
+  --type-rose: #AA4A62;      --type-rose-soft: #F5E5E9;
+  --type-teal: #2C8577;      --type-teal-soft: #E1F0ED;
+  --type-slate: #565C6B;     --type-slate-soft: #E9EAEE;
+
+  --shadow-1: 0 1px 2px rgba(28,30,26,0.06);
+  --shadow-2: 0 6px 20px rgba(28,30,26,0.10);
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 16px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink-900);
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 14.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+/* Badge colors */
+.field-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+.field-badge.blue { background: var(--type-blue-soft); color: var(--type-blue); }
+.field-badge.purple { background: var(--type-purple-soft); color: var(--type-purple); }
+.field-badge.amber { background: var(--type-amber-soft); color: var(--type-amber); }
+.field-badge.rose { background: var(--type-rose-soft); color: var(--type-rose); }
+.field-badge.teal { background: var(--type-teal-soft); color: var(--type-teal); }
+.field-badge.slate { background: var(--type-slate-soft); color: var(--type-slate); }
+
+/* Switch control */
+.switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.switch .track {
+  position: absolute;
+  inset: 0;
+  background: var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.switch .track::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  top: 3px;
+  left: 3px;
+  transition: transform .15s;
+  box-shadow: var(--shadow-1);
+}
+.switch input:checked + .track {
+  background: var(--accent);
+}
+.switch input:checked + .track::after {
+  transform: translateX(16px);
+}
+.switch input:focus-visible + .track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

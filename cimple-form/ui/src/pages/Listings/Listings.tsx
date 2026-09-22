@@ -1,15 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import type { Form } from '../Builder/sub/ftype';
-import { 
-    PlusIcon, 
-    TrashIcon, 
-    EditIcon, 
-    FileTextIcon,
-    XIcon
-} from 'lucide-react';
 import api from '../../lib/api';
 import { basePath } from '../../lib/base';
+import { ACCENTS } from '../Builder/sub/FormBuilder';
 
 const Listings = () => {
     const navigate = useNavigate();
@@ -29,7 +23,17 @@ const Listings = () => {
             setLoading(true);
             setError(null);
             const data = await api.getForms();
-            setForms(data);
+            const mapped = (Array.isArray(data) ? data : Object.values(data || {})).map((f: any) => {
+                let accent = 'teal';
+                if (f.extrameta) {
+                    try {
+                        const parsed = typeof f.extrameta === 'string' ? JSON.parse(f.extrameta) : f.extrameta;
+                        if (parsed.accent) accent = parsed.accent;
+                    } catch {}
+                }
+                return { ...f, accent };
+            });
+            setForms(mapped);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load forms');
         } finally {
@@ -41,8 +45,9 @@ const Listings = () => {
         loadForms();
     }, []);
 
-    const handleDelete = async (formId: number) => {
-        if (!confirm('Are you sure you want to delete this form?')) {
+    const handleDelete = async (e: React.MouseEvent, formId: number) => {
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this form? This cannot be undone.')) {
             return;
         }
 
@@ -65,14 +70,6 @@ const Listings = () => {
         setShowModal(true);
     };
 
-    const openEditModal = (form: Form) => {
-        setEditingForm(form);
-        setFormName(form.name);
-        setFormDescription(form.description);
-        setFormStatus(form.status);
-        setShowModal(true);
-    };
-
     const closeModal = () => {
         setShowModal(false);
         setEditingForm(null);
@@ -82,25 +79,27 @@ const Listings = () => {
     };
 
     const handleSaveForm = async () => {
+        if (!formName.trim()) {
+            alert('Form name is required');
+            return;
+        }
+
         try {
             setSaving(true);
             setError(null);
 
             if (editingForm) {
-                // Update existing form
                 await api.updateForm(editingForm.id, {
                     name: formName,
                     description: formDescription,
                     status: formStatus,
                 });
             } else {
-                // Create new form
                 const { id } = await api.createForm({
                     name: formName,
                     description: formDescription,
                     status: formStatus,
                 });
-                // Navigate to builder with new form
                 closeModal();
                 navigate(`${basePath}forms/${id}`);
                 return;
@@ -115,205 +114,228 @@ const Listings = () => {
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'published':
-                return 'bg-green-100 text-green-800';
-            case 'draft':
-                return 'bg-gray-100 text-gray-800';
-            case 'archived':
-                return 'bg-yellow-100 text-yellow-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
-        }
-    };
-
     return (
-        <div className="flex flex-col min-h-screen">
-            <div className="bg-white border-b border-gray-200 py-4 px-6 flex shadow-sm justify-between items-center">
+        <div className="flex flex-col min-h-screen bg-[var(--bg)]">
+            <header className="bg-white border-b border-[#E1E3DB] py-3.5 px-8 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-3">
-                    <FileTextIcon className="w-6 h-6 text-gray-600" />
-                    <h1 className="text-2xl font-bold text-gray-800">Forms</h1>
+                    <span className="w-7 h-7 rounded-lg bg-[#2E6E52] text-white flex items-center justify-center text-sm shadow-sm">
+                        <i className="fa-solid fa-file-lines"></i>
+                    </span>
+                    <div>
+                        <h1 className="text-lg font-bold font-heading text-gray-900 tracking-tight">Simple Form</h1>
+                    </div>
                 </div>
                 <button
                     onClick={openCreateModal}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+                    className="flex items-center gap-2 px-3.5 py-1.5 bg-[#2E6E52] text-white rounded-lg hover:brightness-105 transition-all text-xs font-semibold shadow-sm"
                 >
-                    <PlusIcon className="w-5 h-5" />
-                    New Form
+                    <i className="fa-solid fa-plus text-xs"></i>
+                    <span>New Form</span>
                 </button>
-            </div>
+            </header>
 
-            <main className="flex-1 overflow-auto p-6 bg-gray-50">
+            <main className="flex-1 overflow-auto p-8 max-w-6xl mx-auto w-full">
+                <div className="mb-6 flex items-baseline justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold font-heading text-gray-900">All Forms</h2>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                            {forms.length} form{forms.length === 1 ? '' : 's'} created
+                        </p>
+                    </div>
+                </div>
+
                 {loading && (
-                    <div className="flex items-center justify-center py-12">
-                        <div className="text-gray-500">Loading forms...</div>
+                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-400">
+                        <i className="fa-solid fa-circle-notch fa-spin text-2xl text-[#2E6E52]"></i>
+                        <span className="text-xs font-medium">Loading your forms...</span>
                     </div>
                 )}
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-                        {error}
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm flex items-center gap-2">
+                        <i className="fa-solid fa-circle-exclamation"></i>
+                        <span>{error}</span>
                     </div>
                 )}
 
                 {!loading && !error && forms.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                        <FileTextIcon className="w-16 h-16 mb-4 opacity-50" />
-                        <p className="text-lg mb-2">No forms yet</p>
-                        <p className="text-sm mb-4">Create your first form to get started</p>
+                    <div className="bg-white border border-[#E1E3DB] rounded-2xl p-16 text-center flex flex-col items-center justify-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-[#EEF0EA] flex items-center justify-center text-gray-400 text-2xl mb-2">
+                            <i className="fa-solid fa-file-lines"></i>
+                        </div>
+                        <h3 className="font-heading font-bold text-lg text-gray-900">No forms yet</h3>
+                        <p className="text-xs text-gray-500 max-w-sm mb-4">
+                            Create your first form — it only takes thirty seconds to start gathering responses.
+                        </p>
                         <button
                             onClick={openCreateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#2E6E52] text-white rounded-lg hover:brightness-105 transition-all text-xs font-bold shadow-sm"
                         >
-                            <PlusIcon className="w-5 h-5" />
-                            Create Form
+                            <i className="fa-solid fa-plus"></i>
+                            <span>Create a Form</span>
                         </button>
                     </div>
                 )}
 
                 {!loading && !error && forms.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {forms.map((form) => (
-                            <div
-                                key={form.id}
-                                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-300 transition-all"
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-semibold text-gray-800 mb-1">
-                                            {form.name || 'Untitled Form'}
-                                        </h3>
-                                        {form.description && (
-                                            <p className="text-sm text-gray-600 line-clamp-2">
-                                                {form.description}
-                                            </p>
-                                        )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {/* Existing forms */}
+                        {forms.map((form) => {
+                            const accentColor = ACCENTS[form.accent || 'teal']?.main || ACCENTS.teal.main;
+
+                            return (
+                                <div
+                                    key={form.id}
+                                    onClick={() => navigate(`${basePath}forms/${form.id}`)}
+                                    className="bg-white rounded-xl border border-[#E1E3DB] p-5 hover:border-[#CBCEC3] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span
+                                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: accentColor }}
+                                                ></span>
+                                                <h3 className="font-heading font-bold text-base text-gray-900 truncate group-hover:text-[#2E6E52] transition-colors">
+                                                    {form.name || 'Untitled Form'}
+                                                </h3>
+                                            </div>
+                                            <button
+                                                onClick={(e) => handleDelete(e, form.id)}
+                                                disabled={deletingId === form.id}
+                                                className="w-7 h-7 rounded-md text-gray-300 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Delete form"
+                                            >
+                                                {deletingId === form.id ? (
+                                                    <i className="fa-solid fa-circle-notch fa-spin text-xs"></i>
+                                                ) : (
+                                                    <i className="fa-regular fa-trash-can text-xs"></i>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        <p className="text-xs text-gray-500 line-clamp-2 min-h-[32px] mb-4">
+                                            {form.description || <span className="italic text-gray-300">No description provided</span>}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-3 border-t border-[#E1E3DB] text-[11px] text-gray-400 font-medium">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                            form.status === 'published'
+                                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                                : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                        }`}>
+                                            {form.status || 'draft'}
+                                        </span>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(`${basePath}forms/${form.id}?tab=responses`);
+                                                }}
+                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#FAFAF7] hover:bg-[#EEF0EA] border border-[#E1E3DB] text-gray-700 text-[11px] font-semibold transition-colors cursor-pointer"
+                                                title="View Submissions"
+                                            >
+                                                <i className="fa-solid fa-inbox text-[10px] text-gray-500"></i>
+                                                <span>Submissions</span>
+                                            </button>
+
+                                            <span className="flex items-center gap-1 text-gray-600 group-hover:text-[#2E6E52] font-semibold text-xs">
+                                                <span>Build</span>
+                                                <i className="fa-solid fa-arrow-right text-[10px]"></i>
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                            );
+                        })}
 
-                                <div className="flex items-center justify-between mb-4">
-                                    <span
-                                        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(form.status)}`}
-                                    >
-                                        {form.status}
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => openEditModal(form)}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
-                                    >
-                                        <EditIcon className="w-4 h-4" />
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => navigate(`${basePath}forms/${form.id}`)}
-                                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-50 text-green-600 rounded-md hover:bg-green-100 transition-colors text-sm font-medium shadow-sm hover:shadow-md"
-                                    >
-                                        <FileTextIcon className="w-4 h-4" />
-                                        Build
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(form.id)}
-                                        disabled={deletingId === form.id}
-                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors text-sm font-medium disabled:opacity-50 shadow-sm hover:shadow-md"
-                                    >
-                                        <TrashIcon className="w-4 h-4" />
-                                        {deletingId === form.id ? 'Deleting...' : 'Delete'}
-                                    </button>
-                                </div>
+                        {/* New form dashed card (placed last) */}
+                        <button
+                            onClick={openCreateModal}
+                            className="border-2 border-dashed border-[#CBCEC3] hover:border-[#2E6E52] rounded-xl p-6 flex flex-col items-center justify-center gap-2.5 text-gray-400 hover:text-[#2E6E52] hover:bg-[#E1EFE7]/40 transition-all min-h-[160px] group cursor-pointer"
+                        >
+                            <div className="w-10 h-10 rounded-full bg-white border border-[#CBCEC3] group-hover:border-[#2E6E52] flex items-center justify-center text-sm shadow-sm transition-colors">
+                                <i className="fa-solid fa-plus"></i>
                             </div>
-                        ))}
+                            <span className="font-heading font-semibold text-sm">New form</span>
+                        </button>
                     </div>
                 )}
             </main>
 
-            {/* Form Modal */}
+            {/* Create Form Modal */}
             {showModal && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4"
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
                             closeModal();
                         }
                     }}
                 >
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-semibold text-gray-800">
-                                {editingForm ? 'Edit Form' : 'Create New Form'}
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-[#E1E3DB] animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="font-heading text-lg font-bold text-gray-900">
+                                Create New Form
                             </h2>
                             <button
                                 onClick={closeModal}
-                                className="p-1 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                                className="w-7 h-7 rounded-md hover:bg-[#EEF0EA] text-gray-400 hover:text-gray-900 flex items-center justify-center transition-colors"
                             >
-                                <XIcon className="w-5 h-5" />
+                                <i className="fa-solid fa-xmark text-xs"></i>
                             </button>
                         </div>
 
                         <div className="flex flex-col gap-4">
                             <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                                <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
                                     Form Name
                                 </label>
                                 <input
                                     type="text"
+                                    className="w-full text-xs p-2.5 border border-[#CBCEC3] rounded-lg focus:border-[#2E6E52] outline-none transition-colors"
                                     value={formName}
                                     onChange={(e) => setFormName(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                    placeholder="Enter form name"
+                                    placeholder="e.g. Autumn Meetup RSVP"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveForm();
+                                    }}
                                 />
                             </div>
 
                             <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                                    Description
+                                <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
+                                    Description (optional)
                                 </label>
                                 <textarea
+                                    className="w-full text-xs p-2.5 border border-[#CBCEC3] rounded-lg focus:border-[#2E6E52] outline-none resize-none transition-colors"
+                                    rows={3}
                                     value={formDescription}
                                     onChange={(e) => setFormDescription(e.target.value)}
-                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                    rows={3}
-                                    placeholder="Enter form description"
+                                    placeholder="Brief description of what this form is for..."
                                 />
                             </div>
 
-                            <div>
-                                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                                    Status
-                                </label>
-                                <select
-                                    value={formStatus}
-                                    onChange={(e) => setFormStatus(e.target.value as 'draft' | 'published' | 'archived')}
-                                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                >
-                                    <option value="draft">Draft</option>
-                                    <option value="published">Published</option>
-                                    <option value="archived">Archived</option>
-                                </select>
-                            </div>
-
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                                    {error}
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-2 justify-end">
+                            <div className="flex justify-end gap-2.5 pt-3 border-t border-[#E1E3DB]">
                                 <button
+                                    type="button"
                                     onClick={closeModal}
-                                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors text-sm font-medium"
+                                    className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-[#EEF0EA] rounded-lg transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={handleSaveForm}
-                                    disabled={saving || !formName.trim()}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={saving}
+                                    className="px-5 py-2 bg-[#2E6E52] hover:brightness-105 text-white rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
                                 >
-                                    {saving ? 'Saving...' : editingForm ? 'Update' : 'Create'}
+                                    {saving && <i className="fa-solid fa-circle-notch fa-spin text-xs"></i>}
+                                    <span>Create & Open</span>
                                 </button>
                             </div>
                         </div>

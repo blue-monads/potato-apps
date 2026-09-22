@@ -433,10 +433,9 @@ export const renderForm = (opts: Options) => {
         formContainer.appendChild(sectionEl);
     });
     
-    // Handle fields without sections (orphaned fields)
-    const sectionIds = new Set(opts.formSchema.sections.map(s => s.id));
-    const orphanedFields = opts.formSchema.fields
-        .filter(f => !sectionIds.has(f.section_id))
+    const sectionIds = new Set((opts.formSchema.sections || []).map(s => s.id));
+    const orphanedFields = (opts.formSchema.fields || [])
+        .filter(f => !f.section_id || !sectionIds.has(f.section_id))
         .sort((a, b) => a.field_order - b.field_order);
     
     if (orphanedFields.length > 0) {

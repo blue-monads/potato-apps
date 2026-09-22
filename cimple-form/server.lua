@@ -201,6 +201,7 @@ function create_form(ctx)
         return
     end
 
+    local json = require("json")
     local dbData = {
         name = body.name or "",
         description = body.description or "",
@@ -208,7 +209,11 @@ function create_form(ctx)
         embed_token = body.embed_token or "",
         status = body.status or "draft"
     }
-    -- Omit extrameta - database will use default '{}'
+    if body.extrameta ~= nil then
+        dbData.extrameta = json.encode(body.extrameta)
+    elseif body.accent ~= nil then
+        dbData.extrameta = json.encode({ accent = body.accent })
+    end
 
     local id, err = potato.db.insert("forms", dbData)
     if err ~= nil then
@@ -258,6 +263,7 @@ function update_form(ctx)
         return
     end
 
+    local json = require("json")
     local dbData = {
         name = body.name or "",
         description = body.description or "",
@@ -265,7 +271,11 @@ function update_form(ctx)
         embed_token = body.embed_token or "",
         status = body.status or "draft"
     }
-    -- Omit extrameta - database will use default '{}'
+    if body.extrameta ~= nil then
+        dbData.extrameta = json.encode(body.extrameta)
+    elseif body.accent ~= nil then
+        dbData.extrameta = json.encode({ accent = body.accent })
+    end
 
     err = potato.db.update_by_id("forms", formId, dbData)
     if err ~= nil then
@@ -434,7 +444,7 @@ function bulk_upsert_fields(ctx)
         fieldData.is_new = nil
         fieldData.is_modified = nil
 
-        -- Prepare data for database
+        local json = require("json")
         local dbData = {
             name = fieldData.name or "",
             field_type = fieldData.field_type or "",
@@ -443,8 +453,16 @@ function bulk_upsert_fields(ctx)
             form_id = fieldData.form_id or 0,
             section_id = fieldData.section_id or 0
         }
-        -- Omit field_options and extrameta - database will use defaults
-        -- TODO: Add JSON serialization support for these fields
+        if fieldData.field_options ~= nil then
+            dbData.field_options = json.encode(fieldData.field_options)
+        end
+        local extrameta = fieldData.extrameta or {}
+        if fieldData.placeholder ~= nil then extrameta.placeholder = fieldData.placeholder end
+        if fieldData.required ~= nil then extrameta.required = fieldData.required end
+        if fieldData.help ~= nil then extrameta.help = fieldData.help end
+        if fieldData.info ~= nil then extrameta.info = fieldData.info end
+        if fieldData.attributes ~= nil then extrameta.attributes = fieldData.attributes end
+        dbData.extrameta = json.encode(extrameta)
 
         if isNew then
             -- Insert new field
