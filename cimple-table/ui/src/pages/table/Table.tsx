@@ -422,6 +422,7 @@ const Table = () => {
                                     table_id: response.data.id,
                                     name: col.name,
                                     column_type: col.column_type,
+                                    icon: col.icon || "",
                                     info: col.info || "",
                                     required: col.required || false,
                                     options: col.options || "",
@@ -921,7 +922,7 @@ const Table = () => {
                                                     className="group sticky top-0 z-20 h-9 min-w-44 px-3 bg-surface-50 border-b border-r border-surface-200 text-left font-semibold text-surface-500 cursor-pointer hover:bg-surface-100 transition-colors select-none"
                                                 >
                                                     <div className="flex items-center gap-2">
-                                                        <i className={`fa-solid fa-${getTypeIcon(col.column_type)} text-[10px] text-surface-400`} />
+                                                        <i className={`fa-solid fa-${col.icon || getTypeIcon(col.column_type)} text-[10px] text-surface-400`} />
                                                         <span className="truncate">{col.name}</span>
                                                         {col.required && <span className="text-coral-500">*</span>}
                                                         {active && (

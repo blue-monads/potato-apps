@@ -3,7 +3,7 @@ import { type DatatableColumn } from "../../../lib/api";
 
 interface EditColumnModalProps {
     column: DatatableColumn;
-    onSave: (data: { name?: string; column_type?: string; info?: string; required?: boolean; options?: string }) => Promise<void>;
+    onSave: (data: { name?: string; column_type?: string; icon?: string; info?: string; required?: boolean; options?: string }) => Promise<void>;
     onDelete: () => Promise<void>;
     onCancel: () => void;
 }
@@ -14,6 +14,7 @@ const EditColumnModal = ({ column, onSave, onDelete, onCancel }: EditColumnModal
             initialValues={{
                 name: column.name,
                 column_type: column.column_type,
+                icon: column.icon || "",
                 info: column.info || "",
                 required: column.required || false,
                 options: column.options || ""

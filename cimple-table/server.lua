@@ -237,6 +237,9 @@ local function ensure_schema_migrations()
     pcall(function()
         potato.db.run_ddl("ALTER TABLE Datatables ADD COLUMN color TEXT NOT NULL DEFAULT ''")
     end)
+    pcall(function()
+        potato.db.run_ddl("ALTER TABLE DatatableColumns ADD COLUMN icon TEXT NOT NULL DEFAULT ''")
+    end)
 end
 
 -- DATATABLES CRUD
@@ -486,6 +489,7 @@ function create_column(ctx)
         name = data.name or "",
         slug = slug,
         column_type = data.column_type or "text",
+        icon = data.icon or "",
         order_index = data.order_index or 0,
         info = data.info or "",
         required = data.required == true or false,
@@ -532,6 +536,7 @@ function update_column(ctx, column_id)
     local updates = {}
     if data.name ~= nil then updates.name = data.name end
     if data.column_type ~= nil then updates.column_type = data.column_type end
+    if data.icon ~= nil then updates.icon = data.icon end
     if data.info ~= nil then updates.info = data.info end
     if data.required ~= nil then updates.required = data.required == true or false end
     if data.options ~= nil then updates.options = data.options end

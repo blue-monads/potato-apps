@@ -59,6 +59,7 @@ export interface DatatableColumn {
     name: string;
     slug: string;
     column_type: string;
+    icon?: string;
     info: string;
     required: boolean;
     options: string;
@@ -110,14 +111,14 @@ export async function listColumns(tableId: number): Promise<ApiResponse<Datatabl
     return apiRequest<DatatableColumn[]>(`/datatables/${tableId}/columns`, { method: 'GET' });
 }
 
-export async function createColumn(data: { table_id: number; name: string; column_type: string; info?: string; required?: boolean; options?: string }): Promise<ApiResponse<DatatableColumn>> {
+export async function createColumn(data: { table_id: number; name: string; column_type: string; icon?: string; info?: string; required?: boolean; options?: string }): Promise<ApiResponse<DatatableColumn>> {
     return apiRequest<DatatableColumn>('/columns', {
         method: 'POST',
         body: JSON.stringify(data),
     });
 }
 
-export async function updateColumn(id: number, data: { name?: string; column_type?: string; info?: string; required?: boolean; options?: string }): Promise<ApiResponse<DatatableColumn>> {
+export async function updateColumn(id: number, data: { name?: string; column_type?: string; icon?: string; info?: string; required?: boolean; options?: string }): Promise<ApiResponse<DatatableColumn>> {
     return apiRequest<DatatableColumn>(`/columns/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),

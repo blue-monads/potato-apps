@@ -6,10 +6,13 @@ import {
     type DatatableColumn,
 } from "../../../lib/api";
 import { parseRefOptions, getIdentityColumn } from "../../../lib/refCache";
+import { getTypeIcon } from "./columnTypes";
+import IconSelector from "./IconSelector";
 
 export interface ColumnCoreValues {
     name: string;
     column_type: string;
+    icon?: string;
     info: string;
     required: boolean;
     options: string;
@@ -26,6 +29,7 @@ interface ColumnCoreModalProps {
 const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabel }: ColumnCoreModalProps) => {
     const [name, setName] = useState(initialValues?.name || "");
     const [columnType, setColumnType] = useState(initialValues?.column_type || "text");
+    const [icon, setIcon] = useState(initialValues?.icon || "");
     const [info, setInfo] = useState(initialValues?.info || "");
     const [required, setRequired] = useState(initialValues?.required || false);
     const [options, setOptions] = useState(initialValues?.options || "");
@@ -133,27 +137,38 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                         autoFocus={!initialValues}
                     />
                 </div>
-                <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">Data Type</label>
-                    <div className="relative">
-                        <select
-                            value={columnType}
-                            onChange={(e) => {
-                                const newType = e.target.value;
-                                setColumnType(newType);
-                                if ((newType === 'ref' || newType === 'multiref') && allTables.length > 0 && refTargetTableId === 0) {
-                                    handleRefTableChange(allTables[0].id);
-                                }
-                            }}
-                            className="w-full bg-white border border-surface-300 rounded px-3 py-2 text-sm outline-none focus:border-accent-600 appearance-none cursor-pointer pr-10"
-                        >
-                            {columnTypes.map(t => (
-                                <option key={t.id} value={t.id}>{t.label}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
-                            <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">Data Type</label>
+                        <div className="relative">
+                            <select
+                                value={columnType}
+                                onChange={(e) => {
+                                    const newType = e.target.value;
+                                    setColumnType(newType);
+                                    if ((newType === 'ref' || newType === 'multiref') && allTables.length > 0 && refTargetTableId === 0) {
+                                        handleRefTableChange(allTables[0].id);
+                                    }
+                                }}
+                                className="w-full bg-white border border-surface-300 rounded px-3 py-2 text-sm outline-none focus:border-accent-600 appearance-none cursor-pointer pr-10"
+                            >
+                                {columnTypes.map(t => (
+                                    <option key={t.id} value={t.id}>{t.label}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+                                <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                            </div>
                         </div>
+                    </div>
+                    <div>
+                        <IconSelector
+                            label="Column Icon"
+                            value={icon}
+                            defaultValue={getTypeIcon(columnType)}
+                            onChange={setIcon}
+                            title="Select Column Icon"
+                        />
                     </div>
                 </div>
 
@@ -270,7 +285,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                     </button>
                     <button
                         type="button"
-                        onClick={() => onSave({ name, column_type: columnType, info, required, options })}
+                        onClick={() => onSave({ name, column_type: columnType, icon: icon.trim(), info, required, options })}
                         disabled={!canSubmit}
                         className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                     >

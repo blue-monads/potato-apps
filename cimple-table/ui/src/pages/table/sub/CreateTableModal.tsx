@@ -4,11 +4,13 @@ import { getTypeIcon } from "./columnTypes";
 import { TABLE_COLOR_PRESETS } from "../../../lib/tableColors";
 import { listDatatables, type Datatable } from "../../../lib/api";
 import { parseRefOptions } from "../../../lib/refCache";
+import IconSelector from "./IconSelector";
 
 export interface ColumnDraft {
     id: string;
     name: string;
     column_type: string;
+    icon?: string;
     info: string;
     required: boolean;
     options: string;
@@ -24,7 +26,7 @@ export interface TableCreateData {
 interface CreateTableModalProps {
     onSave: (
         table: TableCreateData,
-        columns: { name: string; column_type: string; info?: string; required?: boolean; options?: string }[]
+        columns: { name: string; column_type: string; icon?: string; info?: string; required?: boolean; options?: string }[]
     ) => Promise<void>;
     onCancel: () => void;
 }
@@ -44,8 +46,6 @@ const AVAILABLE_TYPES = [
     { value: "image", label: "Image", icon: "image" },
     { value: "radio", label: "Radio", icon: "circle-dot" },
 ];
-
-const COMMON_ICONS = ["table", "tasks", "address-book", "boxes", "calendar", "receipt", "sticky-note", "users", "folder", "database", "chart-simple"];
 
 const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
     const [step, setStep] = useState<"presets" | "builder">("presets");
@@ -81,6 +81,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                 id: `col-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
                 name: c.name,
                 column_type: c.column_type,
+                icon: "",
                 info: c.info || "",
                 required: c.required || false,
                 options: c.options || "",
@@ -96,6 +97,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                 id: `col-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                 name: "",
                 column_type: defaultType,
+                icon: "",
                 info: "",
                 required: false,
                 options: defaultType === "dropdown" || defaultType === "multiselect" || defaultType === "radio" ? "Option 1, Option 2" : "",
@@ -149,6 +151,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
             .map(c => ({
                 name: c.name.trim(),
                 column_type: c.column_type,
+                icon: c.icon?.trim() || "",
                 info: c.info.trim(),
                 required: c.required,
                 options: c.options.trim(),
@@ -281,8 +284,8 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
 
             {/* Table Metadata Form */}
             <div className="bg-surface-50 p-3.5 rounded-lg border border-surface-200 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="md:col-span-2 space-y-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
                         <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider flex items-center gap-1">
                             <span>Table Name</span>
                             <span className="text-coral-600">*</span>
@@ -296,39 +299,15 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                             autoFocus
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider">Table Icon</label>
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded bg-white border border-surface-300 flex items-center justify-center text-accent-600 shrink-0">
-                                <i className={`fa-solid fa-${icon || "table"} text-sm`} />
-                            </div>
-                            <input
-                                type="text"
-                                value={icon}
-                                onChange={(e) => setIcon(e.target.value)}
-                                placeholder="icon name"
-                                className="w-full bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs text-surface-700 outline-none focus:border-accent-600"
-                            />
-                        </div>
+                    <div>
+                        <IconSelector
+                            label="Table Icon"
+                            value={icon}
+                            defaultValue="table"
+                            onChange={setIcon}
+                            title="Select Table Icon"
+                        />
                     </div>
-                </div>
-
-                {/* Quick Icon Selector */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mr-1">Suggested:</span>
-                    {COMMON_ICONS.map((ic) => (
-                        <button
-                            key={ic}
-                            type="button"
-                            onClick={() => setIcon(ic)}
-                            className={`w-6 h-6 rounded flex items-center justify-center text-xs transition-colors cursor-pointer ${
-                                icon === ic ? "bg-accent-600 text-white" : "bg-white border border-surface-200 text-surface-500 hover:bg-surface-200"
-                            }`}
-                            title={ic}
-                        >
-                            <i className={`fa-solid fa-${ic}`} />
-                        </button>
-                    ))}
                 </div>
 
                 {/* Table Color Picker */}
@@ -475,6 +454,15 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                                         <span className="text-[10px] font-mono text-surface-400 w-4 text-center select-none shrink-0">
                                             {idx + 1}
                                         </span>
+
+                                        {/* Column Icon Selector */}
+                                        <IconSelector
+                                            compact
+                                            value={col.icon}
+                                            defaultValue={getTypeIcon(col.column_type)}
+                                            onChange={(newIcon) => handleUpdateColumn(col.id, { icon: newIcon })}
+                                            title={`Icon for ${col.name || 'column'}`}
+                                        />
 
                                         {/* Column Name */}
                                         <div className="flex-1 min-w-[130px]">

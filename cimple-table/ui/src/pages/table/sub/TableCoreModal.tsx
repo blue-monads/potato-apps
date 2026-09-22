@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TABLE_COLOR_PRESETS } from "../../../lib/tableColors";
+import IconSelector from "./IconSelector";
 
 export interface TableCoreValues {
     name: string;
@@ -47,17 +48,14 @@ const TableCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabel
                         placeholder="Optional description..."
                     />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">Icon</label>
-                        <input
-                            type="text"
-                            value={icon}
-                            onChange={(e) => setIcon(e.target.value)}
-                            className="w-full bg-white border border-surface-300 rounded px-3 py-2 text-sm focus:border-accent-600 focus:ring-1 focus:ring-accent-600 outline-none transition-all"
-                            placeholder="table"
-                        />
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <IconSelector
+                        label="Table Icon"
+                        value={icon}
+                        defaultValue="table"
+                        onChange={setIcon}
+                        title="Select Table Icon"
+                    />
                     <div className="space-y-1">
                         <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">
                             Theme Color

@@ -2,7 +2,7 @@ import ColumnCoreModal from "./ColumnCoreModal";
 
 interface CreateColumnModalProps {
     tableId: number;
-    onSave: (data: { table_id: number; name: string; column_type: string; info?: string; required?: boolean; options?: string }) => Promise<void>;
+    onSave: (data: { table_id: number; name: string; column_type: string; icon?: string; info?: string; required?: boolean; options?: string }) => Promise<void>;
     onCancel: () => void;
 }
 
