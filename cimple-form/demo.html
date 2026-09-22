@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Formwork — form builder</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📋</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #F4F5F1;
+    --surface: #FFFFFF;
+    --surface-sunken: #EEF0EA;
+    --border: #E1E3DB;
+    --border-strong: #CBCEC3;
+    --ink-900: #1C1E1A;
+    --ink-700: #3E4139;
+    --ink-500: #6B6E63;
+    --ink-400: #979A8D;
+    --ink-300: #C4C6BB;
+
+    --accent: #2E6E52;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E1EFE7;
+    --accent-soft-ink: #205C41;
+    --danger: #B0473F;
+    --danger-soft: #F7E7E4;
+
+    --type-blue: #3E6DA8;      --type-blue-soft: #E6EDF6;
+    --type-purple: #7A5CA6;    --type-purple-soft: #EFE9F5;
+    --type-amber: #A9782B;     --type-amber-soft: #F5EEDE;
+    --type-rose: #AA4A62;      --type-rose-soft: #F5E5E9;
+    --type-teal: #2C8577;      --type-teal-soft: #E1F0ED;
+    --type-slate: #565C6B;     --type-slate-soft: #E9EAEE;
+
+    --shadow-1: 0 1px 2px rgba(28,30,26,0.06);
+    --shadow-2: 0 6px 20px rgba(28,30,26,0.10);
+    --radius-s: 6px;
+    --radius-m: 10px;
+    --radius-l: 16px;
+  }
+  :root[data-theme="dark"], :root:not([data-theme="light"]) {
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17181A;
+      --surface: #1E2022;
+      --surface-sunken: #232527;
+      --border: #2C2F31;
+      --border-strong: #3B3E40;
+      --ink-900: #F0F1ED;
+      --ink-700: #D3D5CD;
+      --ink-500: #9A9D95;
+      --ink-400: #74766E;
+      --ink-300: #4A4D48;
+      --accent: #4FA282;
+      --accent-ink: #0F1712;
+      --accent-soft: #1E3129;
+      --accent-soft-ink: #7FC7AA;
+      --danger: #D08079;
+      --danger-soft: #351F1D;
+      --type-blue: #7EA6DD;    --type-blue-soft: #23303F;
+      --type-purple: #B29BDA;  --type-purple-soft: #2B2536;
+      --type-amber: #D2A85B;   --type-amber-soft: #332B1B;
+      --type-rose: #D98CA0;    --type-rose-soft: #35232A;
+      --type-teal: #6BC2B0;    --type-teal-soft: #1D2E2A;
+      --type-slate: #A6ABB8;   --type-slate-soft: #292B30;
+      --shadow-1: 0 1px 2px rgba(0,0,0,0.3);
+      --shadow-2: 0 10px 26px rgba(0,0,0,0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+      --bg: #17181A; --surface: #1E2022; --surface-sunken: #232527;
+      --border: #2C2F31; --border-strong: #3B3E40; --ink-900: #F0F1ED; --ink-700: #D3D5CD;
+      --ink-500: #9A9D95; --ink-400: #74766E; --ink-300: #4A4D48;
+      --accent: #4FA282; --accent-ink: #0F1712; --accent-soft: #1E3129; --accent-soft-ink: #7FC7AA;
+      --danger: #D08079; --danger-soft: #351F1D;
+      --type-blue: #7EA6DD; --type-blue-soft: #23303F;
+      --type-purple: #B29BDA; --type-purple-soft: #2B2536;
+      --type-amber: #D2A85B; --type-amber-soft: #332B1B;
+      --type-rose: #D98CA0; --type-rose-soft: #35232A;
+      --type-teal: #6BC2B0; --type-teal-soft: #1D2E2A;
+      --type-slate: #A6ABB8; --type-slate-soft: #292B30;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink-900);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 14.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .brand, .nav-label, .tab, .field-badge, button.primary, button.ghost, .stat-num {
+    font-family: "Space Grotesk", system-ui, sans-serif;
+  }
+  ::selection { background: var(--accent-soft); color: var(--accent-soft-ink); }
+  a { color: inherit; }
+  button, input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 2px solid var(--bg); }
+
+  /* ---------- shell ---------- */
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 9px;
+    font-weight: 600; font-size: 16.5px; letter-spacing: -0.01em;
+    cursor: pointer; user-select: none;
+  }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--accent); color: var(--accent-ink);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .brand-mark svg { width: 15px; height: 15px; }
+
+  .main {
+    min-width: 0; min-height: 0;
+    flex: 1;
+    display: flex; flex-direction: column;
+  }
+  .topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 22px; border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    top: env(safe-area-inset-top, 0px);
+  }
+  .topbar-sep { color: var(--border-strong); font-size: 14px; user-select: none; }
+  .topbar-title-wrap { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .topbar-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .topbar-title { font-family: "Space Grotesk"; font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
+  .back-link {
+    display: flex; align-items: center; gap: 5px;
+    color: var(--ink-500); background: none; border: none; cursor: pointer;
+    font-size: 13px; padding: 4px 6px; border-radius: var(--radius-s); flex-shrink: 0;
+  }
+  .back-link:hover { color: var(--ink-900); background: var(--surface-sunken); }
+  .back-link svg { width: 14px; height: 14px; }
+
+  .tabs { display: flex; gap: 2px; margin-left: auto; background: var(--surface-sunken); padding: 3px; border-radius: 9px; flex-shrink: 0; }
+  .tab {
+    padding: 6px 13px; border-radius: 7px; border: none; background: none;
+    color: var(--ink-500); font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .tab.active { background: var(--surface); color: var(--ink-900); box-shadow: var(--shadow-1); }
+  .tab:hover:not(.active) { color: var(--ink-900); }
+
+  .content { flex: 1; min-height: 0; overflow-y: auto; }
+  .content-inner { max-width: 1100px; margin: 0 auto; padding: 28px 28px 60px; }
+
+  /* ---------- buttons / inputs ---------- */
+  button { font: inherit; }
+  button.primary {
+    background: var(--accent); color: var(--accent-ink); border: none;
+    padding: 9px 16px; border-radius: var(--radius-s); font-weight: 600; font-size: 13.5px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+    transition: filter .12s, transform .05s;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.primary:active { transform: translateY(1px); }
+  button.ghost {
+    background: var(--surface); color: var(--ink-700); border: 1px solid var(--border-strong);
+    padding: 8px 14px; border-radius: var(--radius-s); font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  button.ghost:hover { border-color: var(--ink-400); color: var(--ink-900); }
+  button.icon-btn {
+    width: 28px; height: 28px; border-radius: var(--radius-s); border: 1px solid transparent;
+    background: none; color: var(--ink-400); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  button.icon-btn:hover { background: var(--surface-sunken); color: var(--ink-900); border-color: var(--border); }
+  button.icon-btn svg { width: 15px; height: 15px; }
+  button.text-danger { background: none; border: none; color: var(--danger); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+  button.text-danger:hover { text-decoration: underline; }
+
+  label.field-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-700); margin-bottom: 6px; }
+  input[type=text], input[type=email], input[type=number], input[type=date], textarea, select.control {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--border-strong); border-radius: var(--radius-s);
+    background: var(--surface); color: var(--ink-900); font-size: 13.5px;
+  }
+  input[type=text]:focus, input[type=email]:focus, input[type=number]:focus, input[type=date]:focus, textarea:focus, select.control:focus {
+    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  input::placeholder, textarea::placeholder { color: var(--ink-400); }
+
+  .switch { position: relative; width: 34px; height: 20px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch .track {
+    position: absolute; inset: 0; background: var(--border-strong); border-radius: 999px; cursor: pointer; transition: background .15s;
+  }
+  .switch .track::after {
+    content: ""; position: absolute; width: 15px; height: 15px; border-radius: 50%; background: var(--surface);
+    top: 2.5px; left: 2.5px; transition: transform .15s; box-shadow: var(--shadow-1);
+  }
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track::after { transform: translateX(14px); }
+  .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- dashboard ---------- */
+  .dash-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 10px; }
+  .dash-head h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  .dash-sub { color: var(--ink-500); font-size: 13px; margin-top: 3px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .form-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m);
+    padding: 16px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 10px;
+    transition: border-color .12s, box-shadow .12s, transform .06s;
+  }
+  .form-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-2); transform: translateY(-1px); }
+  .form-card-top { display: flex; align-items: center; gap: 9px; }
+  .form-card-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .form-card-name { font-family: "Space Grotesk"; font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .form-card-desc { color: var(--ink-500); font-size: 12.5px; min-height: 32px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .form-card-meta { display: flex; gap: 14px; font-size: 12px; color: var(--ink-400); border-top: 1px solid var(--border); padding-top: 10px; }
+  .form-card-meta b { color: var(--ink-700); font-weight: 600; }
+  .new-card {
+    border: 1.5px dashed var(--border-strong); border-radius: var(--radius-m); background: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    color: var(--ink-400); cursor: pointer; min-height: 128px; font-weight: 600; font-size: 13px;
+  }
+  .new-card:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .new-card svg { width: 20px; height: 20px; }
+
+  .empty-state { text-align: center; padding: 70px 20px; color: var(--ink-500); }
+  .empty-state svg { width: 40px; height: 40px; color: var(--ink-300); margin-bottom: 14px; }
+  .empty-state h3 { margin: 0 0 6px; color: var(--ink-900); font-size: 16px; }
+  .empty-state p { margin: 0 0 18px; font-size: 13px; }
+
+  /* ---------- builder ---------- */
+  .builder-grid { display: grid; grid-template-columns: 210px 1fr 300px; gap: 0; height: 100%; }
+  .palette, .settings { padding: 20px 16px; overflow-y: auto; }
+  .palette { border-right: 1px solid var(--border); }
+  .settings { border-left: 1px solid var(--border); background: var(--surface); }
+  .canvas-col { overflow-y: auto; padding: 24px 30px 80px; }
+  .canvas-inner { max-width: 620px; margin: 0 auto; }
+  .panel-label { font-size: 11px; font-weight: 600; color: var(--ink-400); letter-spacing: 0.03em; margin-bottom: 10px; }
+
+  .palette-item {
+    display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+    padding: 8px 9px; border-radius: var(--radius-s); border: 1px solid transparent; background: none;
+    cursor: grab; margin-bottom: 2px; font-size: 13px; color: var(--ink-700);
+  }
+  .palette-item:hover { background: var(--surface-sunken); border-color: var(--border); }
+
+  .field-badge {
+    width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+  }
+  .field-badge svg { width: 13px; height: 13px; }
+
+  .canvas-empty {
+    border: 1.5px dashed var(--border-strong); border-radius: var(--radius-m); padding: 50px 20px;
+    text-align: center; color: var(--ink-400); font-size: 13px;
+  }
+  .form-meta-block { margin-bottom: 22px; }
+  .form-title-input {
+    font-family: "Space Grotesk"; font-weight: 600; font-size: 24px; border: none; background: none;
+    width: 100%; padding: 4px 0; color: var(--ink-900); border-bottom: 2px solid transparent;
+  }
+  .form-title-input:focus { outline: none; border-bottom-color: var(--accent); }
+  .form-desc-input {
+    border: none; background: none; width: 100%; color: var(--ink-500); font-size: 13.5px; padding: 3px 0; resize: none;
+    border-bottom: 2px solid transparent;
+  }
+  .form-desc-input:focus { outline: none; border-bottom-color: var(--accent); }
+
+  .field-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-m);
+    padding: 12px 12px 12px 8px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 6px;
+    cursor: pointer; transition: border-color .12s;
+  }
+  .field-card:hover { border-color: var(--border-strong); }
+  .field-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .field-card.drag-over { border-top: 2px solid var(--accent); }
+  .drag-handle { color: var(--ink-300); cursor: grab; padding: 4px 2px; flex-shrink: 0; margin-top: 2px; }
+  .drag-handle svg { width: 13px; height: 15px; }
+  .field-card-body { flex: 1; min-width: 0; }
+  .field-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .field-card-label { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .req-star { color: var(--danger); margin-left: 1px; }
+  .field-card-preview { pointer-events: none; opacity: 0.75; }
+  .field-card-preview input, .field-card-preview textarea, .field-card-preview select { background: var(--surface-sunken); font-size: 13px; padding: 7px 9px; }
+  .field-card-actions { display: flex; gap: 2px; flex-shrink: 0; margin-top: 2px; }
+  .opt-preview { display: flex; flex-wrap: wrap; gap: 6px; }
+  .opt-chip { border: 1px solid var(--border-strong); border-radius: 6px; padding: 4px 9px; font-size: 12px; color: var(--ink-500); }
+
+  .settings-empty { color: var(--ink-400); font-size: 13px; padding: 6px 2px; }
+  .setting-row { margin-bottom: 16px; }
+  .setting-row.inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .setting-row.inline label.field-label { margin: 0; }
+  .setting-hint { font-size: 11.5px; color: var(--ink-400); margin-top: 5px; }
+
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .swatch.selected { border-color: var(--ink-900); }
+  .swatch svg { width: 12px; height: 12px; color: #fff; }
+
+  .options-editor { display: flex; flex-direction: column; gap: 7px; }
+  .option-row { display: flex; align-items: center; gap: 6px; }
+  .option-row input { flex: 1; padding: 7px 9px; font-size: 13px; }
+  .add-option-btn {
+    display: flex; align-items: center; gap: 6px; background: none; border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-s); padding: 7px 10px; font-size: 12.5px; color: var(--ink-500); cursor: pointer; margin-top: 2px;
+  }
+  .add-option-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .add-option-btn svg { width: 13px; height: 13px; }
+
+  .settings-footer { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; }
+  .stat-row { display: flex; gap: 18px; margin-bottom: 4px; }
+  .stat-num { font-size: 19px; font-weight: 700; }
+  .stat-cap { font-size: 11px; color: var(--ink-400); }
+
+  /* ---------- preview / fill ---------- */
+  .fill-wrap { max-width: 560px; margin: 0 auto; }
+  .fill-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-l); overflow: hidden; box-shadow: var(--shadow-2); }
+  .fill-accent-bar { height: 6px; }
+  .fill-body { padding: 30px 32px 34px; }
+  .fill-body h1 { font-family: "Space Grotesk"; font-size: 22px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .fill-desc { color: var(--ink-500); font-size: 13.5px; margin: 0 0 26px; }
+  .fill-field { margin-bottom: 20px; }
+  .fill-field .field-label { font-size: 13.5px; }
+  .fill-help { font-size: 12px; color: var(--ink-400); margin-top: 5px; }
+  .choice-list { display: flex; flex-direction: column; gap: 8px; }
+  .choice-row {
+    display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid var(--border-strong);
+    border-radius: var(--radius-s); cursor: pointer; font-size: 13.5px;
+  }
+  .choice-row:hover { border-color: var(--accent); }
+  .choice-row input { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+  .bool-row { display: flex; gap: 8px; }
+  .bool-btn {
+    flex: 1; padding: 10px; border-radius: var(--radius-s); border: 1px solid var(--border-strong);
+    background: var(--surface); cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--ink-500);
+  }
+  .bool-btn.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-soft-ink); }
+  .field-error { color: var(--danger); font-size: 11.5px; margin-top: 5px; }
+  .field-card-preview.has-error, .fill-field.has-error input, .fill-field.has-error textarea { border-color: var(--danger) !important; }
+  .submit-row { margin-top: 26px; display: flex; align-items: center; gap: 12px; }
+  .submit-row button.primary { padding: 10px 20px; font-size: 14px; }
+  .submit-note { font-size: 11.5px; color: var(--ink-400); }
+
+  .success-screen { text-align: center; padding: 50px 32px 44px; }
+  .success-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+  .success-icon svg { width: 26px; height: 26px; }
+  .success-screen h2 { font-family: "Space Grotesk"; font-size: 18px; margin: 0 0 6px; }
+  .success-screen p { color: var(--ink-500); font-size: 13px; margin: 0 0 22px; }
+
+  /* ---------- submissions ---------- */
+  .subs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+  .subs-head h1 { font-size: 20px; margin: 0; }
+  .table-wrap { border: 1px solid var(--border); border-radius: var(--radius-m); overflow: auto; background: var(--surface); max-width: 100%; }
+  table.subs-table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13px; }
+  table.subs-table th {
+    text-align: left; padding: 10px 14px; background: var(--surface-sunken); color: var(--ink-500);
+    font-weight: 600; font-size: 11.5px; letter-spacing: 0.02em; position: sticky; top: 0; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  table.subs-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; max-width: 240px; }
+  table.subs-table tr:last-child td { border-bottom: none; }
+  table.subs-table tr:hover td { background: var(--surface-sunken); }
+  .cell-muted { color: var(--ink-400); }
+
+  /* ---------- misc ---------- */
+  .field-badge.blue { background: var(--type-blue-soft); color: var(--type-blue); }
+  .field-badge.purple { background: var(--type-purple-soft); color: var(--type-purple); }
+  .field-badge.amber { background: var(--type-amber-soft); color: var(--type-amber); }
+  .field-badge.rose { background: var(--type-rose-soft); color: var(--type-rose); }
+  .field-badge.teal { background: var(--type-teal-soft); color: var(--type-teal); }
+  .field-badge.slate { background: var(--type-slate-soft); color: var(--type-slate); }
+
+  @media (max-width: 860px) {
+    .builder-grid { grid-template-columns: 1fr; }
+    .palette { display: none; }
+    .settings { border-left: none; border-top: 1px solid var(--border); }
+    .content-inner { padding: 18px 16px 50px; }
+    .topbar-title { max-width: 46vw; }
+  }
+  @media (max-width: 600px) {
+    .brand span:not(.brand-mark) { display: none; }
+    .topbar { padding: 10px 14px; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="topbar" id="topbar"></div>
+  <main class="main">
+    <div class="content"><div class="content-inner" id="content"></div></div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- storage ---------------- */
+  var LS_FORMS = "formwork_forms_v1";
+  var LS_SUBS  = "formwork_submissions_v1";
+
+  function loadForms() {
+    try {
+      var raw = localStorage.getItem(LS_FORMS);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function saveForms(forms) {
+    try { localStorage.setItem(LS_FORMS, JSON.stringify(forms)); } catch (e) { console.error("save forms failed", e); }
+  }
+  function loadSubs() {
+    try {
+      var raw = localStorage.getItem(LS_SUBS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  function saveSubs(subs) {
+    try { localStorage.setItem(LS_SUBS, JSON.stringify(subs)); } catch (e) { console.error("save subs failed", e); }
+  }
+
+  function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+
+  /* ---------------- field types ---------------- */
+  var COLORS = ["blue", "purple", "amber", "rose", "teal", "slate"];
+  var ACCENTS = {
+    blue:   {main:"#3E6DA8"}, purple: {main:"#7A5CA6"}, amber: {main:"#A9782B"},
+    rose:   {main:"#AA4A62"}, teal:   {main:"#2E6E52"}, slate: {main:"#565C6B"}
+  };
+
+  var ICON = {
+    date: '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.4"/><line x1="3" y1="8" x2="17" y2="8" stroke="currentColor" stroke-width="1.4"/><line x1="7" y1="2.3" x2="7" y2="5.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><line x1="13" y1="2.3" x2="13" y2="5.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    select: '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M7 9l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    radio: '<svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6.3" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="2.6" fill="currentColor"/></svg>',
+    checkbox: '<svg viewBox="0 0 20 20" fill="none"><rect x="4" y="4" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.4"/><path d="M7 10.2l2 2 4-4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    boolean: '<svg viewBox="0 0 20 20" fill="none"><rect x="2" y="6.5" width="16" height="7" rx="3.5" stroke="currentColor" stroke-width="1.4"/><circle cx="13.5" cy="10" r="2.3" fill="currentColor"/></svg>'
+  };
+
+  var FIELD_TYPES = [
+    { id: "text",     label: "Short text",      color: "blue",   glyph: "Aa" },
+    { id: "textarea", label: "Long text",       color: "purple", glyph: "¶" },
+    { id: "email",    label: "Email",           color: "teal",   glyph: "@" },
+    { id: "number",   label: "Number",          color: "amber",  glyph: "#" },
+    { id: "date",     label: "Date",            color: "rose",   svg: ICON.date },
+    { id: "select",   label: "Dropdown",        color: "slate",  svg: ICON.select },
+    { id: "radio",    label: "Single choice",   color: "blue",   svg: ICON.radio },
+    { id: "checkbox", label: "Multiple choice", color: "purple", svg: ICON.checkbox },
+    { id: "boolean",  label: "Yes / no",        color: "teal",   svg: ICON.boolean }
+  ];
+  function typeDef(id) { for (var i=0;i<FIELD_TYPES.length;i++) if (FIELD_TYPES[i].id===id) return FIELD_TYPES[i]; return FIELD_TYPES[0]; }
+  function badgeHtml(typeId, size) {
+    var t = typeDef(typeId);
+    var content = t.svg ? t.svg : t.glyph;
+    var sizeStyle = size ? ' style="width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*0.42)+'px"' : '';
+    return '<span class="field-badge '+t.color+'"'+sizeStyle+'>'+content+'</span>';
+  }
+  function needsOptions(typeId) { return typeId === "select" || typeId === "radio" || typeId === "checkbox"; }
+  function needsPlaceholder(typeId) { return typeId === "text" || typeId === "textarea" || typeId === "email" || typeId === "number"; }
+
+  /* ---------------- seed data ---------------- */
+  function seed() {
+    var f1id = uid(), f2id = uid();
+    var fields1 = [
+      { id: uid(), type: "text", label: "Full name", placeholder: "Jamie Rivera", help: "", required: true },
+      { id: uid(), type: "email", label: "Email", placeholder: "you@example.com", help: "We'll send the calendar invite here.", required: true },
+      { id: uid(), type: "radio", label: "Will you attend?", options: ["Yes, count me in", "Can't make it"], help: "", required: true },
+      { id: uid(), type: "select", label: "Meal preference", options: ["No preference", "Vegetarian", "Vegan", "Gluten-free"], help: "", required: false },
+      { id: uid(), type: "checkbox", label: "Which sessions interest you?", options: ["Opening keynote", "Product workshop", "Evening mixer"], help: "Pick all that apply.", required: false },
+      { id: uid(), type: "textarea", label: "Anything else we should know?", placeholder: "Dietary needs, accessibility, questions…", help: "", required: false }
+    ];
+    var form1 = { id: f1id, name: "Autumn Meetup RSVP", description: "A quick form to confirm your spot at our October gathering.", accent: "teal", fields: fields1, createdAt: Date.now() - 8*86400000, updatedAt: Date.now() - 86400000 };
+
+    var fields2 = [
+      { id: uid(), type: "text", label: "What are you working on?", placeholder: "e.g. Portfolio redesign", help: "", required: true },
+      { id: uid(), type: "select", label: "How urgent is it?", options: ["Just exploring", "This month", "This week", "Blocking me now"], help: "", required: true },
+      { id: uid(), type: "boolean", label: "Have you tried our docs first?", help: "", required: false },
+      { id: uid(), type: "textarea", label: "Details", placeholder: "The more context, the faster we can help.", help: "", required: true }
+    ];
+    var form2 = { id: f2id, name: "Support Intake", description: "Tell us what you're stuck on and we'll route it to the right person.", accent: "blue", fields: fields2, createdAt: Date.now() - 3*86400000, updatedAt: Date.now() - 3600000 };
+
+    saveForms([form1, form2]);
+
+    var subs = [
+      { id: uid(), formId: f1id, values: mkVals(fields1, ["Priya Nair","priya@example.com","Yes, count me in","Vegetarian",["Product workshop","Evening mixer"],""]), submittedAt: Date.now() - 5*86400000 },
+      { id: uid(), formId: f1id, values: mkVals(fields1, ["Marcus Webb","marcus@example.com","Yes, count me in","No preference",["Opening keynote"],"Bringing a plus one, hope that's fine!"]), submittedAt: Date.now() - 3*86400000 },
+      { id: uid(), formId: f1id, values: mkVals(fields1, ["Elena Ortiz","elena@example.com","Can't make it","","",""]), submittedAt: Date.now() - 86400000 },
+      { id: uid(), formId: f2id, values: mkVals(fields2, ["CSV import failing silently","This week","No","Uploading a 40MB file just spins forever, no error shown."]), submittedAt: Date.now() - 7200000 }
+    ];
+    saveSubs(subs);
+  }
+  function mkVals(fields, arr) {
+    var v = {};
+    for (var i=0;i<fields.length;i++) v[fields[i].id] = arr[i];
+    return v;
+  }
+
+  var forms = loadForms();
+  if (!forms) { seed(); forms = loadForms(); }
+  var subs = loadSubs();
+
+  function getForm(id) { for (var i=0;i<forms.length;i++) if (forms[i].id===id) return forms[i]; return null; }
+  function formSubs(id) { var out=[]; for (var i=0;i<subs.length;i++) if (subs[i].formId===id) out.push(subs[i]); return out; }
+  function persistForms() { saveForms(forms); }
+  function persistSubs() { saveSubs(subs); }
+
+  /* ---------------- state / routing ---------------- */
+  var state = { formId: null, view: "dashboard", selectedFieldId: null, draftValues: {}, draftErrors: {}, justSubmitted: false };
+
+  function parseHash() {
+    var h = location.hash.replace(/^#\/?/, "");
+    var parts = h.split("/").filter(Boolean);
+    if (parts[0] === "f" && parts[1]) {
+      state.formId = parts[1];
+      state.view = parts[2] || "build";
+    } else {
+      state.formId = null;
+      state.view = "dashboard";
+    }
+  }
+  function navigate(formId, view) {
+    if (!formId) { location.hash = "#/dashboard"; }
+    else { location.hash = "#/f/" + formId + "/" + view; }
+  }
+  window.addEventListener("hashchange", function () { parseHash(); state.selectedFieldId = null; state.justSubmitted = false; renderAll(); });
+
+  /* ---------------- helpers ---------------- */
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function relTime(ts) {
+    var d = Date.now() - ts, m = 60000, h = 3600000, day = 86400000;
+    if (d < m) return "just now";
+    if (d < h) return Math.round(d/m) + "m ago";
+    if (d < day) return Math.round(d/h) + "h ago";
+    if (d < 7*day) return Math.round(d/day) + "d ago";
+    return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  function fullDate(ts) { return new Date(ts).toLocaleString(undefined, { month:"short", day:"numeric", year:"numeric", hour:"2-digit", minute:"2-digit" }); }
+
+  /* ================= RENDER: TOPBAR ================= */
+  function renderTopbar() {
+    var el = document.getElementById("topbar");
+    if (state.view === "dashboard" || !state.formId) {
+      el.innerHTML =
+        '<div class="brand" id="brand-home">' +
+          '<span class="brand-mark">' +
+            '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 8h14M8 8v9" stroke="currentColor" stroke-width="1.6"/></svg>' +
+          '</span>' +
+          '<span>Formwork</span>' +
+        '</div>' +
+        '<div style="margin-left:auto">' +
+          '<button class="primary" id="btn-topbar-new" style="padding:7px 14px;font-size:13px">' +
+            '<svg viewBox="0 0 20 20" fill="none" style="width:14px;height:14px"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' +
+            '<span>New form</span>' +
+          '</button>' +
+        '</div>';
+      document.getElementById("brand-home").addEventListener("click", function () { navigate(null); });
+      document.getElementById("btn-topbar-new").addEventListener("click", createForm);
+      return;
+    }
+    var form = getForm(state.formId);
+    if (!form) { navigate(null); return; }
+    var views = [["build","Build"],["preview","Preview"],["submissions","Responses"]];
+    el.innerHTML =
+      '<div class="brand" id="brand-home" title="All forms">' +
+        '<span class="brand-mark">' +
+          '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 8h14M8 8v9" stroke="currentColor" stroke-width="1.6"/></svg>' +
+        '</span>' +
+        '<span>Formwork</span>' +
+      '</div>' +
+      '<span class="topbar-sep">/</span>' +
+      '<button class="back-link" id="btn-back"><svg viewBox="0 0 20 20" fill="none"><path d="M12 4l-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Forms</button>' +
+      '<div class="topbar-title-wrap"><span class="topbar-dot" style="background:' + ACCENTS[form.accent].main + '"></span><span class="topbar-title">' + esc(form.name || "Untitled form") + '</span></div>' +
+      '<div class="tabs">' + views.map(function (v) {
+        var count = v[0] === "submissions" ? ' <span style="opacity:.6">' + formSubs(form.id).length + '</span>' : "";
+        return '<button class="tab' + (state.view === v[0] ? " active" : "") + '" data-tab="' + v[0] + '">' + v[1] + count + '</button>';
+      }).join("") + '</div>';
+    document.getElementById("brand-home").addEventListener("click", function () { navigate(null); });
+    document.getElementById("btn-back").addEventListener("click", function () { navigate(null); });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-tab]"), function (btn) {
+      btn.addEventListener("click", function () { navigate(form.id, btn.getAttribute("data-tab")); });
+    });
+  }
+
+  /* ================= RENDER: MAIN CONTENT ================= */
+  function renderContent() {
+    var el = document.getElementById("content");
+    if (state.view === "dashboard" || !state.formId) { el.innerHTML = dashboardHtml(); wireDashboard(); return; }
+    var form = getForm(state.formId);
+    if (!form) { navigate(null); return; }
+    if (state.view === "build") { el.innerHTML = builderHtml(form); wireBuilder(form); }
+    else if (state.view === "preview") { el.innerHTML = previewHtml(form); wirePreview(form); }
+    else if (state.view === "submissions") { el.innerHTML = submissionsHtml(form); wireSubmissions(form); }
+  }
+
+  /* ---------- dashboard ---------- */
+  function dashboardHtml() {
+    var totalSubs = subs.length;
+    var head = '<div class="dash-head"><div><h1>Your forms</h1><div class="dash-sub">' +
+      forms.length + ' form' + (forms.length===1?"":"s") + ' · ' + totalSubs + ' response' + (totalSubs===1?"":"s") + ' total · Stored locally in this browser</div></div></div>';
+
+    if (!forms.length) {
+      return head + '<div class="empty-state">' +
+        '<svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M6.5 8h7M6.5 11.5h4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' +
+        '<h3>Nothing built yet</h3><p>Create your first form — it takes about thirty seconds.</p>' +
+        '<button class="primary" id="btn-empty-new">+ New form</button></div>';
+    }
+
+    var sorted = forms.slice().sort(function(a,b){ return b.updatedAt - a.updatedAt; });
+    var cards = sorted.map(function (f) {
+      var count = formSubs(f.id).length;
+      return '<button class="form-card" data-open="' + f.id + '">' +
+        '<div class="form-card-top"><span class="form-card-dot" style="background:' + ACCENTS[f.accent].main + '"></span><span class="form-card-name">' + esc(f.name || "Untitled form") + '</span></div>' +
+        '<div class="form-card-desc">' + (esc(f.description) || '<span style="color:var(--ink-300)">No description</span>') + '</div>' +
+        '<div class="form-card-meta"><span><b>' + f.fields.length + '</b> field' + (f.fields.length===1?"":"s") + '</span><span><b>' + count + '</b> response' + (count===1?"":"s") + '</span><span>' + relTime(f.updatedAt) + '</span></div>' +
+        '</button>';
+    }).join("");
+    var newCard = '<button class="new-card" id="btn-grid-new"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>New form</button>';
+    return head + '<div class="form-grid">' + newCard + cards + '</div>';
+  }
+  function wireDashboard() {
+    var newBtn = document.getElementById("btn-empty-new") || document.getElementById("btn-grid-new");
+    if (newBtn) newBtn.addEventListener("click", createForm);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-open]"), function (btn) {
+      btn.addEventListener("click", function () { navigate(btn.getAttribute("data-open"), "build"); });
+    });
+  }
+
+  function createForm() {
+    var f = { id: uid(), name: "Untitled form", description: "", accent: COLORS[Math.floor(Math.random()*COLORS.length)] === "amber" ? "teal" : COLORS[forms.length % COLORS.length], fields: [], createdAt: Date.now(), updatedAt: Date.now() };
+    forms.push(f);
+    persistForms();
+    navigate(f.id, "build");
+  }
+
+  /* ---------- builder ---------- */
+  function builderHtml(form) {
+    var palette = FIELD_TYPES.map(function (t) {
+      return '<button class="palette-item" data-add-type="' + t.id + '">' + badgeHtml(t.id, 24) + '<span>' + t.label + '</span></button>';
+    }).join("");
+
+    var canvas;
+    if (!form.fields.length) {
+      canvas = '<div class="canvas-empty">This form has no fields yet.<br>Click a field type on the left to add one.</div>';
+    } else {
+      canvas = form.fields.map(function (f, idx) { return fieldCardHtml(f, idx); }).join("");
+    }
+
+    var selected = form.fields.find ? form.fields.find(function(f){return f.id===state.selectedFieldId;}) : null;
+    var settings = selected ? fieldSettingsHtml(selected) : formSettingsHtml(form);
+
+    return '<div class="builder-grid" style="min-height:calc(100vh - 110px)">' +
+      '<div class="palette"><div class="panel-label">Add a field</div>' + palette + '</div>' +
+      '<div class="canvas-col"><div class="canvas-inner">' +
+        '<div class="form-meta-block">' +
+          '<input class="form-title-input" id="input-form-name" value="' + esc(form.name) + '" placeholder="Untitled form">' +
+          '<textarea class="form-desc-input" id="input-form-desc" rows="1" placeholder="Add a short description…">' + esc(form.description) + '</textarea>' +
+        '</div>' +
+        '<div id="canvas-fields">' + canvas + '</div>' +
+      '</div></div>' +
+      '<div class="settings" id="settings-panel">' + settings + '</div>' +
+    '</div>';
+  }
+
+  function fieldCardHtml(f, idx) {
+    var t = typeDef(f.type);
+    var selected = f.id === state.selectedFieldId;
+    var preview = "";
+    if (f.type === "text") preview = '<input type="text" disabled placeholder="' + esc(f.placeholder || "Short answer") + '">';
+    else if (f.type === "textarea") preview = '<textarea disabled rows="2" placeholder="' + esc(f.placeholder || "Long answer") + '"></textarea>';
+    else if (f.type === "email") preview = '<input type="text" disabled placeholder="' + esc(f.placeholder || "name@example.com") + '">';
+    else if (f.type === "number") preview = '<input type="text" disabled placeholder="' + esc(f.placeholder || "0") + '">';
+    else if (f.type === "date") preview = '<input type="text" disabled placeholder="Select a date">';
+    else if (f.type === "select") preview = '<select class="control" disabled><option>' + (f.options && f.options[0] ? esc(f.options[0]) : "Choose…") + '</option></select>';
+    else if (f.type === "radio" || f.type === "checkbox") preview = '<div class="opt-preview">' + (f.options||[]).slice(0,4).map(function(o){return '<span class="opt-chip">'+esc(o)+'</span>';}).join("") + (!f.options || !f.options.length ? '<span class="opt-chip" style="color:var(--ink-300)">No options yet</span>' : '') + '</div>';
+    else if (f.type === "boolean") preview = '<div class="bool-row"><button class="bool-btn" disabled>Yes</button><button class="bool-btn" disabled>No</button></div>';
+
+    return '<div class="field-card' + (selected ? " selected" : "") + '" draggable="true" data-field-id="' + f.id + '" data-idx="' + idx + '">' +
+      '<span class="drag-handle"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="2" r="1.3"/><circle cx="8" cy="2" r="1.3"/><circle cx="2" cy="8" r="1.3"/><circle cx="8" cy="8" r="1.3"/><circle cx="2" cy="14" r="1.3"/><circle cx="8" cy="14" r="1.3"/></svg></span>' +
+      '<div class="field-card-body" data-select-field="' + f.id + '">' +
+        '<div class="field-card-head">' + badgeHtml(f.type, 22) + '<span class="field-card-label">' + esc(f.label || "Untitled field") + (f.required ? '<span class="req-star">*</span>' : '') + '</span></div>' +
+        '<div class="field-card-preview">' + preview + '</div>' +
+      '</div>' +
+      '<div class="field-card-actions">' +
+        '<button class="icon-btn" data-dup="' + f.id + '" title="Duplicate"><svg viewBox="0 0 20 20" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.6" stroke="currentColor" stroke-width="1.4"/><path d="M13 7V5.4A1.4 1.4 0 0011.6 4H4.4A1.4 1.4 0 003 5.4v7.2A1.4 1.4 0 004.4 14H6" stroke="currentColor" stroke-width="1.4"/></svg></button>' +
+        '<button class="icon-btn" data-del="' + f.id + '" title="Delete"><svg viewBox="0 0 20 20" fill="none"><path d="M4 6h12M8 6V4.6c0-.6.5-1.1 1.1-1.1h1.8c.6 0 1.1.5 1.1 1.1V6M6 6l.6 9.4c0 .6.5 1 1.1 1h4.6c.6 0 1-.4 1.1-1L14 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function formSettingsHtml(form) {
+    var subCount = formSubs(form.id).length;
+    var swatches = COLORS.map(function (c) {
+      return '<button class="swatch" data-accent="' + c + '" style="background:' + ACCENTS[c].main + '"' + (form.accent===c ? ' data-sel="1"' : '') + '>' +
+        (form.accent === c ? '<svg viewBox="0 0 20 20" fill="none"><path d="M5 10l3.5 3.5L15 6.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '') + '</button>';
+    }).join("");
+    return '<div class="panel-label">Form settings</div>' +
+      '<div class="setting-row"><label class="field-label">Accent color</label><div class="color-swatches">' + swatches + '</div></div>' +
+      '<div class="setting-row"><label class="field-label">Fields</label><div style="color:var(--ink-500);font-size:13px">' + form.fields.length + ' field' + (form.fields.length===1?"":"s") + ' on this form.</div></div>' +
+      '<div class="settings-footer">' +
+        '<div class="stat-row"><div><div class="stat-num">' + subCount + '</div><div class="stat-cap">responses</div></div><div><div class="stat-num">' + form.fields.length + '</div><div class="stat-cap">fields</div></div></div>' +
+        '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
+          '<button class="ghost" id="btn-goto-preview">Preview form →</button>' +
+        '</div>' +
+        '<div style="margin-top:18px"><button class="text-danger" id="btn-delete-form">Delete this form</button></div>' +
+      '</div>';
+  }
+
+  function fieldSettingsHtml(f) {
+    var optsHtml = "";
+    if (needsOptions(f.type)) {
+      var opts = f.options || [];
+      optsHtml = '<div class="setting-row"><label class="field-label">Options</label><div class="options-editor" id="options-editor">' +
+        opts.map(function (o, i) {
+          return '<div class="option-row"><input type="text" value="' + esc(o) + '" data-opt-idx="' + i + '"><button class="icon-btn" data-opt-del="' + i + '"><svg viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>';
+        }).join("") +
+        '</div><button class="add-option-btn" id="btn-add-option"><svg viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Add option</button></div>';
+    }
+    var placeholderHtml = needsPlaceholder(f.type) ? '<div class="setting-row"><label class="field-label">Placeholder</label><input type="text" id="input-placeholder" value="' + esc(f.placeholder||"") + '"></div>' : "";
+
+    return '<div class="panel-label">Field settings</div>' +
+      '<div class="setting-row" style="display:flex;align-items:center;gap:8px">' + badgeHtml(f.type, 24) + '<span style="font-size:12.5px;color:var(--ink-500);font-weight:600">' + typeDef(f.type).label + '</span></div>' +
+      '<div class="setting-row"><label class="field-label">Question</label><input type="text" id="input-label" value="' + esc(f.label) + '"></div>' +
+      placeholderHtml +
+      optsHtml +
+      '<div class="setting-row"><label class="field-label">Help text</label><textarea id="input-help" rows="2" placeholder="Optional guidance shown below the field">' + esc(f.help||"") + '</textarea></div>' +
+      '<div class="setting-row inline"><label class="field-label">Required</label><label class="switch"><input type="checkbox" id="input-required"' + (f.required?" checked":"") + '><span class="track"></span></label></div>' +
+      '<div class="settings-footer"><button class="text-danger" id="btn-delete-field">Delete this field</button></div>';
+  }
+
+  function wireBuilder(form) {
+    document.getElementById("input-form-name").addEventListener("input", function (e) {
+      form.name = e.target.value; form.updatedAt = Date.now(); persistForms(); renderTopbarTitleOnly(form);
+    });
+    document.getElementById("input-form-desc").addEventListener("input", function (e) {
+      form.description = e.target.value; form.updatedAt = Date.now(); persistForms();
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll("[data-add-type]"), function (btn) {
+      btn.addEventListener("click", function () {
+        var type = btn.getAttribute("data-add-type");
+        var f = { id: uid(), type: type, label: typeDef(type).label + " question", required: false, help: "" };
+        if (needsPlaceholder(type)) f.placeholder = "";
+        if (needsOptions(type)) f.options = ["Option 1", "Option 2"];
+        form.fields.push(f);
+        form.updatedAt = Date.now();
+        state.selectedFieldId = f.id;
+        persistForms();
+        renderContent();
+      });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll("[data-select-field]"), function (el) {
+      el.addEventListener("click", function () {
+        state.selectedFieldId = el.getAttribute("data-select-field");
+        renderContent();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-dup]"), function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-dup");
+        var idx = form.fields.findIndex(function(f){return f.id===id;});
+        var copy = JSON.parse(JSON.stringify(form.fields[idx]));
+        copy.id = uid();
+        form.fields.splice(idx+1, 0, copy);
+        form.updatedAt = Date.now();
+        state.selectedFieldId = copy.id;
+        persistForms(); renderContent();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-del]"), function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-del");
+        form.fields = form.fields.filter(function(f){return f.id!==id;});
+        if (state.selectedFieldId === id) state.selectedFieldId = null;
+        form.updatedAt = Date.now();
+        persistForms(); renderContent();
+      });
+    });
+
+    // drag reorder
+    var dragId = null;
+    Array.prototype.forEach.call(document.querySelectorAll(".field-card"), function (card) {
+      card.addEventListener("dragstart", function () { dragId = card.getAttribute("data-field-id"); card.style.opacity = "0.4"; });
+      card.addEventListener("dragend", function () { card.style.opacity = "1"; Array.prototype.forEach.call(document.querySelectorAll(".field-card"), function(c){c.classList.remove("drag-over");}); });
+      card.addEventListener("dragover", function (e) { e.preventDefault(); card.classList.add("drag-over"); });
+      card.addEventListener("dragleave", function () { card.classList.remove("drag-over"); });
+      card.addEventListener("drop", function (e) {
+        e.preventDefault();
+        var targetId = card.getAttribute("data-field-id");
+        if (!dragId || dragId === targetId) return;
+        var from = form.fields.findIndex(function(f){return f.id===dragId;});
+        var to = form.fields.findIndex(function(f){return f.id===targetId;});
+        var moved = form.fields.splice(from,1)[0];
+        form.fields.splice(to,0,moved);
+        form.updatedAt = Date.now();
+        persistForms(); renderContent();
+      });
+    });
+
+    // right panel
+    if (state.selectedFieldId) {
+      var f = form.fields.find(function(x){return x.id===state.selectedFieldId;});
+      if (f) wireFieldSettings(form, f);
+    } else {
+      wireFormSettings(form);
+    }
+  }
+
+  function renderTopbarTitleOnly(form) {
+    var el = document.querySelector(".topbar-title");
+    if (el) el.textContent = form.name || "Untitled form";
+  }
+
+  function wireFormSettings(form) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-accent]"), function (btn) {
+      btn.addEventListener("click", function () {
+        form.accent = btn.getAttribute("data-accent");
+        form.updatedAt = Date.now();
+        persistForms(); renderContent(); renderTopbar();
+      });
+    });
+    var gp = document.getElementById("btn-goto-preview");
+    if (gp) gp.addEventListener("click", function () { navigate(form.id, "preview"); });
+    var del = document.getElementById("btn-delete-form");
+    if (del) del.addEventListener("click", function () {
+      if (confirm('Delete "' + (form.name || "Untitled form") + '"? This also removes its responses. This can\'t be undone.')) {
+        forms = forms.filter(function(f){return f.id!==form.id;});
+        subs = subs.filter(function(s){return s.formId!==form.id;});
+        persistForms(); persistSubs();
+        navigate(null);
+      }
+    });
+  }
+
+  function wireFieldSettings(form, f) {
+    var labelInput = document.getElementById("input-label");
+    labelInput.addEventListener("input", function (e) { f.label = e.target.value; form.updatedAt = Date.now(); persistForms(); syncCardLabel(f); });
+
+    var ph = document.getElementById("input-placeholder");
+    if (ph) ph.addEventListener("input", function (e) { f.placeholder = e.target.value; persistForms(); syncCardPreview(form); });
+
+    var help = document.getElementById("input-help");
+    help.addEventListener("input", function (e) { f.help = e.target.value; persistForms(); });
+
+    var req = document.getElementById("input-required");
+    req.addEventListener("change", function (e) { f.required = e.target.checked; persistForms(); syncCardLabel(f); });
+
+    var addOpt = document.getElementById("btn-add-option");
+    if (addOpt) addOpt.addEventListener("click", function () {
+      f.options = f.options || [];
+      f.options.push("Option " + (f.options.length + 1));
+      persistForms(); renderContent();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opt-idx]"), function (inp) {
+      inp.addEventListener("input", function () {
+        var i = parseInt(inp.getAttribute("data-opt-idx"), 10);
+        f.options[i] = inp.value;
+        persistForms(); syncCardPreview(form);
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opt-del]"), function (btn) {
+      btn.addEventListener("click", function () {
+        var i = parseInt(btn.getAttribute("data-opt-del"), 10);
+        f.options.splice(i, 1);
+        persistForms(); renderContent();
+      });
+    });
+
+    var delBtn = document.getElementById("btn-delete-field");
+    delBtn.addEventListener("click", function () {
+      form.fields = form.fields.filter(function(x){return x.id!==f.id;});
+      state.selectedFieldId = null;
+      form.updatedAt = Date.now();
+      persistForms(); renderContent();
+    });
+  }
+  function syncCardLabel(f) {
+    var card = document.querySelector('.field-card[data-field-id="'+f.id+'"] .field-card-label');
+    if (card) card.innerHTML = esc(f.label || "Untitled field") + (f.required ? '<span class="req-star">*</span>' : '');
+  }
+  function syncCardPreview(form) {
+    var wrap = document.getElementById("canvas-fields");
+    if (wrap) wrap.innerHTML = form.fields.map(function (f, idx) { return fieldCardHtml(f, idx); }).join("");
+    wireCardClicksOnly(form);
+  }
+  function wireCardClicksOnly(form) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-select-field]"), function (el) {
+      el.addEventListener("click", function () { state.selectedFieldId = el.getAttribute("data-select-field"); renderContent(); });
+    });
+  }
+
+  /* ---------- preview / fill ---------- */
+  function previewHtml(form) {
+    if (state.justSubmitted) return previewSuccessHtml(form);
+    if (!form.fields.length) {
+      return '<div class="fill-wrap"><div class="empty-state"><svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2.5" stroke="currentColor" stroke-width="1.4"/></svg><h3>Nothing to preview yet</h3><p>Add a few fields in Build first.</p></div></div>';
+    }
+    var accentMain = ACCENTS[form.accent].main;
+    var fieldsHtml = form.fields.map(function (f) { return renderFillField(f); }).join("");
+    return '<div class="fill-wrap"><div class="fill-card">' +
+      '<div class="fill-accent-bar" style="background:' + accentMain + '"></div>' +
+      '<div class="fill-body">' +
+        '<h1>' + esc(form.name || "Untitled form") + '</h1>' +
+        (form.description ? '<p class="fill-desc">' + esc(form.description) + '</p>' : '') +
+        '<div id="fill-fields">' + fieldsHtml + '</div>' +
+        '<div class="submit-row"><button class="primary" id="btn-submit" style="background:' + accentMain + '">Submit</button><span class="submit-note">Saved to this browser only</span></div>' +
+      '</div></div></div>';
+  }
+  function previewSuccessHtml(form) {
+    var accentMain = ACCENTS[form.accent].main;
+    return '<div class="fill-wrap"><div class="fill-card"><div class="fill-accent-bar" style="background:' + accentMain + '"></div>' +
+      '<div class="success-screen">' +
+        '<div class="success-icon" style="background:' + accentMain + '22;color:' + accentMain + '"><svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5l4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+        '<h2>Response recorded</h2><p>Thanks — your answers were saved.</p>' +
+        '<button class="ghost" id="btn-submit-another">Submit another response</button>' +
+      '</div></div></div>';
+  }
+  function renderFillField(f) {
+    var val = state.draftValues[f.id];
+    var err = state.draftErrors[f.id];
+    var errHtml = err ? '<div class="field-error">' + esc(err) + '</div>' : '';
+    var help = f.help ? '<div class="fill-help">' + esc(f.help) + '</div>' : '';
+    var label = '<label class="field-label">' + esc(f.label || "Untitled field") + (f.required ? '<span class="req-star">*</span>' : '') + '</label>';
+    var body = "";
+    if (f.type === "text") body = '<input type="text" data-fill="' + f.id + '" placeholder="' + esc(f.placeholder||"") + '" value="' + esc(val||"") + '">';
+    else if (f.type === "textarea") body = '<textarea data-fill="' + f.id + '" placeholder="' + esc(f.placeholder||"") + '">' + esc(val||"") + '</textarea>';
+    else if (f.type === "email") body = '<input type="email" data-fill="' + f.id + '" placeholder="' + esc(f.placeholder||"name@example.com") + '" value="' + esc(val||"") + '">';
+    else if (f.type === "number") body = '<input type="number" data-fill="' + f.id + '" placeholder="' + esc(f.placeholder||"") + '" value="' + esc(val||"") + '">';
+    else if (f.type === "date") body = '<input type="date" data-fill="' + f.id + '" value="' + esc(val||"") + '">';
+    else if (f.type === "select") body = '<select class="control" data-fill="' + f.id + '"><option value="">Choose…</option>' + (f.options||[]).map(function(o){return '<option'+(val===o?' selected':'')+'>'+esc(o)+'</option>';}).join("") + '</select>';
+    else if (f.type === "radio") body = '<div class="choice-list">' + (f.options||[]).map(function(o,i){return '<label class="choice-row"><input type="radio" name="radio-'+f.id+'" data-fill-radio="'+f.id+'" value="'+esc(o)+'"'+(val===o?' checked':'')+'>'+esc(o)+'</label>';}).join("") + '</div>';
+    else if (f.type === "checkbox") { var arr = val || []; body = '<div class="choice-list">' + (f.options||[]).map(function(o){return '<label class="choice-row"><input type="checkbox" data-fill-check="'+f.id+'" value="'+esc(o)+'"'+(arr.indexOf(o)>-1?' checked':'')+'>'+esc(o)+'</label>';}).join("") + '</div>'; }
+    else if (f.type === "boolean") body = '<div class="bool-row"><button type="button" class="bool-btn' + (val===true?' selected':'') + '" data-fill-bool="' + f.id + '" data-bool-val="true">Yes</button><button type="button" class="bool-btn' + (val===false?' selected':'') + '" data-fill-bool="' + f.id + '" data-bool-val="false">No</button></div>';
+    return '<div class="fill-field' + (err ? ' has-error' : '') + '">' + label + body + help + errHtml + '</div>';
+  }
+  function wirePreview(form) {
+    if (state.justSubmitted) {
+      var again = document.getElementById("btn-submit-another");
+      if (again) again.addEventListener("click", function () { state.justSubmitted = false; state.draftValues = {}; state.draftErrors = {}; renderContent(); });
+      return;
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-fill]"), function (el) {
+      el.addEventListener("input", function () { state.draftValues[el.getAttribute("data-fill")] = el.value; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-fill-radio]"), function (el) {
+      el.addEventListener("change", function () { state.draftValues[el.getAttribute("data-fill-radio")] = el.value; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-fill-check]"), function (el) {
+      el.addEventListener("change", function () {
+        var id = el.getAttribute("data-fill-check");
+        var arr = state.draftValues[id] ? state.draftValues[id].slice() : [];
+        if (el.checked) { if (arr.indexOf(el.value) === -1) arr.push(el.value); }
+        else { arr = arr.filter(function(v){return v!==el.value;}); }
+        state.draftValues[id] = arr;
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-fill-bool]"), function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-fill-bool");
+        state.draftValues[id] = btn.getAttribute("data-bool-val") === "true";
+        renderContent();
+      });
+    });
+    var submitBtn = document.getElementById("btn-submit");
+    if (submitBtn) submitBtn.addEventListener("click", function () {
+      var errors = {};
+      form.fields.forEach(function (f) {
+        if (!f.required) return;
+        var v = state.draftValues[f.id];
+        var empty = v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+        if (empty) errors[f.id] = "This field is required.";
+      });
+      state.draftErrors = errors;
+      if (Object.keys(errors).length) { renderContent(); return; }
+      subs.push({ id: uid(), formId: form.id, values: JSON.parse(JSON.stringify(state.draftValues)), submittedAt: Date.now() });
+      persistSubs();
+      state.justSubmitted = true;
+      state.draftValues = {}; state.draftErrors = {};
+      renderContent(); renderTopbar();
+    });
+  }
+
+  /* ---------- submissions ---------- */
+  function submissionsHtml(form) {
+    var rows = formSubs(form.id).slice().sort(function(a,b){ return b.submittedAt - a.submittedAt; });
+    var head = '<div class="subs-head"><h1>Responses</h1>' +
+      (rows.length ? '<button class="ghost" id="btn-clear-subs">Clear all responses</button>' : '') + '</div>';
+    if (!rows.length) {
+      return head + '<div class="empty-state"><svg viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><h3>No responses yet</h3><p>Share the Preview tab, or submit a test response yourself.</p><button class="primary" id="btn-goto-preview-2">Open preview</button></div>';
+    }
+    var thead = '<tr><th>Submitted</th>' + form.fields.map(function (f) { return '<th>' + esc(f.label || "Untitled") + '</th>'; }).join("") + '</tr>';
+    var tbody = rows.map(function (s) {
+      var cells = form.fields.map(function (f) {
+        var v = s.values[f.id];
+        var txt;
+        if (v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length)) txt = '<span class="cell-muted">—</span>';
+        else if (Array.isArray(v)) txt = esc(v.join(", "));
+        else if (typeof v === "boolean") txt = v ? "Yes" : "No";
+        else txt = esc(v);
+        return '<td>' + txt + '</td>';
+      }).join("");
+      return '<tr><td class="cell-muted" style="white-space:nowrap">' + fullDate(s.submittedAt) + '</td>' + cells + '</tr>';
+    }).join("");
+    return head + '<div class="table-wrap"><table class="subs-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+  }
+  function wireSubmissions(form) {
+    var g = document.getElementById("btn-goto-preview-2");
+    if (g) g.addEventListener("click", function () { navigate(form.id, "preview"); });
+    var c = document.getElementById("btn-clear-subs");
+    if (c) c.addEventListener("click", function () {
+      if (confirm("Delete all responses for this form? This can't be undone.")) {
+        subs = subs.filter(function(s){return s.formId!==form.id;});
+        persistSubs(); renderContent(); renderTopbar();
+      }
+    });
+  }
+
+  /* ---------------- boot ---------------- */
+  function renderAll() { renderTopbar(); renderContent(); }
+  parseHash();
+  renderAll();
+})();
+</script>
+</body>
+</html>
