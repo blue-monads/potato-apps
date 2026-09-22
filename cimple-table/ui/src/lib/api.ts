@@ -127,7 +127,36 @@ export async function deleteColumn(id: number): Promise<ApiResponse<{ message: s
     return apiRequest<{ message: string }>(`/columns/${id}`, { method: 'DELETE' });
 }
 
-// Rows API
+// Rows & Query API
+export interface DatatableQueryParams {
+    offset?: number;
+    limit?: number;
+    sort?: { column: string; dir: 'asc' | 'desc' } | null;
+    filter?: {
+        column: string;
+        op: 'contains' | 'equals' | 'not_equals' | 'empty' | 'not_empty';
+        value: string;
+    } | null;
+    search?: string;
+}
+
+export interface DatatableQueryResult {
+    rows: DatatableRow[];
+    total: number;
+    offset: number;
+    limit: number;
+}
+
+export async function queryTable(
+    tableId: number,
+    params: DatatableQueryParams
+): Promise<ApiResponse<DatatableQueryResult>> {
+    return apiRequest<DatatableQueryResult>(`/datatables/${tableId}/query`, {
+        method: 'POST',
+        body: JSON.stringify(params),
+    });
+}
+
 export async function listRows(tableId: number): Promise<ApiResponse<DatatableRow[]>> {
     return apiRequest<DatatableRow[]>(`/datatables/${tableId}/rows`, { method: 'GET' });
 }

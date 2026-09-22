@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from 'react-router';
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import { BASE_PATH } from "../../lib/base";
 import {
     listDatatables,
@@ -13,6 +13,7 @@ import {
     createRow,
     updateRow,
     deleteRow,
+    queryTable,
     type Datatable,
     type DatatableColumn,
     type DatatableRow,
@@ -47,14 +48,25 @@ const EMPTY_FILTER: FilterState = {
     value: '',
 };
 
+const PAGE_SIZE = 100;
+
 const Table = () => {
     const { tableId } = useParams<{ tableId: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { openModal, closeModal } = useModal();
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const [datatables, setDatatables] = useState<Datatable[]>([]);
     const [currentTable, setCurrentTable] = useState<Datatable | null>(null);
     const [loading, setLoading] = useState(true);
+    const [rows, setRows] = useState<DatatableRow[]>([]);
+    const [totalCount, setTotalCount] = useState<number>(0);
+    const [topOffset, setTopOffset] = useState<number>(0);
+    const [bottomOffset, setBottomOffset] = useState<number>(0);
+    const [loadingMoreUp, setLoadingMoreUp] = useState<boolean>(false);
+    const [loadingMoreDown, setLoadingMoreDown] = useState<boolean>(false);
+
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortState>(null);
     const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
@@ -67,7 +79,9 @@ const Table = () => {
 
     useEffect(() => {
         if (tableId) {
-            loadTable(parseInt(tableId));
+            const rawOffset = searchParams.get('row_offset') || searchParams.get('offset');
+            const initialOffset = rawOffset ? Math.max(0, parseInt(rawOffset, 10) || 0) : 0;
+            loadTable(parseInt(tableId), initialOffset);
         } else if (datatables.length > 0) {
             navigate(`${BASE_PATH}table/${datatables[0].id}`, { replace: true });
         }
@@ -81,9 +95,45 @@ const Table = () => {
         }
     };
 
-    const loadTable = async (tableId: number) => {
+    const handleRunQuery = async (
+        offset = 0,
+        overrideFilter?: FilterState,
+        overrideSort?: SortState,
+        overrideSearch?: string,
+        tableOverride?: Datatable
+    ) => {
+        const tbl = tableOverride || currentTable;
+        if (!tbl) return;
         setLoading(true);
-        const response = await getDatatable(tableId);
+
+        const f = overrideFilter !== undefined ? overrideFilter : filter;
+        const s = overrideSort !== undefined ? overrideSort : sort;
+        const q = overrideSearch !== undefined ? overrideSearch : search;
+
+        const tblCols = tbl.columns || [];
+        const filterCol = f.columnId ? tblCols.find(c => c.id === f.columnId) : null;
+        const sortCol = s ? tblCols.find(c => c.id === s.columnId) : null;
+
+        const res = await queryTable(tbl.id, {
+            offset,
+            limit: PAGE_SIZE,
+            sort: sortCol ? { column: sortCol.slug, dir: s!.dir } : null,
+            filter: filterCol ? { column: filterCol.slug, op: f.op, value: f.value } : null,
+            search: q.trim() || undefined,
+        });
+
+        if (res.data) {
+            setRows(res.data.rows);
+            setTotalCount(res.data.total);
+            setTopOffset(res.data.offset);
+            setBottomOffset(res.data.offset + res.data.rows.length);
+        }
+        setLoading(false);
+    };
+
+    const loadTable = async (tId: number, startOffset: number = 0) => {
+        setLoading(true);
+        const response = await getDatatable(tId);
         if (response.data) {
             const table = response.data;
             if (table) {
@@ -91,69 +141,122 @@ const Table = () => {
                     ? table.columns 
                     : (table.columns && typeof table.columns === 'object' ? Object.values(table.columns) as DatatableColumn[] : []);
                 
-                const rawRows: DatatableRow[] = Array.isArray(table.rows) 
+                const tableRows = Array.isArray(table.rows) 
                     ? table.rows 
                     : (table.rows && typeof table.rows === 'object' ? Object.values(table.rows) as DatatableRow[] : []);
-
-                table.rows = rawRows;
+                
+                table.rows = tableRows;
                 setCurrentTable(table);
+                if (startOffset === 0 && tableRows.length > 0) {
+                    setRows(tableRows);
+                    setTotalCount(tableRows.length);
+                    setTopOffset(0);
+                    setBottomOffset(tableRows.length);
+                }
+                await handleRunQuery(startOffset, undefined, undefined, undefined, table);
             } else {
                 setCurrentTable(null);
+                setRows([]);
+                setTotalCount(0);
             }
         }
         setLoading(false);
     };
 
     const columns = currentTable?.columns ?? [];
-    const rows = currentTable?.rows ?? [];
 
-    const visibleRows = useMemo(() => {
-        const query = search.trim().toLowerCase();
+    // Debounce search and filter text input
+    useEffect(() => {
+        if (!currentTable) return;
+        const timer = setTimeout(() => {
+            handleRunQuery(0);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search, filter.value]);
 
-        let result = rows.filter(row => {
-            if (query) {
-                const hit = columns.some(col =>
-                    getCellValue(row, col).toLowerCase().includes(query)
-                );
-                if (!hit) return false;
-            }
+    const loadMoreDown = async () => {
+        if (!currentTable || loadingMoreDown || bottomOffset >= totalCount) return;
+        setLoadingMoreDown(true);
 
-            if (filter.columnId !== null) {
-                const filterCol = columns.find(c => c.id === filter.columnId);
-                const cell = filterCol ? getCellValue(row, filterCol).toLowerCase() : "";
-                const needle = filter.value.trim().toLowerCase();
+        const tblCols = currentTable.columns || [];
+        const filterCol = filter.columnId ? tblCols.find(c => c.id === filter.columnId) : null;
+        const sortCol = sort ? tblCols.find(c => c.id === sort.columnId) : null;
 
-                if (filter.op === 'empty') return cell === '';
-                if (filter.op === 'not_empty') return cell !== '';
-                if (!needle) return true;
-                if (filter.op === 'contains') return cell.includes(needle);
-                if (filter.op === 'equals') return cell === needle;
-                if (filter.op === 'not_equals') return cell !== needle;
-            }
-
-            return true;
+        const res = await queryTable(currentTable.id, {
+            offset: bottomOffset,
+            limit: PAGE_SIZE,
+            sort: sortCol ? { column: sortCol.slug, dir: sort!.dir } : null,
+            filter: filterCol ? { column: filterCol.slug, op: filter.op, value: filter.value } : null,
+            search: search.trim() || undefined,
         });
 
-        if (sort) {
-            const column = columns.find(c => c.id === sort.columnId);
-            const numeric = column?.column_type === 'number';
-            const factor = sort.dir === 'asc' ? 1 : -1;
+        if (res.data && res.data.rows.length > 0) {
+            setRows(prev => [...prev, ...res.data.rows]);
+            setBottomOffset(prev => prev + res.data.rows.length);
+            setTotalCount(res.data.total);
+        }
+        setLoadingMoreDown(false);
+    };
 
-            result = [...result].sort((a, b) => {
-                const av = column ? getCellValue(a, column) : "";
-                const bv = column ? getCellValue(b, column) : "";
+    const loadMoreUp = async () => {
+        if (!currentTable || loadingMoreUp || topOffset <= 0) return;
+        setLoadingMoreUp(true);
+        const el = scrollContainerRef.current;
+        const oldScrollHeight = el ? el.scrollHeight : 0;
 
-                if (av === bv) return 0;
-                if (av === '') return 1;
-                if (bv === '') return -1;
+        const countToLoad = Math.min(PAGE_SIZE, topOffset);
+        const newOffset = topOffset - countToLoad;
 
-                if (numeric) return ((Number(av) || 0) - (Number(bv) || 0)) * factor;
-                return av.toLowerCase().localeCompare(bv.toLowerCase()) * factor;
+        const tblCols = currentTable.columns || [];
+        const filterCol = filter.columnId ? tblCols.find(c => c.id === filter.columnId) : null;
+        const sortCol = sort ? tblCols.find(c => c.id === sort.columnId) : null;
+
+        const res = await queryTable(currentTable.id, {
+            offset: newOffset,
+            limit: countToLoad,
+            sort: sortCol ? { column: sortCol.slug, dir: sort!.dir } : null,
+            filter: filterCol ? { column: filterCol.slug, op: filter.op, value: filter.value } : null,
+            search: search.trim() || undefined,
+        });
+
+        if (res.data && res.data.rows.length > 0) {
+            setRows(prev => [...res.data.rows, ...prev]);
+            setTopOffset(newOffset);
+
+            requestAnimationFrame(() => {
+                if (el) {
+                    const diff = el.scrollHeight - oldScrollHeight;
+                    el.scrollTop += diff;
+                }
             });
         }
+        setLoadingMoreUp(false);
+    };
 
-        return result;
-    }, [rows, columns, search, sort, filter]);
+    const handleScroll = () => {
+        const el = scrollContainerRef.current;
+        if (!el || !currentTable || loading || loadingMoreUp || loadingMoreDown) return;
+
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 250) {
+            if (bottomOffset < totalCount) {
+                loadMoreDown();
+            }
+        }
+
+        if (el.scrollTop <= 100) {
+            if (topOffset > 0) {
+                loadMoreUp();
+            }
+        }
+    };
+
+    const handleCopyRowLink = (rowIndex: number) => {
+        const absOffset = topOffset + rowIndex;
+        const url = new URL(window.location.href);
+        url.searchParams.set('row_offset', String(absOffset));
+        navigator.clipboard.writeText(url.toString());
+        alert(`Copied link to row #${absOffset + 1}:\n${url.toString()}`);
+    };
 
     const toggleRowSelection = (rowId: number) => {
         setSelectedRowIds(prev => {
@@ -165,19 +268,21 @@ const Table = () => {
     };
 
     const toggleAllSelection = () => {
-        if (selectedRowIds.size === visibleRows.length) {
+        if (selectedRowIds.size === rows.length) {
             setSelectedRowIds(new Set());
         } else {
-            setSelectedRowIds(new Set(visibleRows.map(r => r.id)));
+            setSelectedRowIds(new Set(rows.map(r => r.id)));
         }
     };
 
     const cycleSort = (columnId: number) => {
-        setSort(prev => {
-            if (!prev || prev.columnId !== columnId) return { columnId, dir: 'asc' };
-            if (prev.dir === 'asc') return { columnId, dir: 'desc' };
+        const nextSort: SortState = (() => {
+            if (!sort || sort.columnId !== columnId) return { columnId, dir: 'asc' };
+            if (sort.dir === 'asc') return { columnId, dir: 'desc' };
             return null;
-        });
+        })();
+        setSort(nextSort);
+        handleRunQuery(0, undefined, nextSort);
     };
 
     const handleBulkDelete = async () => {
@@ -188,7 +293,7 @@ const Table = () => {
         for (const rowId of selectedRowIds) {
             await deleteRow(rowId, currentTable.id);
         }
-        await loadTable(currentTable.id);
+        await handleRunQuery(topOffset);
         setSelectedRowIds(new Set());
     };
 
@@ -372,7 +477,7 @@ const Table = () => {
     };
 
     const sortedColumn = sort ? columns.find(c => c.id === sort.columnId) : null;
-    const allVisibleSelected = visibleRows.length > 0 && selectedRowIds.size === visibleRows.length;
+    const allVisibleSelected = rows.length > 0 && selectedRowIds.size === rows.length;
 
     return (
         <div className="h-screen flex flex-col bg-surface-50 overflow-hidden">
@@ -391,7 +496,7 @@ const Table = () => {
                 <span className="text-[12px] text-surface-400 shrink-0">
                     {selectedRowIds.size > 0
                         ? `${selectedRowIds.size} row${selectedRowIds.size === 1 ? '' : 's'} selected`
-                        : `${rows.length} record${rows.length === 1 ? '' : 's'}`}
+                        : `${totalCount.toLocaleString()} record${totalCount === 1 ? '' : 's'}`}
                 </span>
             </header>
 
@@ -466,7 +571,7 @@ const Table = () => {
                                 <i className="fa-solid fa-filter text-[11px]" />Filter
                             </button>
                             <button
-                                onClick={() => (sort ? setSort(null) : columns[0] && cycleSort(columns[0].id))}
+                                onClick={() => (sort ? cycleSort(sort.columnId) : columns[0] && cycleSort(columns[0].id))}
                                 disabled={columns.length === 0}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md border transition-colors disabled:opacity-40 ${
                                     sort
@@ -502,7 +607,7 @@ const Table = () => {
                             </button>
                         )}
                         <button
-                            onClick={() => loadTable(currentTable.id)}
+                            onClick={() => handleRunQuery(topOffset)}
                             title="Refresh"
                             className="px-2.5 py-1.5 text-[13px] rounded-md border border-surface-200 text-surface-500 bg-white hover:bg-surface-50 hover:border-surface-300 transition-colors"
                         >
@@ -516,10 +621,14 @@ const Table = () => {
                             <span className="font-semibold text-surface-500">Where</span>
                             <select
                                 value={filter.columnId ?? ''}
-                                onChange={(e) => setFilter(f => ({
-                                    ...f,
-                                    columnId: e.target.value ? parseInt(e.target.value) : null,
-                                }))}
+                                onChange={(e) => {
+                                    const next = {
+                                        ...filter,
+                                        columnId: e.target.value ? parseInt(e.target.value) : null,
+                                    };
+                                    setFilter(next);
+                                    handleRunQuery(0, next);
+                                }}
                                 className="px-2.5 py-1.5 bg-white border border-surface-200 rounded-md outline-none focus:border-accent-600 cursor-pointer"
                             >
                                 <option value="">Select a field…</option>
@@ -529,7 +638,11 @@ const Table = () => {
                             </select>
                             <select
                                 value={filter.op}
-                                onChange={(e) => setFilter(f => ({ ...f, op: e.target.value as FilterOp }))}
+                                onChange={(e) => {
+                                    const next = { ...filter, op: e.target.value as FilterOp };
+                                    setFilter(next);
+                                    handleRunQuery(0, next);
+                                }}
                                 className="px-2.5 py-1.5 bg-white border border-surface-200 rounded-md outline-none focus:border-accent-600 cursor-pointer"
                             >
                                 <option value="contains">contains</option>
@@ -548,13 +661,16 @@ const Table = () => {
                                 />
                             )}
                             <button
-                                onClick={() => setFilter(EMPTY_FILTER)}
+                                onClick={() => {
+                                    setFilter(EMPTY_FILTER);
+                                    handleRunQuery(0, EMPTY_FILTER);
+                                }}
                                 className="px-2.5 py-1 text-[12px] text-surface-500 rounded hover:bg-surface-200 transition-colors"
                             >
                                 Clear
                             </button>
                             <span className="ml-auto text-[12px] text-surface-400">
-                                {visibleRows.length} of {rows.length} shown
+                                {totalCount > 0 ? `Showing ${topOffset + 1}–${topOffset + rows.length} of ${totalCount.toLocaleString()} records` : '0 records'}
                             </span>
                         </div>
                     )}
@@ -569,7 +685,11 @@ const Table = () => {
                             onAction={handleCreateColumn}
                         />
                     ) : (
-                        <div className="flex-1 overflow-auto scrollbar-thin bg-white">
+                        <div
+                            ref={scrollContainerRef}
+                            onScroll={handleScroll}
+                            className="flex-1 overflow-auto scrollbar-thin bg-white"
+                        >
                             <table className="border-separate border-spacing-0 text-[13px] w-full">
                                 <thead>
                                     <tr>
@@ -622,7 +742,16 @@ const Table = () => {
                                 </thead>
 
                                 <tbody>
-                                    {visibleRows.map((row, index) => {
+                                    {loadingMoreUp && (
+                                        <tr>
+                                            <td colSpan={columns.length + 3} className="py-2 text-center text-xs text-surface-500 bg-surface-50 border-b border-surface-200">
+                                                <i className="fa-solid fa-spinner animate-spin mr-2 text-accent-600" />
+                                                Loading previous records...
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {rows.map((row, index) => {
                                         const selected = selectedRowIds.has(row.id);
                                         const stickyBg = selected
                                             ? 'bg-accent-50'
@@ -644,9 +773,16 @@ const Table = () => {
                                                         onChange={() => toggleRowSelection(row.id)}
                                                     />
                                                 </td>
-                                                <td className={`sticky left-10 z-10 h-9 text-center text-[11px] text-surface-400 border-b border-r border-surface-200 transition-colors ${stickyBg}`}>
-                                                    <span className="group-hover:hidden">{index + 1}</span>
-                                                    <i className="fa-solid fa-up-right-and-down-left-from-center text-[10px] text-accent-600 hidden group-hover:inline" />
+                                                <td
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCopyRowLink(index);
+                                                    }}
+                                                    title={`Row #${topOffset + index + 1} (Click to copy direct link)`}
+                                                    className={`sticky left-10 z-10 h-9 text-center text-[11px] text-surface-400 border-b border-r border-surface-200 transition-colors cursor-pointer hover:text-accent-600 ${stickyBg}`}
+                                                >
+                                                    <span className="group-hover:hidden">{topOffset + index + 1}</span>
+                                                    <i className="fa-solid fa-link text-[10px] text-accent-600 hidden group-hover:inline" />
                                                 </td>
                                                 {columns.map(col => (
                                                     <td
@@ -663,10 +799,19 @@ const Table = () => {
                                         );
                                     })}
 
-                                    {visibleRows.length === 0 && (
+                                    {loadingMoreDown && (
+                                        <tr>
+                                            <td colSpan={columns.length + 3} className="py-2 text-center text-xs text-surface-500 bg-surface-50 border-b border-surface-200">
+                                                <i className="fa-solid fa-spinner animate-spin mr-2 text-accent-600" />
+                                                Loading more records...
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {rows.length === 0 && !loading && (
                                         <tr>
                                             <td colSpan={columns.length + 3} className="h-40 text-center text-surface-400">
-                                                {rows.length === 0 ? (
+                                                {totalCount === 0 ? (
                                                     <button
                                                         onClick={handleCreateRow}
                                                         className="text-accent-600 hover:underline font-medium"
@@ -693,7 +838,7 @@ const Table = () => {
                                                 key={col.id}
                                                 className="sticky bottom-0 z-20 h-8 px-3 bg-surface-50 border-t-2 border-r border-surface-200 text-[11px] font-semibold text-surface-500 whitespace-nowrap"
                                             >
-                                                {summarize(col, visibleRows.map(r => getCellValue(r, col)))}
+                                                {summarize(col, rows.map(r => getCellValue(r, col)))}
                                             </td>
                                         ))}
                                         <td className="sticky bottom-0 z-20 h-8 bg-surface-50 border-t-2 border-surface-200" />

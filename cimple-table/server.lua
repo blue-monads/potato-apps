@@ -48,6 +48,8 @@ end
 
 -- HELPER FUNCTIONS FOR DDL & PHYSICAL TABLES
 
+local _unpack = table.unpack or unpack
+
 local function sql_type_for_column(col_type)
     if col_type == "number" then
         return "NUMERIC DEFAULT 0"
@@ -568,6 +570,191 @@ end
 
 -- DATATABLE ROWS CRUD
 
+function query_datatable(ctx, table_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if table_id == nil then
+        req.json(400, { error = "table_id is required" })
+        return
+    end
+
+    local n_tid = tonumber(table_id) or table_id
+    local dt, err = potato.db.find_by_id("Datatables", n_tid)
+    if err ~= nil or dt == nil or dt.is_deleted == 1 then
+        req.json(404, { error = "Datatable not found" })
+        return
+    end
+
+    ensure_actual_table(n_tid)
+
+    local data = req.bind_json() or {}
+    local offset = tonumber(data.offset) or 0
+    if offset < 0 then offset = 0 end
+    local limit = tonumber(data.limit) or 100
+    if limit < 1 then limit = 100 end
+    if limit > 500 then limit = 500 end
+
+    -- Fetch valid columns for whitelist
+    local columns = get_table_columns(n_tid)
+    local allowed_cols = { id = true, created_at = true, updated_at = true }
+    local cols_array = {}
+    local text_cols = {}
+
+    if columns ~= nil and type(columns) == "table" then
+        for _, col in ipairs(columns) do
+            local slug = col.slug
+            if slug == nil or slug == "" then
+                slug = generate_column_slug(n_tid, col.name)
+                col.slug = slug
+                potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
+            end
+            allowed_cols[slug] = true
+            table.insert(cols_array, col)
+            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" then
+                table.insert(text_cols, slug)
+            end
+        end
+    end
+
+    local actual_tbl = "Actual" .. tostring(n_tid)
+
+    -- Build WHERE conditions
+    local where_clauses = {}
+    local where_params = {}
+
+    -- 1. Structured Filter
+    if data.filter and type(data.filter) == "table" then
+        local col = data.filter.column
+        local op = data.filter.op or "contains"
+        local val = tostring(data.filter.value or "")
+
+        if col and allowed_cols[col] then
+            if op == "empty" then
+                table.insert(where_clauses, "(" .. col .. " IS NULL OR " .. col .. " = '')")
+            elseif op == "not_empty" then
+                table.insert(where_clauses, "(" .. col .. " IS NOT NULL AND " .. col .. " != '')")
+            elseif op == "contains" and val ~= "" then
+                table.insert(where_clauses, "LOWER(" .. col .. ") LIKE ?")
+                table.insert(where_params, "%" .. string.lower(val) .. "%")
+            elseif op == "equals" and val ~= "" then
+                table.insert(where_clauses, "LOWER(" .. col .. ") = LOWER(?)")
+                table.insert(where_params, val)
+            elseif op == "not_equals" and val ~= "" then
+                table.insert(where_clauses, "(LOWER(" .. col .. ") != LOWER(?) OR " .. col .. " IS NULL)")
+                table.insert(where_params, val)
+            end
+        end
+    end
+
+    -- 2. General Search
+    if data.search and type(data.search) == "string" and data.search ~= "" then
+        local q = "%" .. string.lower(data.search) .. "%"
+        local search_parts = {}
+        local targets = #text_cols > 0 and text_cols or {}
+        if #targets == 0 then
+            for _, col in ipairs(cols_array) do
+                if col.slug and col.slug ~= "" then
+                    table.insert(targets, col.slug)
+                end
+            end
+        end
+        for _, col in ipairs(targets) do
+            table.insert(search_parts, "LOWER(" .. col .. ") LIKE ?")
+            table.insert(where_params, q)
+        end
+        if #search_parts > 0 then
+            table.insert(where_clauses, "(" .. table.concat(search_parts, " OR ") .. ")")
+        end
+    end
+
+    local where_sql = ""
+    if #where_clauses > 0 then
+        where_sql = " WHERE " .. table.concat(where_clauses, " AND ")
+    end
+
+    -- Count Query
+    local count_sql = "SELECT COUNT(*) as total FROM " .. actual_tbl .. where_sql
+    local count_res, count_err
+    if #where_params > 0 then
+        count_res, count_err = potato.db.run_query_one(count_sql, _unpack(where_params))
+    else
+        count_res, count_err = potato.db.run_query_one(count_sql)
+    end
+
+    local total = 0
+    if count_res ~= nil then
+        total = tonumber(count_res.total) or tonumber(count_res["COUNT(*)"]) or 0
+    end
+
+    -- Order By: default is id ASC (increasing id = latest inserted rows)
+    local order_col = "id"
+    local order_dir = "ASC"
+    if data.sort and type(data.sort) == "table" then
+        local sc = data.sort.column
+        if sc and allowed_cols[sc] then
+            order_col = sc
+            if data.sort.dir and string.lower(data.sort.dir) == "desc" then
+                order_dir = "DESC"
+            else
+                order_dir = "ASC"
+            end
+        end
+    end
+
+    local order_sql
+    if order_col == "id" then
+        order_sql = " ORDER BY id " .. order_dir
+    else
+        order_sql = " ORDER BY " .. order_col .. " " .. order_dir .. ", id ASC"
+    end
+
+    -- Data Query with limit & offset
+    local data_sql = "SELECT * FROM " .. actual_tbl .. where_sql .. order_sql .. " LIMIT " .. tostring(limit) .. " OFFSET " .. tostring(offset)
+    local query_rows, query_err
+    if #where_params > 0 then
+        query_rows, query_err = potato.db.run_query(data_sql, _unpack(where_params))
+    else
+        query_rows, query_err = potato.db.run_query(data_sql)
+    end
+
+    if query_err ~= nil then
+        print("query_datatable query_err:", query_err, "data_sql:", data_sql)
+    end
+
+    local rows = {}
+    if query_rows ~= nil and type(query_rows) == "table" then
+        for _, arow in ipairs(query_rows) do
+            local r = {
+                id = tonumber(arow.id) or arow.id,
+                created_at = arow.created_at or "",
+                updated_at = arow.updated_at or ""
+            }
+            for _, col in ipairs(cols_array) do
+                if col.slug and col.slug ~= "" then
+                    r[col.slug] = arow[col.slug] or ""
+                end
+            end
+            table.insert(rows, r)
+        end
+    else
+        local all_rows = get_table_rows(n_tid, cols_array)
+        total = #all_rows
+        rows = {}
+        for i = offset + 1, math.min(offset + limit, #all_rows) do
+            table.insert(rows, all_rows[i])
+        end
+    end
+
+    req.json(200, {
+        rows = rows,
+        total = total,
+        offset = offset,
+        limit = limit
+    })
+end
+
 function list_rows(ctx, table_id)
     local req = ctx.request()
     local userId = get_user_id(req)
@@ -940,7 +1127,26 @@ function on_http(ctx)
         end
     end
 
-    -- Rows routes
+    -- Rows & Query routes
+    local query_match = string.match(path, "^/datatables/(%d+)/query$")
+    if query_match and method == "POST" then
+        local table_id = tonumber(query_match)
+        if table_id ~= nil then
+            return query_datatable(ctx, table_id)
+        end
+    end
+
+    if path == "/query" and method == "POST" then
+        local data = req.bind_json()
+        local table_id = data and (tonumber(data.table_id) or data.table_id)
+        if table_id ~= nil then
+            return query_datatable(ctx, table_id)
+        else
+            req.json(400, { error = "table_id is required" })
+            return
+        end
+    end
+
     local rows_match = string.match(path, "^/datatables/(%d+)/rows$")
     if rows_match then
         local table_id = tonumber(rows_match)
