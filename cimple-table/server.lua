@@ -112,18 +112,47 @@ local function generate_column_slug(table_id, name)
 end
 
 local function get_existing_table_columns(table_name)
-    local cols = potato.db.list_columns(table_name)
     local col_set = {}
-    if cols ~= nil and type(cols) == "table" then
+    local cols = potato.db.list_columns(table_name)
+    if cols ~= nil and type(cols) == "table" and #cols > 0 then
         for _, c in ipairs(cols) do
-            if c.Name ~= nil then
-                col_set[string.lower(c.Name)] = true
-            elseif c.name ~= nil then
-                col_set[string.lower(c.name)] = true
+            local name = c.Name or c.name
+            if name ~= nil then
+                col_set[string.lower(name)] = true
+            end
+        end
+        return col_set
+    end
+
+    -- Fallback via PRAGMA
+    local pragma_rows, _ = potato.db.run_query("PRAGMA table_info(" .. table_name .. ")")
+    if pragma_rows ~= nil and type(pragma_rows) == "table" then
+        for _, r in ipairs(pragma_rows) do
+            local name = r.name or r.Name
+            if name ~= nil then
+                col_set[string.lower(name)] = true
             end
         end
     end
+
     return col_set
+end
+
+local function get_table_columns(table_id)
+    local n_id = tonumber(table_id)
+    local s_id = tostring(table_id)
+    local columns = nil
+    if n_id ~= nil then
+        columns, _ = potato.db.find_all_by_cond("DatatableColumns", {
+            table_id = n_id
+        })
+    end
+    if columns == nil or #columns == 0 then
+        columns, _ = potato.db.find_all_by_cond("DatatableColumns", {
+            table_id = s_id
+        })
+    end
+    return columns or {}
 end
 
 local function ensure_actual_table(table_id)
@@ -141,9 +170,7 @@ local function ensure_actual_table(table_id)
     end
 
     -- Verify columns in DatatableColumns are present in Actual<table_id>
-    local columns, _ = potato.db.find_all_by_cond("DatatableColumns", {
-        table_id = table_id
-    })
+    local columns = get_table_columns(table_id)
     if columns ~= nil and type(columns) == "table" and #columns > 0 then
         local existing_cols = get_existing_table_columns(table_name)
         for _, col in ipairs(columns) do
@@ -208,37 +235,39 @@ local function build_rows_with_cells(table_id, cols_array)
             seen_row_ids[rid] = true
             seen_row_ids[row.id] = true
             local arow = actual_rows_map[rid] or actual_rows_map[row.id] or {}
-            local cells_array = {}
 
+            -- Copy all fields from actual table row directly onto row
+            for k, v in pairs(arow) do
+                row[k] = v
+            end
+
+            -- Also populate row[columnId] for direct lookup by ID
+            for _, col in ipairs(cols_array) do
+                if col.slug ~= nil and col.slug ~= "" and arow[col.slug] ~= nil then
+                    row[tostring(col.id)] = arow[col.slug]
+                end
+            end
+
+            -- Cells: ONLY include if cell actually has color or meta in DatatableCells
+            local cells_array = {}
             for _, col in ipairs(cols_array) do
                 local cid = tonumber(col.id) or col.id
                 local key = tostring(rid) .. "_" .. tostring(cid)
                 local meta = cell_metas[key]
-                local val = nil
-                if col.slug ~= nil and col.slug ~= "" then
-                    val = arow[col.slug]
+                if meta ~= nil and ((meta.color ~= nil and meta.color ~= "") or (meta.meta ~= nil and meta.meta ~= "")) then
+                    local cell_obj = {
+                        id = tonumber(meta.id) or meta.id,
+                        table_id = tonumber(table_id) or table_id,
+                        row_id = rid,
+                        column_id = cid,
+                        color = meta.color or "",
+                        meta = meta.meta or ""
+                    }
+                    if arow[col.slug] ~= nil then
+                        cell_obj.value = tostring(arow[col.slug])
+                    end
+                    table.insert(cells_array, cell_obj)
                 end
-
-                local val_str = ""
-                if val ~= nil then
-                    val_str = tostring(val)
-                elseif meta ~= nil and meta.value ~= nil and meta.value ~= "" then
-                    val_str = tostring(meta.value)
-                end
-
-                local cell_obj = {
-                    table_id = tonumber(table_id) or table_id,
-                    row_id = rid,
-                    column_id = cid,
-                    value = val_str,
-                    color = (meta and meta.color) or "",
-                    meta = (meta and meta.meta) or ""
-                }
-                if meta and meta.id then
-                    cell_obj.id = tonumber(meta.id) or meta.id
-                end
-
-                table.insert(cells_array, cell_obj)
             end
 
             row.id = rid
@@ -258,31 +287,20 @@ local function build_rows_with_cells(table_id, cols_array)
                 local cid = tonumber(col.id) or col.id
                 local key = tostring(n_aid) .. "_" .. tostring(cid)
                 local meta = cell_metas[key]
-                local val = nil
-                if col.slug ~= nil and col.slug ~= "" then
-                    val = arow[col.slug]
+                if meta ~= nil and ((meta.color ~= nil and meta.color ~= "") or (meta.meta ~= nil and meta.meta ~= "")) then
+                    local cell_obj = {
+                        id = tonumber(meta.id) or meta.id,
+                        table_id = tonumber(table_id) or table_id,
+                        row_id = n_aid,
+                        column_id = cid,
+                        color = meta.color or "",
+                        meta = meta.meta or ""
+                    }
+                    if arow[col.slug] ~= nil then
+                        cell_obj.value = tostring(arow[col.slug])
+                    end
+                    table.insert(cells_array, cell_obj)
                 end
-
-                local val_str = ""
-                if val ~= nil then
-                    val_str = tostring(val)
-                elseif meta ~= nil and meta.value ~= nil and meta.value ~= "" then
-                    val_str = tostring(meta.value)
-                end
-
-                local cell_obj = {
-                    table_id = tonumber(table_id) or table_id,
-                    row_id = n_aid,
-                    column_id = cid,
-                    value = val_str,
-                    color = (meta and meta.color) or "",
-                    meta = (meta and meta.meta) or ""
-                }
-                if meta and meta.id then
-                    cell_obj.id = tonumber(meta.id) or meta.id
-                end
-
-                table.insert(cells_array, cell_obj)
             end
 
             local new_row = {
@@ -294,6 +312,15 @@ local function build_rows_with_cells(table_id, cols_array)
                 cells = cells_array,
                 actual_data = arow
             }
+            for k, v in pairs(arow) do
+                new_row[k] = v
+            end
+            for _, col in ipairs(cols_array) do
+                if col.slug ~= nil and col.slug ~= "" and arow[col.slug] ~= nil then
+                    new_row[tostring(col.id)] = arow[col.slug]
+                end
+            end
+
             table.insert(rows_array, new_row)
         end
     end
@@ -702,7 +729,7 @@ function create_row(ctx)
         return
     end
 
-    local table_id = tonumber(data.table_id)
+    local table_id = tonumber(data.table_id) or data.table_id
     ensure_actual_table(table_id)
 
     local row = {
@@ -717,15 +744,29 @@ function create_row(ctx)
         })
         return
     end
+    id = tonumber(id) or id
 
-    local columns, _ = potato.db.find_all_by_cond("DatatableColumns", {
-        table_id = table_id
-    })
+    local columns = get_table_columns(table_id)
     local col_map = {}
-    if columns ~= nil and type(columns) == "table" then
-        for _, col in ipairs(columns) do
-            col_map[col.id] = col.slug
+    local existing_cols = get_existing_table_columns("Actual" .. tostring(table_id))
+
+    for _, col in ipairs(columns) do
+        local slug = col.slug
+        if slug == nil or slug == "" then
+            slug = generate_column_slug(table_id, col.name)
+            col.slug = slug
+            potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
         end
+
+        if not existing_cols[string.lower(slug)] then
+            local col_type_sql = sql_type_for_column(col.column_type)
+            potato.db.run_ddl(string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql))
+            existing_cols[string.lower(slug)] = true
+        end
+
+        local cid = tonumber(col.id) or col.id
+        col_map[cid] = slug
+        col_map[tostring(col.id)] = slug
     end
 
     local actual_row = {
@@ -735,32 +776,51 @@ function create_row(ctx)
     local cells_response = {}
     if data.cells ~= nil and type(data.cells) == "table" then
         for _, cell_data in ipairs(data.cells) do
-            local col_id = tonumber(cell_data.column_id)
-            local slug = col_map[col_id]
+            local raw_cid = cell_data.column_id
+            local cid = tonumber(raw_cid) or raw_cid
+            local slug = col_map[cid] or col_map[tostring(raw_cid)]
             local val = cell_data.value or ""
+
+            if slug == nil or slug == "" then
+                local col = potato.db.find_by_id("DatatableColumns", cid)
+                if col == nil then
+                    col = potato.db.find_by_id("DatatableColumns", tostring(raw_cid))
+                end
+                if col ~= nil then
+                    slug = col.slug
+                    if slug == nil or slug == "" then
+                        slug = generate_column_slug(table_id, col.name)
+                        col.slug = slug
+                        potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
+                    end
+                    if not existing_cols[string.lower(slug)] then
+                        local col_type_sql = sql_type_for_column(col.column_type)
+                        potato.db.run_ddl(string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql))
+                        existing_cols[string.lower(slug)] = true
+                    end
+                end
+            end
+
             if slug ~= nil and slug ~= "" then
                 actual_row[slug] = val
             end
 
-            table.insert(cells_response, {
-                table_id = table_id,
-                row_id = id,
-                column_id = col_id,
-                value = val,
-                color = cell_data.color or "",
-                meta = cell_data.meta or ""
-            })
-
-            -- If cell metadata is present, save to DatatableCells
-            if (cell_data.color and cell_data.color ~= "") or (cell_data.meta and cell_data.meta ~= "") then
-                potato.db.insert("DatatableCells", {
+            -- Only insert into DatatableCells if cell has metadata (like color, style, or meta)
+            local has_meta = (cell_data.color and cell_data.color ~= "") or (cell_data.meta and cell_data.meta ~= "")
+            if has_meta then
+                local cell_entry = {
                     table_id = table_id,
                     row_id = id,
-                    column_id = col_id,
+                    column_id = cid,
                     value = val,
                     color = cell_data.color or "",
                     meta = cell_data.meta or ""
-                })
+                }
+                local cell_id, _ = potato.db.insert("DatatableCells", cell_entry)
+                if cell_id ~= nil then
+                    cell_entry.id = tonumber(cell_id) or cell_id
+                end
+                table.insert(cells_response, cell_entry)
             end
         end
     end
@@ -785,6 +845,18 @@ function create_row(ctx)
             row_data = data.row_data or ""
         }
     end
+    result.id = id
+    result.table_id = table_id
+
+    for k, v in pairs(actual_row) do
+        result[k] = v
+    end
+    for _, col in ipairs(columns) do
+        if col.slug ~= nil and col.slug ~= "" and actual_row[col.slug] ~= nil then
+            result[tostring(col.id)] = actual_row[col.slug]
+        end
+    end
+
     result.cells = cells_response
     result.actual_data = actual_row
 
@@ -803,15 +875,19 @@ function update_row(ctx, row_id)
         return
     end
 
-    local row, err = potato.db.find_by_id("DatatableRows", row_id)
-    if err ~= nil or row == nil then
+    local n_row_id = tonumber(row_id) or row_id
+    local row, err = potato.db.find_by_id("DatatableRows", n_row_id)
+    if row == nil then
+        row, err = potato.db.find_by_id("DatatableRows", tostring(row_id))
+    end
+    if row == nil then
         req.json(404, {
             error = "Row not found"
         })
         return
     end
 
-    local table_id = row.table_id
+    local table_id = tonumber(row.table_id) or row.table_id
     ensure_actual_table(table_id)
 
     local data = req.bind_json()
@@ -819,45 +895,64 @@ function update_row(ctx, row_id)
     if data.row_data ~= nil then updates.row_data = data.row_data end
 
     if next(updates) ~= nil then
-        potato.db.update_by_id("DatatableRows", row_id, updates)
+        potato.db.update_by_id("DatatableRows", n_row_id, updates)
     end
 
-    local columns, _ = potato.db.find_all_by_cond("DatatableColumns", {
-        table_id = table_id
-    })
+    local columns = get_table_columns(table_id)
     local col_map = {}
-    if columns ~= nil and type(columns) == "table" then
-        for _, col in ipairs(columns) do
-            col_map[col.id] = col.slug
+    local existing_cols = get_existing_table_columns("Actual" .. tostring(table_id))
+
+    for _, col in ipairs(columns) do
+        local slug = col.slug
+        if slug == nil or slug == "" then
+            slug = generate_column_slug(table_id, col.name)
+            col.slug = slug
+            potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
         end
+        if not existing_cols[string.lower(slug)] then
+            local col_type_sql = sql_type_for_column(col.column_type)
+            potato.db.run_ddl(string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql))
+            existing_cols[string.lower(slug)] = true
+        end
+        local cid = tonumber(col.id) or col.id
+        col_map[cid] = slug
+        col_map[tostring(col.id)] = slug
     end
 
     local actual_updates = {}
     if data.cells ~= nil and type(data.cells) == "table" then
         for _, cell_data in ipairs(data.cells) do
-            local col_id = tonumber(cell_data.column_id)
-            local slug = col_map[col_id]
+            local raw_cid = cell_data.column_id
+            local cid = tonumber(raw_cid) or raw_cid
+            local slug = col_map[cid] or col_map[tostring(raw_cid)]
             local val = cell_data.value or ""
             if slug ~= nil and slug ~= "" then
                 actual_updates[slug] = val
             end
 
-            -- Update DatatableCells if color/meta is provided
-            if cell_data.color ~= nil or cell_data.meta ~= nil then
-                local exist_c, _ = potato.db.find_all_by_cond("DatatableCells", {
+            -- Update DatatableCells ONLY if cell has metadata (like color, style, or meta)
+            local has_meta = (cell_data.color ~= nil and cell_data.color ~= "") or (cell_data.meta ~= nil and cell_data.meta ~= "")
+            if has_meta then
+                local exist_c = potato.db.find_all_by_cond("DatatableCells", {
                     table_id = table_id,
-                    row_id = row_id,
-                    column_id = col_id
+                    row_id = n_row_id,
+                    column_id = cid
                 })
-                local c_up = { value = val }
-                if cell_data.color ~= nil then c_up.color = cell_data.color end
-                if cell_data.meta ~= nil then c_up.meta = cell_data.meta end
+                if exist_c == nil or #exist_c == 0 then
+                    exist_c = potato.db.find_all_by_cond("DatatableCells", {
+                        table_id = tostring(table_id),
+                        row_id = tostring(n_row_id),
+                        column_id = tostring(cid)
+                    })
+                end
+                local c_up = { color = cell_data.color or "", meta = cell_data.meta or "" }
+                if cell_data.value ~= nil then c_up.value = cell_data.value end
                 if exist_c ~= nil and #exist_c > 0 then
                     potato.db.update_by_id("DatatableCells", exist_c[1].id, c_up)
                 else
                     c_up.table_id = table_id
-                    c_up.row_id = row_id
-                    c_up.column_id = col_id
+                    c_up.row_id = n_row_id
+                    c_up.column_id = cid
                     potato.db.insert("DatatableCells", c_up)
                 end
             end
@@ -871,36 +966,52 @@ function update_row(ctx, row_id)
     end
 
     if next(actual_updates) ~= nil then
-        local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), row_id)
+        local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), n_row_id)
         if actual_rec ~= nil then
-            potato.db.update_by_id("Actual" .. tostring(table_id), row_id, actual_updates)
+            potato.db.update_by_id("Actual" .. tostring(table_id), n_row_id, actual_updates)
         else
-            actual_updates.id = row_id
+            actual_updates.id = n_row_id
             potato.db.insert("Actual" .. tostring(table_id), actual_updates)
         end
     end
 
-    local result, _ = potato.db.find_by_id("DatatableRows", row_id)
+    local result, _ = potato.db.find_by_id("DatatableRows", n_row_id)
     if result == nil then
         result = row
     end
+    result.id = n_row_id
+    result.table_id = table_id
 
-    local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), row_id)
+    local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), n_row_id)
     result.actual_data = actual_rec or {}
+    if actual_rec ~= nil then
+        for k, v in pairs(actual_rec) do
+            result[k] = v
+        end
+        for _, col in ipairs(columns) do
+            if col.slug ~= nil and col.slug ~= "" and actual_rec[col.slug] ~= nil then
+                result[tostring(col.id)] = actual_rec[col.slug]
+            end
+        end
+    end
 
     local cells_array = {}
-    if columns ~= nil and type(columns) == "table" then
-        for _, col in ipairs(columns) do
-            local val = ""
-            if actual_rec ~= nil and col.slug ~= nil and actual_rec[col.slug] ~= nil then
-                val = tostring(actual_rec[col.slug])
+    local meta_cells, _ = potato.db.find_all_by_cond("DatatableCells", {
+        table_id = table_id,
+        row_id = n_row_id
+    })
+    if meta_cells ~= nil and type(meta_cells) == "table" then
+        for _, mc in ipairs(meta_cells) do
+            if (mc.color ~= nil and mc.color ~= "") or (mc.meta ~= nil and mc.meta ~= "") then
+                table.insert(cells_array, {
+                    id = tonumber(mc.id) or mc.id,
+                    table_id = table_id,
+                    row_id = n_row_id,
+                    column_id = tonumber(mc.column_id) or mc.column_id,
+                    color = mc.color or "",
+                    meta = mc.meta or ""
+                })
             end
-            table.insert(cells_array, {
-                table_id = table_id,
-                row_id = row_id,
-                column_id = col.id,
-                value = val
-            })
         end
     end
     result.cells = cells_array
@@ -920,23 +1031,33 @@ function delete_row(ctx, row_id)
         return
     end
 
-    local row, _ = potato.db.find_by_id("DatatableRows", row_id)
+    local n_row_id = tonumber(row_id) or row_id
+    local row, _ = potato.db.find_by_id("DatatableRows", n_row_id)
+    if row == nil then
+        row, _ = potato.db.find_by_id("DatatableRows", tostring(row_id))
+    end
+
     if row ~= nil then
         local table_id = row.table_id
-        potato.db.delete_by_id("Actual" .. tostring(table_id), row_id)
+        potato.db.delete_by_id("Actual" .. tostring(table_id), n_row_id)
 
-        local cells, _ = potato.db.find_all_by_cond("DatatableCells", {
-            row_id = row_id
+        local cells = potato.db.find_all_by_cond("DatatableCells", {
+            row_id = n_row_id
         })
+        if cells == nil or #cells == 0 then
+            cells = potato.db.find_all_by_cond("DatatableCells", {
+                row_id = tostring(row_id)
+            })
+        end
         if cells ~= nil and type(cells) == "table" then
             for _, cell in ipairs(cells) do
                 potato.db.delete_by_id("DatatableCells", cell.id)
             end
         end
 
-        potato.db.delete_by_id("DatatableRows", row_id)
+        potato.db.delete_by_id("DatatableRows", n_row_id)
     else
-        potato.db.delete_by_id("DatatableRows", row_id)
+        potato.db.delete_by_id("DatatableRows", n_row_id)
     end
 
     req.json(200, {
@@ -958,7 +1079,11 @@ function update_cell(ctx, cell_id)
         return
     end
 
-    local cell, _ = potato.db.find_by_id("DatatableCells", cell_id)
+    local n_cid = tonumber(cell_id) or cell_id
+    local cell, _ = potato.db.find_by_id("DatatableCells", n_cid)
+    if cell == nil then
+        cell, _ = potato.db.find_by_id("DatatableCells", tostring(cell_id))
+    end
     local data = req.bind_json()
     local val = data.value or ""
 
@@ -968,20 +1093,29 @@ function update_cell(ctx, cell_id)
         if data.color ~= nil then updates.color = data.color end
         if data.meta ~= nil then updates.meta = data.meta end
 
-        potato.db.update_by_id("DatatableCells", cell_id, updates)
+        potato.db.update_by_id("DatatableCells", n_cid, updates)
 
         -- Update Actual<table_id>
         local col, _ = potato.db.find_by_id("DatatableColumns", cell.column_id)
-        if col ~= nil and col.slug ~= nil and col.slug ~= "" then
+        if col == nil then
+            col, _ = potato.db.find_by_id("DatatableColumns", tostring(cell.column_id))
+        end
+        if col ~= nil then
+            local slug = col.slug
+            if slug == nil or slug == "" then
+                slug = generate_column_slug(cell.table_id, col.name)
+                col.slug = slug
+                potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
+            end
             local u = {}
-            u[col.slug] = val
+            u[slug] = val
             potato.db.update_by_id("Actual" .. tostring(cell.table_id), cell.row_id, u)
         end
     end
 
-    local result, err = potato.db.find_by_id("DatatableCells", cell_id)
+    local result, err = potato.db.find_by_id("DatatableCells", n_cid)
     if err ~= nil or result == nil then
-        req.json(200, { id = cell_id, value = val })
+        req.json(200, { id = n_cid, value = val })
         return
     end
     req.json(200, result)
@@ -1000,26 +1134,36 @@ function upsert_cell(ctx)
         return
     end
 
-    local table_id = tonumber(data.table_id)
-    local row_id = tonumber(data.row_id)
-    local column_id = tonumber(data.column_id)
+    local table_id = tonumber(data.table_id) or data.table_id
+    local row_id = tonumber(data.row_id) or data.row_id
+    local column_id = tonumber(data.column_id) or data.column_id
     local val = data.value or ""
 
     ensure_actual_table(table_id)
 
     -- Resolve column slug
     local col, _ = potato.db.find_by_id("DatatableColumns", column_id)
+    if col == nil then
+        col, _ = potato.db.find_by_id("DatatableColumns", tostring(column_id))
+    end
+
     local slug = ""
     if col ~= nil then
         slug = col.slug
         if slug == nil or slug == "" then
             slug = generate_column_slug(table_id, col.name)
-            potato.db.update_by_id("DatatableColumns", column_id, { slug = slug })
+            col.slug = slug
+            potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
+        end
+
+        local existing_cols = get_existing_table_columns("Actual" .. tostring(table_id))
+        if not existing_cols[string.lower(slug)] then
+            local col_type_sql = sql_type_for_column(col.column_type)
+            potato.db.run_ddl(string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql))
         end
     end
 
     if slug ~= "" then
-        -- Update Actual<table_id>
         local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), row_id)
         if actual_rec ~= nil then
             local u = {}
@@ -1032,33 +1176,42 @@ function upsert_cell(ctx)
         end
     end
 
-    -- Update or insert into DatatableCells for metadata/tracking
-    local cell_updates = {
-        table_id = table_id,
-        row_id = row_id,
-        column_id = column_id,
-        value = val
-    }
-    if data.color ~= nil then cell_updates.color = data.color end
-    if data.meta ~= nil then cell_updates.meta = data.meta end
+    local has_meta = (data.color ~= nil and data.color ~= "") or (data.meta ~= nil and data.meta ~= "")
+    local cell_id = nil
+    if has_meta then
+        local cell_updates = {
+            table_id = table_id,
+            row_id = row_id,
+            column_id = column_id,
+            value = val
+        }
+        if data.color ~= nil then cell_updates.color = data.color end
+        if data.meta ~= nil then cell_updates.meta = data.meta end
 
-    local existing_list, _ = potato.db.find_all_by_cond("DatatableCells", {
-        table_id = table_id,
-        row_id = row_id,
-        column_id = column_id
-    })
+        local existing_list = potato.db.find_all_by_cond("DatatableCells", {
+            table_id = table_id,
+            row_id = row_id,
+            column_id = column_id
+        })
+        if existing_list == nil or #existing_list == 0 then
+            existing_list = potato.db.find_all_by_cond("DatatableCells", {
+                table_id = tostring(table_id),
+                row_id = tostring(row_id),
+                column_id = tostring(column_id)
+            })
+        end
 
-    local cell_id = 0
-    if existing_list ~= nil and #existing_list > 0 then
-        cell_id = existing_list[1].id
-        potato.db.update_by_id("DatatableCells", cell_id, cell_updates)
-    else
-        local cid, _ = potato.db.insert("DatatableCells", cell_updates)
-        cell_id = cid
+        if existing_list ~= nil and #existing_list > 0 then
+            cell_id = existing_list[1].id
+            potato.db.update_by_id("DatatableCells", cell_id, cell_updates)
+        else
+            local cid, _ = potato.db.insert("DatatableCells", cell_updates)
+            cell_id = cid
+        end
     end
 
     local result = {
-        id = cell_id,
+        id = (cell_id and (tonumber(cell_id) or cell_id)) or nil,
         table_id = table_id,
         row_id = row_id,
         column_id = column_id,

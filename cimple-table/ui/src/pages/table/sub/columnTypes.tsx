@@ -54,13 +54,32 @@ export const normalizeCells = (cells: any): DatatableCell[] => {
     return [];
 };
 
-export const getCellValue = (row: DatatableRow, columnId: number | string): string => {
-    const cells = normalizeCells(row.cells);
+export const getCellValue = (
+    row: DatatableRow,
+    columnId: number | string,
+    col?: DatatableColumn
+): string => {
+    if (!row) return "";
+
+    if (col?.slug) {
+        const val = (row as any)[col.slug] ?? (row.actual_data as any)?.[col.slug];
+        if (val !== undefined && val !== null) {
+            return String(val);
+        }
+    }
+
     const targetId = String(columnId);
+    const idVal = (row as any)[targetId] ?? (row.actual_data as any)?.[targetId];
+    if (idVal !== undefined && idVal !== null) {
+        return String(idVal);
+    }
+
+    const cells = normalizeCells(row.cells);
     const cell = cells.find(c => String(c.column_id) === targetId);
-    if (cell && cell.value !== undefined && cell.value !== null) {
+    if (cell && cell.value !== undefined && cell.value !== null && cell.value !== "") {
         return String(cell.value);
     }
+
     return "";
 };
 

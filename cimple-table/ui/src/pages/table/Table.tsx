@@ -117,13 +117,14 @@ const Table = () => {
         let result = rows.filter(row => {
             if (query) {
                 const hit = columns.some(col =>
-                    getCellValue(row, col.id).toLowerCase().includes(query)
+                    getCellValue(row, col.id, col).toLowerCase().includes(query)
                 );
                 if (!hit) return false;
             }
 
             if (filter.columnId !== null) {
-                const cell = getCellValue(row, filter.columnId).toLowerCase();
+                const filterCol = columns.find(c => c.id === filter.columnId);
+                const cell = getCellValue(row, filter.columnId, filterCol).toLowerCase();
                 const needle = filter.value.trim().toLowerCase();
 
                 if (filter.op === 'empty') return cell === '';
@@ -143,8 +144,8 @@ const Table = () => {
             const factor = sort.dir === 'asc' ? 1 : -1;
 
             result = [...result].sort((a, b) => {
-                const av = getCellValue(a, sort.columnId);
-                const bv = getCellValue(b, sort.columnId);
+                const av = getCellValue(a, sort.columnId, column);
+                const bv = getCellValue(b, sort.columnId, column);
 
                 if (av === bv) return 0;
                 if (av === '') return 1;
@@ -657,7 +658,7 @@ const Table = () => {
                                                         className="h-9 max-w-xs px-3 border-b border-r border-surface-200 overflow-hidden whitespace-nowrap"
                                                     >
                                                         <div className="flex items-center overflow-hidden">
-                                                            <CellValue value={getCellValue(row, col.id)} column={col} />
+                                                            <CellValue value={getCellValue(row, col.id, col)} column={col} />
                                                         </div>
                                                     </td>
                                                 ))}
@@ -696,7 +697,7 @@ const Table = () => {
                                                 key={col.id}
                                                 className="sticky bottom-0 z-20 h-8 px-3 bg-surface-50 border-t-2 border-r border-surface-200 text-[11px] font-semibold text-surface-500 whitespace-nowrap"
                                             >
-                                                {summarize(col, visibleRows.map(r => getCellValue(r, col.id)))}
+                                                {summarize(col, visibleRows.map(r => getCellValue(r, col.id, col)))}
                                             </td>
                                         ))}
                                         <td className="sticky bottom-0 z-20 h-8 bg-surface-50 border-t-2 border-surface-200" />
