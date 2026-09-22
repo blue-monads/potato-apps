@@ -56,35 +56,21 @@ export interface DatatableColumn {
     id: number;
     table_id: number;
     name: string;
-    slug?: string;
+    slug: string;
     column_type: string;
     info: string;
     required: boolean;
     options: string;
+    order_index?: number;
     created_at: string;
     updated_at: string;
 }
 
 export interface DatatableRow {
     id: number;
-    table_id: number;
-    row_data: string;
     created_at: string;
     updated_at: string;
-    cells?: DatatableCell[];
-    actual_data?: Record<string, any>;
-}
-
-export interface DatatableCell {
-    id?: number;
-    table_id: number;
-    row_id: number;
-    column_id: number;
-    value: string;
-    color?: string;
-    meta?: string;
-    created_at?: string;
-    updated_at?: string;
+    [slug: string]: any;
 }
 
 // Datatables API
@@ -146,35 +132,29 @@ export async function listRows(tableId: number): Promise<ApiResponse<DatatableRo
     return apiRequest<DatatableRow[]>(`/datatables/${tableId}/rows`, { method: 'GET' });
 }
 
-export async function createRow(data: { table_id: number; row_data?: string; cells?: { column_id: number; value: string }[] }): Promise<ApiResponse<DatatableRow>> {
+export async function createRow(data: { table_id: number; data?: Record<string, any>; [key: string]: any }): Promise<ApiResponse<DatatableRow>> {
     return apiRequest<DatatableRow>('/rows', {
         method: 'POST',
         body: JSON.stringify(data),
     });
 }
 
-export async function updateRow(id: number, data: { row_data?: string }): Promise<ApiResponse<DatatableRow>> {
+export async function updateRow(id: number, data: { table_id: number; data?: Record<string, any>; [key: string]: any }): Promise<ApiResponse<DatatableRow>> {
     return apiRequest<DatatableRow>(`/rows/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
     });
 }
 
-export async function deleteRow(id: number): Promise<ApiResponse<{ message: string }>> {
-    return apiRequest<{ message: string }>(`/rows/${id}`, { method: 'DELETE' });
+export async function deleteRow(id: number, tableId?: number): Promise<ApiResponse<{ message: string }>> {
+    const query = tableId ? `?table_id=${tableId}` : '';
+    return apiRequest<{ message: string }>(`/rows/${id}${query}`, { method: 'DELETE' });
 }
 
 // Cells API
-export async function upsertCell(data: { table_id: number; row_id: number; column_id: number; value: string }): Promise<ApiResponse<DatatableCell>> {
-    return apiRequest<DatatableCell>('/cells/upsert', {
+export async function upsertCell(data: { table_id: number; row_id: number; slug?: string; column_id?: number; value: string }): Promise<ApiResponse<{ row_id: number; slug: string; value: string }>> {
+    return apiRequest<{ row_id: number; slug: string; value: string }>('/cells/upsert', {
         method: 'POST',
-        body: JSON.stringify(data),
-    });
-}
-
-export async function updateCell(id: number, data: { value: string }): Promise<ApiResponse<DatatableCell>> {
-    return apiRequest<DatatableCell>(`/cells/${id}`, {
-        method: 'PUT',
         body: JSON.stringify(data),
     });
 }

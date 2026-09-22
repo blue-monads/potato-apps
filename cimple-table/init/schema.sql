@@ -14,7 +14,7 @@ create table DatatableColumns(
     table_id INTEGER NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     slug TEXT NOT NULL DEFAULT '',
-    -- text, number, date, boolean, image, file, link, dropdown, multiselect, checkbox, radio, textarea
+    -- text, number, date, image, file, link, dropdown, multiselect, checkbox, radio, textarea
     column_type TEXT NOT NULL DEFAULT '', 
     order_index INTEGER NOT NULL DEFAULT 0,
     info TEXT NOT NULL DEFAULT '',

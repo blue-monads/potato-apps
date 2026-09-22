@@ -1,4 +1,4 @@
-import { type DatatableColumn, type DatatableRow, type DatatableCell } from "../../../lib/api";
+import { type DatatableColumn, type DatatableRow } from "../../../lib/api";
 
 const PILL_COLORS = [
     { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -24,7 +24,6 @@ export const TYPE_ICONS: Record<string, string> = {
     textarea: 'align-left',
     number: 'hashtag',
     date: 'calendar',
-    boolean: 'square-check',
     checkbox: 'square-check',
     image: 'image',
     file: 'paperclip',
@@ -39,48 +38,18 @@ export const getTypeIcon = (type: string) => TYPE_ICONS[type] || 'font';
 export const isTagType = (type: string) =>
     type === 'dropdown' || type === 'multiselect' || type === 'radio';
 
-export const isBoolType = (type: string) =>
-    type === 'boolean' || type === 'checkbox';
+export const isBoolType = (type: string) => type === 'checkbox';
 
 export const isTruthy = (value: string) =>
     value.toLowerCase() === 'true' || value === '1';
 
-export const normalizeCells = (cells: any): DatatableCell[] => {
-    if (!cells) return [];
-    if (Array.isArray(cells)) return cells;
-    if (typeof cells === 'object') {
-        return Object.values(cells);
-    }
-    return [];
-};
-
 export const getCellValue = (
     row: DatatableRow,
-    columnId: number | string,
-    col?: DatatableColumn
+    column: DatatableColumn
 ): string => {
-    if (!row) return "";
-
-    if (col?.slug) {
-        const val = (row as any)[col.slug] ?? (row.actual_data as any)?.[col.slug];
-        if (val !== undefined && val !== null) {
-            return String(val);
-        }
-    }
-
-    const targetId = String(columnId);
-    const idVal = (row as any)[targetId] ?? (row.actual_data as any)?.[targetId];
-    if (idVal !== undefined && idVal !== null) {
-        return String(idVal);
-    }
-
-    const cells = normalizeCells(row.cells);
-    const cell = cells.find(c => String(c.column_id) === targetId);
-    if (cell && cell.value !== undefined && cell.value !== null && cell.value !== "") {
-        return String(cell.value);
-    }
-
-    return "";
+    if (!row || !column || !column.slug) return "";
+    const val = row[column.slug];
+    return val !== undefined && val !== null ? String(val) : "";
 };
 
 export const CellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {

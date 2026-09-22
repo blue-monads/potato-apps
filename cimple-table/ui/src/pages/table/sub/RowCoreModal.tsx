@@ -5,37 +5,35 @@ import { getCellValue } from "./columnTypes";
 interface RowCoreModalProps {
     table: Datatable;
     row?: DatatableRow;
-    onSave: (cellValues: Record<number, string>, rowData?: string) => Promise<void>;
+    onSave: (values: Record<string, string>) => Promise<void>;
     onCancel: () => void;
     onDelete?: () => Promise<void>;
     submitLabel: string;
 }
 
 const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: RowCoreModalProps) => {
-    const [rowData, setRowData] = useState("");
-    const [cellValues, setCellValues] = useState<Record<number, string>>({});
-    const [validationErrors, setValidationErrors] = useState<Record<number, boolean>>({});
+    const [cellValues, setCellValues] = useState<Record<string, string>>({});
+    const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (row) {
-            const initialValues: Record<number, string> = {};
+            const initialValues: Record<string, string> = {};
             table.columns?.forEach(column => {
-                initialValues[column.id] = getCellValue(row, column.id, column);
+                initialValues[column.slug] = getCellValue(row, column);
             });
             setCellValues(initialValues);
-            setRowData(row.row_data || "");
         }
     }, [row, table.columns]);
 
     const validateAndSave = () => {
-        const errors: Record<number, boolean> = {};
+        const errors: Record<string, boolean> = {};
         let hasErrors = false;
 
         table.columns?.forEach(column => {
             if (column.required) {
-                const value = cellValues[column.id] || "";
+                const value = cellValues[column.slug] || "";
                 if (!value.trim()) {
-                    errors[column.id] = true;
+                    errors[column.slug] = true;
                     hasErrors = true;
                 }
             }
@@ -44,36 +42,37 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
         setValidationErrors(errors);
 
         if (!hasErrors) {
-            onSave(cellValues, rowData);
+            onSave(cellValues);
         }
     };
 
-    const handleValueChange = (columnId: number, value: string) => {
-        setCellValues({ ...cellValues, [columnId]: value });
-        if (validationErrors[columnId]) {
-            setValidationErrors({ ...validationErrors, [columnId]: false });
+    const handleValueChange = (slug: string, value: string) => {
+        setCellValues(prev => ({ ...prev, [slug]: value }));
+        if (validationErrors[slug]) {
+            setValidationErrors(prev => ({ ...prev, [slug]: false }));
         }
     };
 
     const renderFieldEditor = (column: DatatableColumn, currentValue: string) => {
         const baseInputClasses = `w-full bg-white border rounded px-3 py-2 text-sm outline-none focus:border-accent-600 transition-all ${
-            validationErrors[column.id] 
+            validationErrors[column.slug] 
                 ? 'border-coral-500 focus:border-coral-600' 
                 : 'border-surface-300'
         }`;
+
+        const onChange = (val: string) => handleValueChange(column.slug, val);
 
         switch (column.column_type) {
             case 'textarea':
                 return (
                     <textarea
                         value={currentValue}
-                        onChange={(e) => handleValueChange(column.id, e.target.value)}
+                        onChange={(e) => onChange(e.target.value)}
                         className={baseInputClasses}
                         rows={4}
                     />
                 );
 
-            case 'boolean':
             case 'checkbox':
                 const isChecked = currentValue.toLowerCase() === 'true' || currentValue === '1';
                 return (
@@ -81,7 +80,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={(e) => handleValueChange(column.id, e.target.checked ? 'true' : 'false')}
+                            onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
                             className="w-5 h-5 text-accent-600 border-surface-300 rounded focus:ring-accent-500 focus:ring-2"
                         />
                         <span className="text-sm text-surface-600">
@@ -96,7 +95,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         <input
                             type="date"
                             value={currentValue}
-                            onChange={(e) => handleValueChange(column.id, e.target.value)}
+                            onChange={(e) => onChange(e.target.value)}
                             className={baseInputClasses}
                         />
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
@@ -110,7 +109,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     <input
                         type="number"
                         value={currentValue}
-                        onChange={(e) => handleValueChange(column.id, e.target.value)}
+                        onChange={(e) => onChange(e.target.value)}
                         className={baseInputClasses}
                         placeholder="0"
                     />
@@ -123,7 +122,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                             <input
                                 type="url"
                                 value={currentValue}
-                                onChange={(e) => handleValueChange(column.id, e.target.value)}
+                                onChange={(e) => onChange(e.target.value)}
                                 className={baseInputClasses}
                                 placeholder="https://example.com"
                             />
@@ -152,7 +151,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                             <input
                                 type="url"
                                 value={currentValue}
-                                onChange={(e) => handleValueChange(column.id, e.target.value)}
+                                onChange={(e) => onChange(e.target.value)}
                                 className={baseInputClasses}
                                 placeholder="https://example.com/image.jpg"
                             />
@@ -182,7 +181,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                             <input
                                 type="text"
                                 value={currentValue}
-                                onChange={(e) => handleValueChange(column.id, e.target.value)}
+                                onChange={(e) => onChange(e.target.value)}
                                 className={baseInputClasses}
                                 placeholder="File URL or path"
                             />
@@ -202,7 +201,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         <div className="relative">
                             <select
                                 value={currentValue}
-                                onChange={(e) => handleValueChange(column.id, e.target.value)}
+                                onChange={(e) => onChange(e.target.value)}
                                 className={`${baseInputClasses} appearance-none cursor-pointer pr-10`}
                             >
                                 <option value="">-- Select --</option>
@@ -216,12 +215,11 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         </div>
                     );
                 }
-                // Fallback to text input if no options
                 return (
                     <input
                         type="text"
                         value={currentValue}
-                        onChange={(e) => handleValueChange(column.id, e.target.value)}
+                        onChange={(e) => onChange(e.target.value)}
                         className={baseInputClasses}
                     />
                 );
@@ -256,7 +254,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                                                     } else {
                                                         newValues = selectedValues.filter((v: string) => v !== option);
                                                     }
-                                                    handleValueChange(column.id, newValues.join(', '));
+                                                    onChange(newValues.join(', '));
                                                 }}
                                                 className="w-4 h-4 text-accent-600 border-surface-300 rounded focus:ring-accent-500"
                                             />
@@ -271,12 +269,11 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         </div>
                     );
                 }
-                // Fallback to text input if no options
                 return (
                     <input
                         type="text"
                         value={currentValue}
-                        onChange={(e) => handleValueChange(column.id, e.target.value)}
+                        onChange={(e) => onChange(e.target.value)}
                         className={baseInputClasses}
                     />
                 );
@@ -287,7 +284,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     <input
                         type="text"
                         value={currentValue}
-                        onChange={(e) => handleValueChange(column.id, e.target.value)}
+                        onChange={(e) => onChange(e.target.value)}
                         className={baseInputClasses}
                     />
                 );
@@ -298,7 +295,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
         <div className="space-y-4">
             <div className="max-h-[50vh] overflow-y-auto pr-2 space-y-4">
                 {table.columns?.map((column) => {
-                    const currentValue = cellValues[column.id] || "";
+                    const currentValue = cellValues[column.slug] || "";
 
                     return (
                         <div key={column.id} className="space-y-1">
@@ -307,24 +304,12 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                                 {column.required && <span className="text-coral-600 ml-1">*</span>}
                             </label>
                             {renderFieldEditor(column, currentValue)}
-                            {validationErrors[column.id] && (
+                            {validationErrors[column.slug] && (
                                 <p className="text-[10px] text-coral-600 mt-0.5">This field is required</p>
                             )}
                         </div>
                     );
                 })}
-                
-                <div className="pt-2 border-t border-surface-100">
-                    <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider block mb-1">
-                        Metadata
-                    </label>
-                    <textarea
-                        value={rowData}
-                        onChange={(e) => setRowData(e.target.value)}
-                        className="w-full bg-white border border-surface-300 rounded px-3 py-2 text-sm outline-none focus:border-accent-600 transition-all min-h-[60px]"
-                        placeholder="Additional hidden data..."
-                    />
-                </div>
             </div>
             <div className={`flex ${onDelete ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-100`}>
                 {onDelete && (

@@ -26,7 +26,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
     const needsOptions = columnType === 'dropdown' || columnType === 'multiselect' || columnType === 'radio';
 
     const columnTypes = [
-        "text", "number", "date", "boolean", "image", "file", "link",
+        "text", "number", "date", "image", "file", "link",
         "dropdown", "multiselect", "checkbox", "radio", "textarea"
     ];
 

@@ -11,8 +11,8 @@ import {
     updateColumn,
     deleteColumn,
     createRow,
+    updateRow,
     deleteRow,
-    upsertCell,
     type Datatable,
     type DatatableColumn,
     type DatatableRow,
@@ -29,63 +29,62 @@ import {
     getCellValue,
     getTypeIcon,
     summarize,
-    normalizeCells,
 } from "./sub/columnTypes";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
-type FilterOp = 'contains' | 'equals' | 'not_equals' | 'empty' | 'not_empty';
-type FilterState = { columnId: number | null; op: FilterOp; value: string };
 
-const EMPTY_FILTER: FilterState = { columnId: null, op: 'contains', value: '' };
+type FilterOp = 'contains' | 'equals' | 'not_equals' | 'empty' | 'not_empty';
+
+interface FilterState {
+    columnId: number | null;
+    op: FilterOp;
+    value: string;
+}
+
+const EMPTY_FILTER: FilterState = {
+    columnId: null,
+    op: 'contains',
+    value: '',
+};
 
 const Table = () => {
-    const { tableId } = useParams();
+    const { tableId } = useParams<{ tableId: string }>();
     const navigate = useNavigate();
     const { openModal, closeModal } = useModal();
 
     const [datatables, setDatatables] = useState<Datatable[]>([]);
     const [currentTable, setCurrentTable] = useState<Datatable | null>(null);
     const [loading, setLoading] = useState(true);
-    const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
-
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortState>(null);
     const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
     const [filterOpen, setFilterOpen] = useState(false);
+    const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         loadDatatables();
     }, []);
 
     useEffect(() => {
-        setSelectedRowIds(new Set());
-        setSearch("");
-        setSort(null);
-        setFilter(EMPTY_FILTER);
-        setFilterOpen(false);
-
         if (tableId) {
             loadTable(parseInt(tableId));
-        } else {
-            setCurrentTable(null);
+        } else if (datatables.length > 0) {
+            navigate(`${BASE_PATH}table/${datatables[0].id}`, { replace: true });
         }
-    }, [tableId]);
+        setSelectedRowIds(new Set());
+    }, [tableId, datatables]);
 
     const loadDatatables = async () => {
         const response = await listDatatables();
-        if (response.error) {
-            console.error("Failed to load datatables:", response.error);
-        } else {
-            setDatatables(response.data || []);
+        if (response.data) {
+            setDatatables(response.data);
         }
     };
 
-    const loadTable = async (id: number) => {
+    const loadTable = async (tableId: number) => {
         setLoading(true);
-        const response = await getDatatable(id);
-        if (response.error) {
-            console.error("Failed to load table:", response.error);
-        } else {
+        const response = await getDatatable(tableId);
+        if (response.data) {
             const table = response.data;
             if (table) {
                 table.columns = Array.isArray(table.columns) 
@@ -96,10 +95,7 @@ const Table = () => {
                     ? table.rows 
                     : (table.rows && typeof table.rows === 'object' ? Object.values(table.rows) as DatatableRow[] : []);
 
-                table.rows = rawRows.map((row: DatatableRow) => ({
-                    ...row,
-                    cells: normalizeCells(row.cells),
-                }));
+                table.rows = rawRows;
                 setCurrentTable(table);
             } else {
                 setCurrentTable(null);
@@ -117,14 +113,14 @@ const Table = () => {
         let result = rows.filter(row => {
             if (query) {
                 const hit = columns.some(col =>
-                    getCellValue(row, col.id, col).toLowerCase().includes(query)
+                    getCellValue(row, col).toLowerCase().includes(query)
                 );
                 if (!hit) return false;
             }
 
             if (filter.columnId !== null) {
                 const filterCol = columns.find(c => c.id === filter.columnId);
-                const cell = getCellValue(row, filter.columnId, filterCol).toLowerCase();
+                const cell = filterCol ? getCellValue(row, filterCol).toLowerCase() : "";
                 const needle = filter.value.trim().toLowerCase();
 
                 if (filter.op === 'empty') return cell === '';
@@ -144,8 +140,8 @@ const Table = () => {
             const factor = sort.dir === 'asc' ? 1 : -1;
 
             result = [...result].sort((a, b) => {
-                const av = getCellValue(a, sort.columnId, column);
-                const bv = getCellValue(b, sort.columnId, column);
+                const av = column ? getCellValue(a, column) : "";
+                const bv = column ? getCellValue(b, column) : "";
 
                 if (av === bv) return 0;
                 if (av === '') return 1;
@@ -190,7 +186,7 @@ const Table = () => {
 
         setLoading(true);
         for (const rowId of selectedRowIds) {
-            await deleteRow(rowId);
+            await deleteRow(rowId, currentTable.id);
         }
         await loadTable(currentTable.id);
         setSelectedRowIds(new Set());
@@ -347,21 +343,21 @@ const Table = () => {
                 <EditRowModal
                     table={currentTable}
                     row={row}
-                    onSave={async (cellUpdates) => {
-                        for (const update of cellUpdates) {
-                            await upsertCell({
-                                table_id: currentTable.id,
-                                row_id: row.id,
-                                column_id: update.column_id,
-                                value: update.value,
-                            });
+                    onSave={async (values) => {
+                        const response = await updateRow(row.id, {
+                            table_id: currentTable.id,
+                            data: values,
+                        });
+                        if (!response.error) {
+                            await loadTable(currentTable.id);
+                            closeModal();
+                        } else {
+                            alert("Failed to update row: " + response.error);
                         }
-                        await loadTable(currentTable.id);
-                        closeModal();
                     }}
                     onDelete={async () => {
                         if (!confirm("Delete this record?")) return;
-                        const response = await deleteRow(row.id);
+                        const response = await deleteRow(row.id, currentTable.id);
                         if (!response.error) {
                             await loadTable(currentTable.id);
                             closeModal();
@@ -658,7 +654,7 @@ const Table = () => {
                                                         className="h-9 max-w-xs px-3 border-b border-r border-surface-200 overflow-hidden whitespace-nowrap"
                                                     >
                                                         <div className="flex items-center overflow-hidden">
-                                                            <CellValue value={getCellValue(row, col.id, col)} column={col} />
+                                                            <CellValue value={getCellValue(row, col)} column={col} />
                                                         </div>
                                                     </td>
                                                 ))}
@@ -697,7 +693,7 @@ const Table = () => {
                                                 key={col.id}
                                                 className="sticky bottom-0 z-20 h-8 px-3 bg-surface-50 border-t-2 border-r border-surface-200 text-[11px] font-semibold text-surface-500 whitespace-nowrap"
                                             >
-                                                {summarize(col, visibleRows.map(r => getCellValue(r, col.id, col)))}
+                                                {summarize(col, visibleRows.map(r => getCellValue(r, col)))}
                                             </td>
                                         ))}
                                         <td className="sticky bottom-0 z-20 h-8 bg-surface-50 border-t-2 border-surface-200" />
