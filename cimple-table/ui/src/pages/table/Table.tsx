@@ -80,6 +80,7 @@ const Table = () => {
     const [filterOpen, setFilterOpen] = useState(false);
     const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
     const [appsMenuOpen, setAppsMenuOpen] = useState(false);
+    const [targetRowOffset, setTargetRowOffset] = useState<number | null>(null);
     const appsMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -103,12 +104,12 @@ const Table = () => {
     useEffect(() => {
         if (tableId) {
             const rawOffset = searchParams.get('row_offset') || searchParams.get('offset');
-            const initialOffset = rawOffset ? Math.max(0, parseInt(rawOffset, 10) || 0) : 0;
+            const targetRow = rawOffset ? Math.max(0, parseInt(rawOffset, 10) || 0) : 0;
             setSort(null);
             setFilter(EMPTY_FILTER);
             setSearch("");
             setSelectedRowIds(new Set());
-            loadTable(parseInt(tableId), initialOffset);
+            loadTable(parseInt(tableId), targetRow);
         } else if (datatables.length > 0) {
             navigate(`${BASE_PATH}table/${datatables[0].id}`, { replace: true });
         }
@@ -159,29 +160,37 @@ const Table = () => {
         setLoading(false);
     };
 
-    const loadTable = async (tId: number, startOffset: number = 0) => {
+    const loadTable = async (tId: number, targetRowParam: number = 0) => {
         setLoading(true);
         const response = await getDatatable(tId);
         if (response.data) {
             const table = response.data;
             if (table) {
                 const cols = normalizeArray<DatatableColumn>(table.columns);
-                const tableRows = normalizeArray<DatatableRow>(table.rows);
                 table.columns = cols;
-                table.rows = tableRows;
                 setCurrentTable(table);
-                if (startOffset === 0 && tableRows.length > 0) {
-                    setRows(tableRows);
-                    setTotalCount(tableRows.length);
-                    setTopOffset(0);
-                    setBottomOffset(tableRows.length);
-                } else if (startOffset === 0) {
-                    setRows([]);
-                    setTotalCount(0);
-                    setTopOffset(0);
-                    setBottomOffset(0);
+
+                // If targetRowParam is provided (e.g. 47), target 0-indexed row is targetRowParam - 1 (or 0 if 0).
+                // Preload ~30 rows before it so target row is loaded in the window surrounded by context.
+                const targetIdx = targetRowParam > 0 ? targetRowParam - 1 : 0;
+                const windowStart = Math.max(0, targetIdx - 30);
+
+                await handleRunQuery(windowStart, undefined, undefined, undefined, table);
+
+                if (targetRowParam > 0) {
+                    setTargetRowOffset(targetIdx);
+                    setTimeout(() => {
+                        const el = document.getElementById(`row-${targetIdx}`);
+                        if (el) {
+                            el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        }
+                    }, 200);
+
+                    // Clear highlight after 4 seconds
+                    setTimeout(() => {
+                        setTargetRowOffset(null);
+                    }, 4000);
                 }
-                await handleRunQuery(startOffset, undefined, undefined, undefined, table);
             } else {
                 setCurrentTable(null);
                 setRows([]);
@@ -284,11 +293,11 @@ const Table = () => {
         if (selectedRowIds.size !== 1) return;
         const selectedId = Array.from(selectedRowIds)[0];
         const rowIndex = rows.findIndex(r => r.id === selectedId);
-        const absOffset = topOffset + (rowIndex >= 0 ? rowIndex : 0);
+        const rowNumber = topOffset + (rowIndex >= 0 ? rowIndex : 0) + 1;
         const url = new URL(window.location.href);
-        url.searchParams.set('row_offset', String(absOffset));
+        url.searchParams.set('row_offset', String(rowNumber));
         navigator.clipboard.writeText(url.toString());
-        alert(`Copied direct link to row #${absOffset + 1}:\n${url.toString()}`);
+        alert(`Copied direct link to row #${rowNumber}:\n${url.toString()}`);
     };
 
     const toggleRowSelection = (rowId: number) => {
@@ -852,25 +861,51 @@ const Table = () => {
                                 </thead>
 
                                 <tbody>
-                                    {loadingMoreUp && (
+                                    {topOffset > 0 && (
                                         <tr>
-                                            <td colSpan={columns.length + 3} className="py-2 text-center text-xs text-surface-500 bg-surface-50 border-b border-surface-200">
-                                                <i className="fa-solid fa-spinner animate-spin mr-2 text-accent-600" />
-                                                Loading previous records...
+                                            <td colSpan={columns.length + 3} className="p-1.5 text-center bg-surface-50 border-b border-surface-200">
+                                                <button
+                                                    onClick={() => loadMoreUp()}
+                                                    disabled={loadingMoreUp}
+                                                    className="text-xs text-accent-600 hover:text-accent-700 font-medium py-1 px-3 rounded hover:bg-accent-50 transition-colors inline-flex items-center gap-1.5"
+                                                >
+                                                    {loadingMoreUp ? (
+                                                        <>
+                                                            <i className="fa-solid fa-spinner animate-spin" />
+                                                            Loading previous records...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <i className="fa-solid fa-arrow-up" />
+                                                            Load previous {topOffset} records
+                                                        </>
+                                                    )}
+                                                </button>
                                             </td>
                                         </tr>
                                     )}
 
                                     {rows.map((row, index) => {
+                                        const absRowIndex = topOffset + index + 1;
+                                        const isTargeted = targetRowOffset === absRowIndex;
                                         const selected = selectedRowIds.has(row.id);
-                                        const stickyBg = selected
-                                            ? 'bg-accent-50'
-                                            : 'bg-white group-hover:bg-surface-100';
+                                        const stickyBg = isTargeted
+                                            ? 'bg-amber-100 group-hover:bg-amber-100'
+                                            : selected
+                                                ? 'bg-accent-50'
+                                                : 'bg-white group-hover:bg-surface-100';
                                         return (
                                             <tr
                                                 key={row.id}
+                                                id={`row-${absRowIndex}`}
                                                 onClick={() => handleEditRow(row)}
-                                                className={`group cursor-pointer ${selected ? 'bg-accent-50' : 'hover:bg-surface-100'}`}
+                                                className={`group cursor-pointer transition-colors ${
+                                                    isTargeted
+                                                        ? 'bg-amber-100 ring-2 ring-amber-400 ring-inset'
+                                                        : selected
+                                                            ? 'bg-accent-50'
+                                                            : 'hover:bg-surface-100'
+                                                }`}
                                             >
                                                 <td
                                                     onClick={(e) => e.stopPropagation()}
@@ -884,7 +919,7 @@ const Table = () => {
                                                     />
                                                 </td>
                                                 <td className={`sticky left-10 z-10 h-9 text-center text-[11px] text-surface-400 border-b border-r border-surface-200 transition-colors select-none ${stickyBg}`}>
-                                                    {topOffset + index + 1}
+                                                    {absRowIndex}
                                                 </td>
                                                 {columns.map(col => (
                                                     <td
@@ -901,11 +936,26 @@ const Table = () => {
                                         );
                                     })}
 
-                                    {loadingMoreDown && (
+                                    {bottomOffset < totalCount && (
                                         <tr>
-                                            <td colSpan={columns.length + 3} className="py-2 text-center text-xs text-surface-500 bg-surface-50 border-b border-surface-200">
-                                                <i className="fa-solid fa-spinner animate-spin mr-2 text-accent-600" />
-                                                Loading more records...
+                                            <td colSpan={columns.length + 3} className="p-1.5 text-center bg-surface-50 border-b border-surface-200">
+                                                <button
+                                                    onClick={() => loadMoreDown()}
+                                                    disabled={loadingMoreDown}
+                                                    className="text-xs text-accent-600 hover:text-accent-700 font-medium py-1 px-3 rounded hover:bg-accent-50 transition-colors inline-flex items-center gap-1.5"
+                                                >
+                                                    {loadingMoreDown ? (
+                                                        <>
+                                                            <i className="fa-solid fa-spinner animate-spin" />
+                                                            Loading more records...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <i className="fa-solid fa-arrow-down" />
+                                                            Load next {totalCount - bottomOffset} records
+                                                        </>
+                                                    )}
+                                                </button>
                                             </td>
                                         </tr>
                                     )}
