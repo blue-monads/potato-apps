@@ -78,6 +78,22 @@ const Table = () => {
     const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
     const [filterOpen, setFilterOpen] = useState(false);
     const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
+    const [appsMenuOpen, setAppsMenuOpen] = useState(false);
+    const appsMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (appsMenuRef.current && !appsMenuRef.current.contains(e.target as Node)) {
+                setAppsMenuOpen(false);
+            }
+        };
+        if (appsMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [appsMenuOpen]);
 
     useEffect(() => {
         loadDatatables();
@@ -263,12 +279,15 @@ const Table = () => {
         }
     };
 
-    const handleCopyRowLink = (rowIndex: number) => {
-        const absOffset = topOffset + rowIndex;
+    const handleCopySelectedRowLink = () => {
+        if (selectedRowIds.size !== 1) return;
+        const selectedId = Array.from(selectedRowIds)[0];
+        const rowIndex = rows.findIndex(r => r.id === selectedId);
+        const absOffset = topOffset + (rowIndex >= 0 ? rowIndex : 0);
         const url = new URL(window.location.href);
         url.searchParams.set('row_offset', String(absOffset));
         navigator.clipboard.writeText(url.toString());
-        alert(`Copied link to row #${absOffset + 1}:\n${url.toString()}`);
+        alert(`Copied direct link to row #${absOffset + 1}:\n${url.toString()}`);
     };
 
     const toggleRowSelection = (rowId: number) => {
@@ -313,7 +332,7 @@ const Table = () => {
     const handleCreateTable = () => {
         openModal({
             title: "Create New Datatable",
-            maxWidth: '620px',
+            maxWidth: '820px',
             content: (
                 <CreateTableModal
                     onSave={async (data, templateColumns) => {
@@ -325,6 +344,8 @@ const Table = () => {
                                     name: col.name,
                                     column_type: col.column_type,
                                     info: col.info || "",
+                                    required: col.required || false,
+                                    options: col.options || "",
                                 });
                             }
                             await loadDatatables();
@@ -507,19 +528,59 @@ const Table = () => {
                     )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                    <button
-                        onClick={() => navigate(`${BASE_PATH}seeder${currentTable ? `/${currentTable.id}` : ''}`)}
-                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded bg-surface-700 hover:bg-surface-600 text-surface-200 hover:text-white transition-colors cursor-pointer"
-                        title="Generate & Seed Test Data"
-                    >
-                        <i className="fa-solid fa-seedling text-emerald-400" />
-                        <span>Seeder</span>
-                    </button>
                     <span className="text-[12px] text-surface-400">
                         {selectedRowIds.size > 0
                             ? `${selectedRowIds.size} row${selectedRowIds.size === 1 ? '' : 's'} selected`
                             : `${totalCount.toLocaleString()} record${totalCount === 1 ? '' : 's'}`}
                     </span>
+
+                    {/* 4-dot Apps Launcher Menu */}
+                    <div className="relative" ref={appsMenuRef}>
+                        <button
+                            onClick={() => setAppsMenuOpen(o => !o)}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                                appsMenuOpen
+                                    ? 'bg-surface-700 text-white'
+                                    : 'text-surface-300 hover:text-white hover:bg-surface-700'
+                            }`}
+                            title="Apps & Tools"
+                        >
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 16 16">
+                                <circle cx="4.5" cy="4.5" r="1.8" />
+                                <circle cx="11.5" cy="4.5" r="1.8" />
+                                <circle cx="4.5" cy="11.5" r="1.8" />
+                                <circle cx="11.5" cy="11.5" r="1.8" />
+                            </svg>
+                        </button>
+
+                        {appsMenuOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-surface-200 p-2.5 z-50 text-surface-800 animate-slide-in">
+                                <div className="text-[10px] font-bold text-surface-400 uppercase tracking-wider px-2 py-1 mb-1">
+                                    Tools & Apps
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setAppsMenuOpen(false);
+                                        navigate(`${BASE_PATH}seeder${currentTable ? `/${currentTable.id}` : ''}`);
+                                    }}
+                                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-100 transition-colors text-left group cursor-pointer"
+                                >
+                                    <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                                        <i className="fa-solid fa-seedling text-base" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-xs font-semibold text-surface-800 group-hover:text-accent-600 transition-colors">
+                                            Data Seeder
+                                        </div>
+                                        <div className="text-[11px] text-surface-400 truncate">
+                                            Generate & seed mock records
+                                        </div>
+                                    </div>
+                                    <i className="fa-solid fa-chevron-right text-[10px] text-surface-300 group-hover:text-surface-600 transition-colors" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -619,6 +680,17 @@ const Table = () => {
                         </div>
 
                         <div className="flex-1" />
+
+                        {selectedRowIds.size === 1 && (
+                            <button
+                                onClick={handleCopySelectedRowLink}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md border border-surface-200 text-surface-700 bg-white hover:bg-surface-50 hover:border-surface-300 transition-colors animate-slide-in cursor-pointer"
+                                title="Copy direct link to selected row"
+                            >
+                                <i className="fa-solid fa-link text-[11px] text-accent-600" />
+                                Copy Link
+                            </button>
+                        )}
 
                         {selectedRowIds.size > 0 && (
                             <button
@@ -796,16 +868,8 @@ const Table = () => {
                                                         onChange={() => toggleRowSelection(row.id)}
                                                     />
                                                 </td>
-                                                <td
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleCopyRowLink(index);
-                                                    }}
-                                                    title={`Row #${topOffset + index + 1} (Click to copy direct link)`}
-                                                    className={`sticky left-10 z-10 h-9 text-center text-[11px] text-surface-400 border-b border-r border-surface-200 transition-colors cursor-pointer hover:text-accent-600 ${stickyBg}`}
-                                                >
-                                                    <span className="group-hover:hidden">{topOffset + index + 1}</span>
-                                                    <i className="fa-solid fa-link text-[10px] text-accent-600 hidden group-hover:inline" />
+                                                <td className={`sticky left-10 z-10 h-9 text-center text-[11px] text-surface-400 border-b border-r border-surface-200 transition-colors select-none ${stickyBg}`}>
+                                                    {topOffset + index + 1}
                                                 </td>
                                                 {columns.map(col => (
                                                     <td

@@ -7,24 +7,26 @@ export interface TableTemplate {
         name: string;
         column_type: string;
         info?: string;
+        required?: boolean;
+        options?: string;
     }[];
 }
 
 export const TABLE_TEMPLATES: TableTemplate[] = [
     {
         id: "blank",
-        name: "Blank",
-        description: "Start with an empty table",
+        name: "Blank Table",
+        description: "Start from scratch and build your own custom columns",
         icon: "table",
         columns: []
     },
     {
         id: "contacts",
         name: "Contacts",
-        description: "Manage your contacts and relationships",
+        description: "Manage your contacts, clients, and relationships",
         icon: "address-book",
         columns: [
-            { name: "Name", column_type: "text", info: "Full name" },
+            { name: "Name", column_type: "text", info: "Full name", required: true },
             { name: "Email", column_type: "text", info: "Email address" },
             { name: "Phone", column_type: "text", info: "Phone number" },
             { name: "Company", column_type: "text", info: "Company name" },
@@ -35,13 +37,13 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
     {
         id: "tasks",
         name: "Task Tracker",
-        description: "Track tasks and projects",
+        description: "Track tasks, assignments, deadlines, and project statuses",
         icon: "tasks",
         columns: [
-            { name: "Task", column_type: "text", info: "Task name" },
-            { name: "Status", column_type: "dropdown", info: "Task status" },
-            { name: "Priority", column_type: "dropdown", info: "Priority level" },
-            { name: "Assignee", column_type: "text", info: "Assigned to" },
+            { name: "Task", column_type: "text", info: "Task name", required: true },
+            { name: "Status", column_type: "dropdown", info: "Task status", options: "Todo, In Progress, Review, Done" },
+            { name: "Priority", column_type: "dropdown", info: "Priority level", options: "Low, Medium, High, Urgent" },
+            { name: "Assignee", column_type: "text", info: "Assigned person" },
             { name: "Due Date", column_type: "date", info: "Due date" },
             { name: "Notes", column_type: "textarea", info: "Task notes" }
         ]
@@ -49,54 +51,54 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
     {
         id: "inventory",
         name: "Inventory",
-        description: "Track products and stock",
+        description: "Track products, stock levels, pricing, and storage locations",
         icon: "boxes",
         columns: [
-            { name: "Product Name", column_type: "text", info: "Product name" },
+            { name: "Product Name", column_type: "text", info: "Product name", required: true },
             { name: "SKU", column_type: "text", info: "Stock keeping unit" },
             { name: "Quantity", column_type: "number", info: "Current quantity" },
             { name: "Price", column_type: "number", info: "Unit price" },
-            { name: "Category", column_type: "text", info: "Product category" },
+            { name: "Category", column_type: "dropdown", info: "Product category", options: "Electronics, Clothing, Groceries, Hardware, Books" },
             { name: "Location", column_type: "text", info: "Storage location" }
         ]
     },
     {
         id: "events",
         name: "Events",
-        description: "Manage events and schedules",
+        description: "Manage events, conferences, attendees, and schedules",
         icon: "calendar",
         columns: [
-            { name: "Event Name", column_type: "text", info: "Event title" },
+            { name: "Event Name", column_type: "text", info: "Event title", required: true },
             { name: "Date", column_type: "date", info: "Event date" },
             { name: "Time", column_type: "text", info: "Event time" },
             { name: "Location", column_type: "text", info: "Event location" },
-            { name: "Attendees", column_type: "text", info: "Number of attendees" },
-            { name: "Status", column_type: "dropdown", info: "Event status" }
+            { name: "Attendees", column_type: "number", info: "Expected attendees" },
+            { name: "Status", column_type: "dropdown", info: "Event status", options: "Planning, Scheduled, Confirmed, Completed, Cancelled" }
         ]
     },
     {
         id: "expenses",
         name: "Expenses",
-        description: "Track expenses and receipts",
+        description: "Track expenses, payment methods, receipts, and budgets",
         icon: "receipt",
         columns: [
-            { name: "Description", column_type: "text", info: "Expense description" },
+            { name: "Description", column_type: "text", info: "Expense description", required: true },
             { name: "Amount", column_type: "number", info: "Expense amount" },
-            { name: "Category", column_type: "dropdown", info: "Expense category" },
+            { name: "Category", column_type: "dropdown", info: "Expense category", options: "Travel, Meals, Office Supplies, Software, Utilities, Other" },
             { name: "Date", column_type: "date", info: "Expense date" },
-            { name: "Payment Method", column_type: "dropdown", info: "How it was paid" },
+            { name: "Payment Method", column_type: "dropdown", info: "How it was paid", options: "Credit Card, Debit Card, Cash, Bank Transfer, PayPal" },
             { name: "Receipt", column_type: "file", info: "Receipt file" }
         ]
     },
     {
         id: "notes",
         name: "Notes",
-        description: "Simple note-taking table",
+        description: "Capture quick notes, ideas, tags, and documentation",
         icon: "sticky-note",
         columns: [
-            { name: "Title", column_type: "text", info: "Note title" },
+            { name: "Title", column_type: "text", info: "Note title", required: true },
             { name: "Content", column_type: "textarea", info: "Note content" },
-            { name: "Tags", column_type: "multiselect", info: "Tags" },
+            { name: "Tags", column_type: "multiselect", info: "Tags", options: "Idea, Personal, Work, Project, Urgent, Draft" },
             { name: "Created", column_type: "date", info: "Creation date" }
         ]
     }
