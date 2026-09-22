@@ -1,4 +1,4 @@
-import { type DatatableColumn, type DatatableRow } from "../../../lib/api";
+import { type DatatableColumn, type DatatableRow, type DatatableCell } from "../../../lib/api";
 
 const PILL_COLORS = [
     { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -45,9 +45,23 @@ export const isBoolType = (type: string) =>
 export const isTruthy = (value: string) =>
     value.toLowerCase() === 'true' || value === '1';
 
-export const getCellValue = (row: DatatableRow, columnId: number): string => {
-    if (!Array.isArray(row.cells)) return "";
-    return row.cells.find(c => c.column_id === columnId)?.value || "";
+export const normalizeCells = (cells: any): DatatableCell[] => {
+    if (!cells) return [];
+    if (Array.isArray(cells)) return cells;
+    if (typeof cells === 'object') {
+        return Object.values(cells);
+    }
+    return [];
+};
+
+export const getCellValue = (row: DatatableRow, columnId: number | string): string => {
+    const cells = normalizeCells(row.cells);
+    const targetId = String(columnId);
+    const cell = cells.find(c => String(c.column_id) === targetId);
+    if (cell && cell.value !== undefined && cell.value !== null) {
+        return String(cell.value);
+    }
+    return "";
 };
 
 export const CellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {

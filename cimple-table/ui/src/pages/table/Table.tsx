@@ -29,6 +29,7 @@ import {
     getCellValue,
     getTypeIcon,
     summarize,
+    normalizeCells,
 } from "./sub/columnTypes";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
@@ -87,10 +88,17 @@ const Table = () => {
         } else {
             const table = response.data;
             if (table) {
-                table.columns = Array.isArray(table.columns) ? table.columns : [];
-                table.rows = (Array.isArray(table.rows) ? table.rows : []).map(row => ({
+                table.columns = Array.isArray(table.columns) 
+                    ? table.columns 
+                    : (table.columns && typeof table.columns === 'object' ? Object.values(table.columns) as DatatableColumn[] : []);
+                
+                const rawRows: DatatableRow[] = Array.isArray(table.rows) 
+                    ? table.rows 
+                    : (table.rows && typeof table.rows === 'object' ? Object.values(table.rows) as DatatableRow[] : []);
+
+                table.rows = rawRows.map((row: DatatableRow) => ({
                     ...row,
-                    cells: Array.isArray(row.cells) ? row.cells : [],
+                    cells: normalizeCells(row.cells),
                 }));
                 setCurrentTable(table);
             } else {

@@ -56,6 +56,7 @@ export interface DatatableColumn {
     id: number;
     table_id: number;
     name: string;
+    slug?: string;
     column_type: string;
     info: string;
     required: boolean;
@@ -71,19 +72,26 @@ export interface DatatableRow {
     created_at: string;
     updated_at: string;
     cells?: DatatableCell[];
+    actual_data?: Record<string, any>;
 }
 
 export interface DatatableCell {
-    id: number;
+    id?: number;
     table_id: number;
     row_id: number;
     column_id: number;
     value: string;
-    created_at: string;
-    updated_at: string;
+    color?: string;
+    meta?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 // Datatables API
+export async function getActualTableData(id: number): Promise<ApiResponse<Record<string, any>[]>> {
+    return apiRequest<Record<string, any>[]>(`/datatables/${id}/actual`, { method: 'GET' });
+}
+
 export async function listDatatables(): Promise<ApiResponse<Datatable[]>> {
     return apiRequest<Datatable[]>('/datatables', { method: 'GET' });
 }

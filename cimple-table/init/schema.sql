@@ -13,6 +13,7 @@ create table DatatableColumns(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_id INTEGER NOT NULL,
     name TEXT NOT NULL DEFAULT '',
+    slug TEXT NOT NULL DEFAULT '',
     -- text, number, date, boolean, image, file, link, dropdown, multiselect, checkbox, radio, textarea
     column_type TEXT NOT NULL DEFAULT '', 
     order_index INTEGER NOT NULL DEFAULT 0,
@@ -38,6 +39,8 @@ create table DatatableCells(
     row_id INTEGER NOT NULL,
     column_id INTEGER NOT NULL,
     value TEXT NOT NULL DEFAULT '',
+    color TEXT NOT NULL DEFAULT '',
+    meta TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { type Datatable, type DatatableRow, type DatatableColumn } from "../../../lib/api";
+import { normalizeCells } from "./columnTypes";
 
 interface RowCoreModalProps {
     table: Datatable;
@@ -18,11 +19,11 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
     useEffect(() => {
         if (row) {
             const initialValues: Record<number, string> = {};
-            if (row.cells && Array.isArray(row.cells)) {
-                row.cells.forEach(cell => {
-                    initialValues[cell.column_id] = cell.value;
-                });
-            }
+            const cells = normalizeCells(row.cells);
+            cells.forEach(cell => {
+                const cid = Number(cell.column_id);
+                initialValues[cid] = cell.value;
+            });
             setCellValues(initialValues);
             setRowData(row.row_data || "");
         }
