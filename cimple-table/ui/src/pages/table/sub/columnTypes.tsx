@@ -1,4 +1,5 @@
 import { type DatatableColumn, type DatatableRow } from "../../../lib/api";
+import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
 
 const PILL_COLORS = [
     { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -31,6 +32,8 @@ export const TYPE_ICONS: Record<string, string> = {
     dropdown: 'caret-down',
     radio: 'circle-dot',
     multiselect: 'tags',
+    ref: 'arrow-up-right-from-square',
+    multiref: 'layer-group',
 };
 
 export const getTypeIcon = (type: string) => TYPE_ICONS[type] || 'font';
@@ -52,10 +55,67 @@ export const getCellValue = (
     return val !== undefined && val !== null ? String(val) : "";
 };
 
+const SingleRefBadge = ({
+    tableId,
+    rowId,
+    identityColSlug,
+}: {
+    tableId: number;
+    rowId: number;
+    identityColSlug?: string;
+}) => {
+    const resolvedRow = useRefResolution(tableId, rowId);
+    const identityText = getRowIdentityText(resolvedRow, identityColSlug);
+
+    return (
+        <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors shrink-0"
+            title={`Referenced record #${rowId} in table ${tableId}`}
+        >
+            <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-slate-400" />
+            <span className="font-medium truncate max-w-[130px]">{identityText || `#${rowId}`}</span>
+            {identityText && <span className="text-[10px] text-slate-400 font-mono">#{rowId}</span>}
+        </span>
+    );
+};
+
+const RefCellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {
+    const opts = parseRefOptions(column.options);
+    const targetTableId = opts?.target_table_id;
+    const ids = parseRefIds(value);
+
+    if (ids.length === 0) return <span className="text-surface-300">—</span>;
+
+    if (!targetTableId) {
+        return (
+            <span className="font-mono text-[11px] text-surface-500">
+                {ids.map(id => `#${id}`).join(', ')}
+            </span>
+        );
+    }
+
+    return (
+        <div className="flex items-center gap-1 overflow-hidden flex-wrap py-0.5">
+            {ids.map(id => (
+                <SingleRefBadge
+                    key={id}
+                    tableId={targetTableId}
+                    rowId={id}
+                    identityColSlug={opts.identity_column}
+                />
+            ))}
+        </div>
+    );
+};
+
 export const CellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {
     const type = column.column_type;
 
     if (!value) return <span className="text-surface-300">—</span>;
+
+    if (type === 'ref' || type === 'multiref') {
+        return <RefCellValue value={value} column={column} />;
+    }
 
     if (isTagType(type)) {
         const values = type === 'multiselect'

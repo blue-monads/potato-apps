@@ -51,8 +51,8 @@ end
 local _unpack = table.unpack or unpack
 
 local function sql_type_for_column(col_type)
-    if col_type == "number" then
-        return "NUMERIC DEFAULT 0"
+    if col_type == "number" or col_type == "ref" then
+        return "NUMERIC DEFAULT NULL"
     elseif col_type == "checkbox" then
         return "INTEGER DEFAULT 0"
     else
@@ -818,6 +818,87 @@ function get_table_last_updated(ctx, table_id)
     })
 end
 
+function resolve_ref_ids(ctx, table_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local data = req.bind_json() or {}
+    local tid = table_id or data.table_id or ctx.query("table_id")
+    if tid == nil then
+        req.json(400, { error = "table_id is required" })
+        return
+    end
+
+    local n_tid = tonumber(tid) or tid
+    local ids = data.ids or {}
+    if type(ids) ~= "table" or #ids == 0 then
+        req.json(200, {
+            table_id = n_tid,
+            rows = {}
+        })
+        return
+    end
+
+    local valid_ids = {}
+    local seen = {}
+    for _, id_val in ipairs(ids) do
+        local n = tonumber(id_val)
+        if n ~= nil and not seen[n] then
+            seen[n] = true
+            table.insert(valid_ids, n)
+        end
+    end
+
+    if #valid_ids == 0 then
+        req.json(200, {
+            table_id = n_tid,
+            rows = {}
+        })
+        return
+    end
+
+    local actual_tbl = ensure_actual_table(n_tid)
+    local columns = get_table_columns(n_tid)
+    local cols_array = {}
+    if columns ~= nil and type(columns) == "table" then
+        for _, col in ipairs(columns) do
+            if col.slug and col.slug ~= "" then
+                table.insert(cols_array, col)
+            end
+        end
+    end
+
+    local placeholders = {}
+    for i = 1, #valid_ids do
+        table.insert(placeholders, "?")
+    end
+    local in_clause = table.concat(placeholders, ", ")
+    local sql = string.format("SELECT * FROM %s WHERE id IN (%s)", actual_tbl, in_clause)
+
+    local query_rows, err = potato.db.run_query(sql, _unpack(valid_ids))
+    local result_rows = {}
+
+    if query_rows ~= nil and type(query_rows) == "table" then
+        for _, arow in ipairs(query_rows) do
+            local r = {
+                id = tonumber(arow.id) or arow.id,
+                created_at = arow.created_at or "",
+                updated_at = arow.updated_at or ""
+            }
+            for _, col in ipairs(cols_array) do
+                r[col.slug] = arow[col.slug] or ""
+            end
+            table.insert(result_rows, r)
+        end
+    end
+
+    req.json(200, {
+        table_id = n_tid,
+        rows = result_rows
+    })
+end
+
 function seed_datatable_rows(ctx, table_id)
     local req = ctx.request()
     local userId = get_user_id(req)
@@ -1286,6 +1367,18 @@ function on_http(ctx)
             req.json(400, { error = "table_id is required" })
             return
         end
+    end
+
+    local resolve_match = string.match(path, "^/datatables/(%d+)/resolve_ref_ids$")
+    if resolve_match and method == "POST" then
+        local table_id = tonumber(resolve_match)
+        if table_id ~= nil then
+            return resolve_ref_ids(ctx, table_id)
+        end
+    end
+
+    if path == "/resolve_ref_ids" and method == "POST" then
+        return resolve_ref_ids(ctx)
     end
 
     local query_match = string.match(path, "^/datatables/(%d+)/query$")

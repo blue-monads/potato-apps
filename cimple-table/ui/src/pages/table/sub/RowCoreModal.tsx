@@ -1,6 +1,202 @@
 import { useState, useEffect } from "react";
 import { type Datatable, type DatatableRow, type DatatableColumn } from "../../../lib/api";
 import { getCellValue } from "./columnTypes";
+import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
+import RefPickerModal from "./RefPickerModal";
+
+const RefFieldInput = ({
+    column,
+    value,
+    onOpenPicker,
+    onClear,
+    hasError,
+}: {
+    column: DatatableColumn;
+    value: string;
+    onOpenPicker: () => void;
+    onClear: () => void;
+    hasError?: boolean;
+}) => {
+    const opts = parseRefOptions(column.options);
+    const targetTableId = opts?.target_table_id;
+    const resolvedRow = useRefResolution(targetTableId, value);
+
+    if (!targetTableId) {
+        return (
+            <div className="text-xs text-coral-600 bg-coral-50 p-2 rounded border border-coral-200">
+                Table reference not configured: target table not specified.
+            </div>
+        );
+    }
+
+    const identityText = getRowIdentityText(resolvedRow, opts?.identity_column);
+
+    if (value) {
+        return (
+            <div className={`flex items-center justify-between p-2 rounded-lg border bg-surface-50 transition-all ${
+                hasError ? 'border-coral-500' : 'border-surface-300'
+            }`}>
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="w-6 h-6 rounded bg-accent-100 text-accent-700 flex items-center justify-center shrink-0">
+                        <i className="fa-solid fa-link text-[10px]" />
+                    </div>
+                    <div className="overflow-hidden">
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-surface-900 truncate max-w-[240px]">
+                                {identityText || `#${value}`}
+                            </span>
+                            <span className="text-[10px] font-mono text-surface-400">#{value}</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={onOpenPicker}
+                        className="px-2 py-1 text-xs font-semibold text-accent-600 hover:bg-accent-50 rounded transition-colors cursor-pointer"
+                    >
+                        Change
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onClear}
+                        title="Remove reference"
+                        className="w-6 h-6 flex items-center justify-center text-surface-400 hover:text-coral-600 hover:bg-coral-50 rounded transition-colors cursor-pointer"
+                    >
+                        <i className="fa-solid fa-xmark text-xs" />
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={onOpenPicker}
+            className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left bg-white border border-dashed rounded transition-colors cursor-pointer ${
+                hasError
+                    ? 'border-coral-500 text-coral-600'
+                    : 'border-surface-300 text-surface-500 hover:border-accent-500 hover:bg-accent-50/20 hover:text-accent-700'
+            }`}
+        >
+            <div className="flex items-center gap-2">
+                <i className="fa-solid fa-arrow-up-right-from-square text-xs text-surface-400" />
+                <span>Select referenced record...</span>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-surface-100 px-2 py-0.5 rounded text-surface-600">
+                Browse
+            </span>
+        </button>
+    );
+};
+
+const MultiRefBadge = ({
+    tableId,
+    rowId,
+    identityColSlug,
+    onRemove,
+}: {
+    tableId: number;
+    rowId: number;
+    identityColSlug?: string;
+    onRemove: () => void;
+}) => {
+    const resolvedRow = useRefResolution(tableId, rowId);
+    const identityText = getRowIdentityText(resolvedRow, identityColSlug);
+
+    return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+            <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-slate-400" />
+            <span className="font-semibold truncate max-w-[140px]">{identityText || `#${rowId}`}</span>
+            {identityText && <span className="text-[10px] text-slate-400 font-mono">#{rowId}</span>}
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove();
+                }}
+                title="Remove"
+                className="text-slate-400 hover:text-coral-600 ml-0.5 cursor-pointer"
+            >
+                <i className="fa-solid fa-xmark text-[10px]" />
+            </button>
+        </span>
+    );
+};
+
+const MultiRefFieldInput = ({
+    column,
+    value,
+    onOpenPicker,
+    onChange,
+    hasError,
+}: {
+    column: DatatableColumn;
+    value: string;
+    onOpenPicker: () => void;
+    onChange: (newValue: string) => void;
+    hasError?: boolean;
+}) => {
+    const opts = parseRefOptions(column.options);
+    const targetTableId = opts?.target_table_id;
+    const ids = parseRefIds(value);
+
+    if (!targetTableId) {
+        return (
+            <div className="text-xs text-coral-600 bg-coral-50 p-2 rounded border border-coral-200">
+                Table reference not configured: target table not specified.
+            </div>
+        );
+    }
+
+    const handleRemoveId = (idToRemove: number) => {
+        const nextIds = ids.filter(id => id !== idToRemove);
+        onChange(nextIds.join(', '));
+    };
+
+    return (
+        <div className={`p-2.5 rounded-lg border bg-white space-y-2 transition-all ${
+            hasError ? 'border-coral-500' : 'border-surface-300'
+        }`}>
+            {ids.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 items-center">
+                    {ids.map(id => (
+                        <MultiRefBadge
+                            key={id}
+                            tableId={targetTableId}
+                            rowId={id}
+                            identityColSlug={opts.identity_column}
+                            onRemove={() => handleRemoveId(id)}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <p className="text-xs text-surface-400 italic">No referenced records selected.</p>
+            )}
+
+            <div className="flex items-center justify-between pt-1 border-t border-surface-100">
+                <button
+                    type="button"
+                    onClick={onOpenPicker}
+                    className="px-2.5 py-1 text-xs font-semibold bg-accent-50 text-accent-700 hover:bg-accent-100 rounded border border-accent-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                    <i className="fa-solid fa-plus text-[10px]" />
+                    <span>{ids.length > 0 ? "Edit / Add More" : "Select References"}</span>
+                </button>
+                {ids.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => onChange("")}
+                        className="text-[11px] font-medium text-coral-600 hover:underline cursor-pointer"
+                    >
+                        Clear All ({ids.length})
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
 
 interface RowCoreModalProps {
     table: Datatable;
@@ -14,6 +210,7 @@ interface RowCoreModalProps {
 const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: RowCoreModalProps) => {
     const [cellValues, setCellValues] = useState<Record<string, string>>({});
     const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+    const [pickerColumn, setPickerColumn] = useState<DatatableColumn | null>(null);
 
     useEffect(() => {
         if (row) {
@@ -63,6 +260,28 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
         const onChange = (val: string) => handleValueChange(column.slug, val);
 
         switch (column.column_type) {
+            case 'ref':
+                return (
+                    <RefFieldInput
+                        column={column}
+                        value={currentValue}
+                        onOpenPicker={() => setPickerColumn(column)}
+                        onClear={() => onChange("")}
+                        hasError={validationErrors[column.slug]}
+                    />
+                );
+
+            case 'multiref':
+                return (
+                    <MultiRefFieldInput
+                        column={column}
+                        value={currentValue}
+                        onOpenPicker={() => setPickerColumn(column)}
+                        onChange={onChange}
+                        hasError={validationErrors[column.slug]}
+                    />
+                );
+
             case 'textarea':
                 return (
                     <textarea
@@ -335,6 +554,64 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     </button>
                 </div>
             </div>
+
+            {/* Table Ref Picker Modal Overlay */}
+            {pickerColumn && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+                    onClick={() => setPickerColumn(null)}
+                >
+                    <div 
+                        className="bg-white rounded-xl shadow-2xl border border-surface-200 w-full max-w-2xl overflow-hidden p-5 animate-scale-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-surface-200">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded bg-accent-50 text-accent-600 flex items-center justify-center">
+                                    <i className={`fa-solid fa-${pickerColumn.column_type === 'multiref' ? 'layer-group' : 'arrow-up-right-from-square'} text-xs`} />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-surface-900">
+                                        Select {pickerColumn.name} {pickerColumn.column_type === 'multiref' ? '(Multi-Ref)' : ''}
+                                    </h3>
+                                    <p className="text-[11px] text-surface-500">
+                                        {pickerColumn.column_type === 'multiref'
+                                            ? 'Select multiple referenced records to link to this field'
+                                            : 'Pick a referenced record to link to this field'}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPickerColumn(null)}
+                                className="text-surface-400 hover:text-surface-600 transition-colors p-1 cursor-pointer"
+                            >
+                                <i className="fa-solid fa-xmark text-sm" />
+                            </button>
+                        </div>
+                        <RefPickerModal
+                            tableId={parseRefOptions(pickerColumn.options)?.target_table_id || 0}
+                            isMulti={pickerColumn.column_type === 'multiref'}
+                            selectedRowId={pickerColumn.column_type !== 'multiref' ? cellValues[pickerColumn.slug] : undefined}
+                            selectedRowIds={pickerColumn.column_type === 'multiref' ? parseRefIds(cellValues[pickerColumn.slug]) : undefined}
+                            identityColumnSlug={parseRefOptions(pickerColumn.options)?.identity_column}
+                            onSelect={(selectedRow) => {
+                                handleValueChange(pickerColumn.slug, String(selectedRow.id));
+                                setPickerColumn(null);
+                            }}
+                            onSelectMulti={(selectedRows) => {
+                                handleValueChange(pickerColumn.slug, selectedRows.map(r => r.id).join(', '));
+                                setPickerColumn(null);
+                            }}
+                            onClear={() => {
+                                handleValueChange(pickerColumn.slug, "");
+                                setPickerColumn(null);
+                            }}
+                            onCancel={() => setPickerColumn(null)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

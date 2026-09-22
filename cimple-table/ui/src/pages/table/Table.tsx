@@ -32,6 +32,7 @@ import {
     getTypeIcon,
     summarize,
 } from "./sub/columnTypes";
+import { parseRefOptions, parseRefIds, batchResolveRefs } from "../../lib/refCache";
 import { getTableColorConfig } from "../../lib/tableColors";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
@@ -258,6 +259,26 @@ const Table = () => {
             window.removeEventListener('focus', handleVisibilityOrFocus);
         };
     }, [currentTable?.id]);
+
+    // Lazy batch-resolve table references in visible rows
+    useEffect(() => {
+        if (!rows || rows.length === 0 || !columns || columns.length === 0) return;
+        columns.forEach(col => {
+            if (col.column_type === 'ref' || col.column_type === 'multiref') {
+                const opts = parseRefOptions(col.options);
+                if (opts?.target_table_id) {
+                    const allIds: number[] = [];
+                    rows.forEach(r => {
+                        const parsed = parseRefIds(r[col.slug]);
+                        allIds.push(...parsed);
+                    });
+                    if (allIds.length > 0) {
+                        batchResolveRefs(opts.target_table_id, allIds);
+                    }
+                }
+            }
+        });
+    }, [rows, columns]);
 
     const loadMoreDown = async () => {
         if (!currentTable || loadingMoreDown || bottomOffset >= totalCount) return;

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TABLE_TEMPLATES, type TableTemplate } from "../../../lib/templates";
 import { getTypeIcon } from "./columnTypes";
 import { TABLE_COLOR_PRESETS } from "../../../lib/tableColors";
+import { listDatatables, type Datatable } from "../../../lib/api";
+import { parseRefOptions } from "../../../lib/refCache";
 
 export interface ColumnDraft {
     id: string;
@@ -21,7 +23,7 @@ export interface TableCreateData {
 
 interface CreateTableModalProps {
     onSave: (
-        data: TableCreateData,
+        table: TableCreateData,
         columns: { name: string; column_type: string; info?: string; required?: boolean; options?: string }[]
     ) => Promise<void>;
     onCancel: () => void;
@@ -34,6 +36,8 @@ const AVAILABLE_TYPES = [
     { value: "checkbox", label: "Checkbox", icon: "square-check" },
     { value: "dropdown", label: "Dropdown", icon: "caret-down" },
     { value: "multiselect", label: "Multi-select", icon: "tags" },
+    { value: "ref", label: "Table Ref", icon: "arrow-up-right-from-square" },
+    { value: "multiref", label: "Table Multi-Ref", icon: "layer-group" },
     { value: "textarea", label: "Textarea", icon: "align-left" },
     { value: "link", label: "Link", icon: "link" },
     { value: "file", label: "File", icon: "paperclip" },
@@ -55,6 +59,15 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
 
     // Columns Builder State
     const [columns, setColumns] = useState<ColumnDraft[]>([]);
+    const [allTables, setAllTables] = useState<Datatable[]>([]);
+
+    useEffect(() => {
+        listDatatables().then(res => {
+            if (res.data && Array.isArray(res.data)) {
+                setAllTables(res.data);
+            }
+        });
+    }, []);
 
     // Quick start into builder from a template
     const handleSelectTemplate = (template: TableTemplate) => {
@@ -428,6 +441,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                                 col.column_type === "dropdown" ||
                                 col.column_type === "multiselect" ||
                                 col.column_type === "radio";
+                            const isRef = col.column_type === "ref" || col.column_type === "multiref";
 
                             return (
                                 <div
@@ -526,6 +540,30 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                                                 placeholder="Comma separated choices (e.g. Low, Medium, High)"
                                                 className="flex-1 bg-surface-50 focus:bg-white border border-surface-200 rounded px-2 py-0.5 text-[11px] text-surface-700 outline-none focus:border-accent-600 h-6"
                                             />
+                                        </div>
+                                    )}
+
+                                    {/* Target Table Selector for ref */}
+                                    {isRef && (
+                                        <div className="pl-7 pr-1 flex items-center gap-1.5 pt-1 border-t border-surface-100">
+                                            <span className="text-[9px] font-bold text-accent-700 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                                                <i className="fa-solid fa-link text-[8px]" /> Target:
+                                            </span>
+                                            <select
+                                                value={parseRefOptions(col.options)?.target_table_id || 0}
+                                                onChange={(e) => {
+                                                    const targetId = Number(e.target.value);
+                                                    handleUpdateColumn(col.id, {
+                                                        options: JSON.stringify({ target_table_id: targetId })
+                                                    });
+                                                }}
+                                                className="flex-1 bg-surface-50 focus:bg-white border border-surface-200 rounded px-2 py-0.5 text-[11px] text-surface-700 outline-none focus:border-accent-600 h-6 cursor-pointer"
+                                            >
+                                                <option value={0}>-- Select target table --</option>
+                                                {allTables.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name} (#{t.id})</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     )}
                                 </div>

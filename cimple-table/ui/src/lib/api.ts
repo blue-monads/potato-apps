@@ -204,3 +204,19 @@ export async function seedTableRows(
         body: JSON.stringify({ rows }),
     });
 }
+
+// Remote Ref API
+export interface RefColumnOptions {
+    target_table_id: number;
+    identity_column?: string;
+}
+
+export async function resolveRefIds(
+    tableId: number,
+    ids: number[]
+): Promise<ApiResponse<{ table_id: number; rows: DatatableRow[] }>> {
+    return apiRequest<{ table_id: number; rows: DatatableRow[] }>(`/resolve_ref_ids`, {
+        method: 'POST',
+        body: JSON.stringify({ table_id: tableId, ids }),
+    });
+}
