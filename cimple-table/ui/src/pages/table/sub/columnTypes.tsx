@@ -38,6 +38,9 @@ export const TYPE_ICONS: Record<string, string> = {
     percent: 'percent',
     rating: 'star',
     date: 'calendar',
+    datetime: 'calendar-days',
+    time: 'clock',
+    duration: 'stopwatch',
     checkbox: 'square-check',
     image: 'image',
     file: 'paperclip',
@@ -52,6 +55,68 @@ export const TYPE_ICONS: Record<string, string> = {
 };
 
 export const getTypeIcon = (type: string) => TYPE_ICONS[type] || 'font';
+
+export interface TextPatternConfig {
+    pattern?: string;
+    description?: string;
+}
+
+export const parseTextPatternConfig = (options?: string): TextPatternConfig => {
+    if (!options) return {};
+    try {
+        if (options.startsWith('{')) {
+            const parsed = JSON.parse(options);
+            if (parsed && typeof parsed === 'object') {
+                return {
+                    pattern: parsed.pattern || '',
+                    description: parsed.description || parsed.pattern_error || '',
+                };
+            }
+        }
+    } catch {}
+    return { pattern: options, description: '' };
+};
+
+export const formatDuration = (totalSeconds: number | string | null | undefined): string => {
+    if (totalSeconds === null || totalSeconds === undefined || totalSeconds === "") return "";
+    const sec = Math.round(Number(totalSeconds));
+    if (isNaN(sec)) return String(totalSeconds);
+    if (sec === 0) return "0s";
+
+    const isNegative = sec < 0;
+    let s = Math.abs(sec);
+
+    const days = Math.floor(s / 86400);
+    s %= 86400;
+    const hours = Math.floor(s / 3600);
+    s %= 3600;
+    const minutes = Math.floor(s / 60);
+    const seconds = s % 60;
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+    return (isNegative ? "-" : "") + parts.join(" ");
+};
+
+export const formatDateTime = (value: string): string => {
+    if (!value) return "";
+    try {
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return value;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const hours = String(d.getHours()).padStart(2, "0");
+        const mins = String(d.getMinutes()).padStart(2, "0");
+        return `${y}-${m}-${day} ${hours}:${mins}`;
+    } catch {
+        return value;
+    }
+};
 
 export const isTagType = (type: string) =>
     type === 'dropdown' || type === 'multiselect' || type === 'radio';
@@ -339,8 +404,47 @@ export const CellValue = ({ value, column, row }: { value: string; column: Datat
         return <span className="font-mono tabular-nums text-surface-800">{value}</span>;
     }
 
+    if (type === 'duration') {
+        const formatted = formatDuration(value);
+        const rawNum = Number(value);
+        return (
+            <span
+                className="font-mono tabular-nums text-surface-700 text-xs inline-flex items-center gap-1.5"
+                title={!isNaN(rawNum) ? `${rawNum.toLocaleString()} seconds` : value}
+            >
+                <i className="fa-solid fa-stopwatch text-[10px] text-surface-400 shrink-0" />
+                <span>{formatted || value}</span>
+            </span>
+        );
+    }
+
     if (type === 'date') {
         return <span className="font-mono tabular-nums text-surface-600 text-[12px]">{value}</span>;
+    }
+
+    if (type === 'datetime' || type === 'date_time' || type === 'date-time') {
+        const formatted = formatDateTime(value);
+        return (
+            <span
+                className="font-mono tabular-nums text-surface-600 text-[12px] inline-flex items-center gap-1.5"
+                title={value}
+            >
+                <i className="fa-solid fa-calendar-days text-[10px] text-surface-400 shrink-0" />
+                <span>{formatted || value}</span>
+            </span>
+        );
+    }
+
+    if (type === 'time') {
+        return (
+            <span
+                className="font-mono tabular-nums text-surface-600 text-[12px] inline-flex items-center gap-1.5"
+                title={value}
+            >
+                <i className="fa-regular fa-clock text-[10px] text-surface-400 shrink-0" />
+                <span>{value}</span>
+            </span>
+        );
     }
 
     if (type === 'link') {
@@ -436,6 +540,13 @@ export const summarize = (column: DatatableColumn, values: string[]): string => 
     if (column.column_type === 'number') {
         const sum = filled.reduce((acc, v) => acc + (Number(v) || 0), 0);
         return `Sum ${Number(sum.toFixed(4))}`;
+    }
+
+    if (column.column_type === 'duration') {
+        const validNumbers = filled.map(Number).filter(n => !isNaN(n));
+        if (validNumbers.length === 0) return `${filled.length} filled`;
+        const sum = validNumbers.reduce((a, b) => a + b, 0);
+        return `Total ${formatDuration(sum)}`;
     }
 
     if (column.column_type === 'percent') {

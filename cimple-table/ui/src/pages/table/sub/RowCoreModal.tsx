@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { type Datatable, type DatatableRow, type DatatableColumn } from "../../../lib/api";
-import { getCellValue } from "./columnTypes";
+import { getCellValue, formatDuration, parseTextPatternConfig } from "./columnTypes";
 import {
     parseRefOptions,
     parseRefIds,
@@ -940,6 +940,148 @@ const BarcodeFieldInput = ({
     );
 };
 
+const DurationFieldInput = ({
+    value,
+    onChange,
+    hasError,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    hasError?: boolean;
+}) => {
+    const totalSec = value !== "" && !isNaN(Number(value)) ? Math.max(0, Math.round(Number(value))) : null;
+
+    const hours = totalSec !== null ? Math.floor(totalSec / 3600) : "";
+    const minutes = totalSec !== null ? Math.floor((totalSec % 3600) / 60) : "";
+    const seconds = totalSec !== null ? totalSec % 60 : "";
+
+    const updateParts = (newH: number, newM: number, newS: number) => {
+        const safeH = Math.max(0, newH || 0);
+        const safeM = Math.max(0, newM || 0);
+        const safeS = Math.max(0, newS || 0);
+        const total = safeH * 3600 + safeM * 60 + safeS;
+        onChange(total > 0 ? String(total) : (newH !== 0 || newM !== 0 || newS !== 0 ? "0" : ""));
+    };
+
+    const addSeconds = (add: number) => {
+        const current = totalSec || 0;
+        const next = Math.max(0, current + add);
+        onChange(next > 0 ? String(next) : "");
+    };
+
+    return (
+        <div className={`p-2.5 rounded-lg border bg-surface-50/50 space-y-2.5 transition-all ${
+            hasError ? 'border-coral-500' : 'border-surface-200'
+        }`}>
+            <div className="grid grid-cols-3 gap-2">
+                <div>
+                    <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">
+                        Hours
+                    </label>
+                    <div className="relative">
+                        <input
+                            type="number"
+                            min="0"
+                            value={hours}
+                            onChange={(e) => updateParts(
+                                e.target.value === "" ? 0 : Number(e.target.value),
+                                typeof minutes === "number" ? minutes : 0,
+                                typeof seconds === "number" ? seconds : 0
+                            )}
+                            placeholder="0"
+                            className="w-full bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs font-mono tabular-nums outline-none focus:border-accent-600 pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-surface-400 font-medium">h</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">
+                        Minutes
+                    </label>
+                    <div className="relative">
+                        <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={minutes}
+                            onChange={(e) => updateParts(
+                                typeof hours === "number" ? hours : 0,
+                                e.target.value === "" ? 0 : Number(e.target.value),
+                                typeof seconds === "number" ? seconds : 0
+                            )}
+                            placeholder="0"
+                            className="w-full bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs font-mono tabular-nums outline-none focus:border-accent-600 pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-surface-400 font-medium">m</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider block mb-1">
+                        Seconds
+                    </label>
+                    <div className="relative">
+                        <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={seconds}
+                            onChange={(e) => updateParts(
+                                typeof hours === "number" ? hours : 0,
+                                typeof minutes === "number" ? minutes : 0,
+                                e.target.value === "" ? 0 : Number(e.target.value)
+                            )}
+                            placeholder="0"
+                            className="w-full bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs font-mono tabular-nums outline-none focus:border-accent-600 pr-6"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-surface-400 font-medium">s</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Presets and formatted preview */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-surface-200/70 text-[11px] flex-wrap">
+                <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-surface-400 font-medium mr-0.5">Quick:</span>
+                    {[
+                        { label: "+15m", sec: 900 },
+                        { label: "+30m", sec: 1800 },
+                        { label: "+1h", sec: 3600 },
+                        { label: "+4h", sec: 14400 },
+                    ].map(p => (
+                        <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => addSeconds(p.sec)}
+                            className="px-1.5 py-0.5 bg-white border border-surface-200 hover:border-accent-400 rounded text-[10px] text-surface-600 hover:text-accent-700 transition-colors cursor-pointer"
+                        >
+                            {p.label}
+                        </button>
+                    ))}
+                    {totalSec !== null && totalSec > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => onChange("")}
+                            className="px-1.5 py-0.5 text-[10px] text-coral-600 hover:underline cursor-pointer ml-1"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+
+                {totalSec !== null && (
+                    <div className="font-mono text-[11px] text-surface-700 font-semibold bg-white px-2 py-0.5 rounded border border-surface-200 flex items-center gap-1">
+                        <i className="fa-solid fa-stopwatch text-accent-500 text-[10px]" />
+                        <span>{formatDuration(totalSec)}</span>
+                        <span className="text-surface-400 font-normal text-[10px]">({totalSec.toLocaleString()}s)</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 interface RowCoreModalProps {
     table: Datatable;
     row?: DatatableRow;
@@ -951,7 +1093,7 @@ interface RowCoreModalProps {
 
 const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: RowCoreModalProps) => {
     const [cellValues, setCellValues] = useState<Record<string, string>>({});
-    const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
+    const [validationErrors, setValidationErrors] = useState<Record<string, string | boolean>>({});
     const [pickerColumn, setPickerColumn] = useState<DatatableColumn | null>(null);
 
     useEffect(() => {
@@ -965,16 +1107,34 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
     }, [row, table.columns]);
 
     const validateAndSave = () => {
-        const errors: Record<string, boolean> = {};
+        const errors: Record<string, string | boolean> = {};
         let hasErrors = false;
 
         table.columns?.forEach(column => {
             if (column.column_type === 'reverse_ref') return;
+            const value = cellValues[column.slug] || "";
+
             if (column.required) {
-                const value = cellValues[column.slug] || "";
                 if (!value.trim()) {
-                    errors[column.slug] = true;
+                    errors[column.slug] = "This field is required";
                     hasErrors = true;
+                    return;
+                }
+            }
+
+            // Regex validation for text columns
+            if (column.column_type === 'text' && value.trim()) {
+                const patternConfig = parseTextPatternConfig(column.options);
+                if (patternConfig.pattern) {
+                    try {
+                        const regex = new RegExp(patternConfig.pattern);
+                        if (!regex.test(value)) {
+                            errors[column.slug] = patternConfig.description || `Must match pattern: ${patternConfig.pattern}`;
+                            hasErrors = true;
+                        }
+                    } catch {
+                        // Ignore malformed regex in config
+                    }
                 }
             }
         });
@@ -995,7 +1155,11 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
     const handleValueChange = (slug: string, value: string) => {
         setCellValues(prev => ({ ...prev, [slug]: value }));
         if (validationErrors[slug]) {
-            setValidationErrors(prev => ({ ...prev, [slug]: false }));
+            setValidationErrors(prev => {
+                const next = { ...prev };
+                delete next[slug];
+                return next;
+            });
         }
     };
 
@@ -1024,7 +1188,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         value={currentValue}
                         onOpenPicker={() => setPickerColumn(column)}
                         onClear={() => onChange("")}
-                        hasError={validationErrors[column.slug]}
+                        hasError={!!validationErrors[column.slug]}
                     />
                 );
 
@@ -1035,7 +1199,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         value={currentValue}
                         onOpenPicker={() => setPickerColumn(column)}
                         onChange={onChange}
-                        hasError={validationErrors[column.slug]}
+                        hasError={!!validationErrors[column.slug]}
                     />
                 );
 
@@ -1078,6 +1242,47 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                             <i className="fa-solid fa-calendar text-[10px]"></i>
                         </div>
                     </div>
+                );
+
+            case 'datetime':
+            case 'date_time':
+            case 'date-time':
+                return (
+                    <div className="relative">
+                        <input
+                            type="datetime-local"
+                            value={currentValue}
+                            onChange={(e) => onChange(e.target.value)}
+                            className={baseInputClasses}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+                            <i className="fa-solid fa-calendar-days text-[10px]"></i>
+                        </div>
+                    </div>
+                );
+
+            case 'time':
+                return (
+                    <div className="relative">
+                        <input
+                            type="time"
+                            value={currentValue}
+                            onChange={(e) => onChange(e.target.value)}
+                            className={baseInputClasses}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+                            <i className="fa-regular fa-clock text-[10px]"></i>
+                        </div>
+                    </div>
+                );
+
+            case 'duration':
+                return (
+                    <DurationFieldInput
+                        value={currentValue}
+                        onChange={onChange}
+                        hasError={!!validationErrors[column.slug]}
+                    />
                 );
 
             case 'number':
@@ -1163,7 +1368,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     <RatingFieldInput
                         value={currentValue}
                         onChange={onChange}
-                        hasError={validationErrors[column.slug]}
+                        hasError={!!validationErrors[column.slug]}
                     />
                 );
 
@@ -1172,7 +1377,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     <BarcodeFieldInput
                         value={currentValue}
                         onChange={onChange}
-                        hasError={validationErrors[column.slug]}
+                        hasError={!!validationErrors[column.slug]}
                     />
                 );
 
@@ -1210,7 +1415,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     <ImageFieldInput
                         value={currentValue}
                         onChange={onChange}
-                        hasError={validationErrors[column.slug]}
+                        hasError={!!validationErrors[column.slug]}
                     />
                 );
 
@@ -1219,7 +1424,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                     <FileFieldInput
                         value={currentValue}
                         onChange={onChange}
-                        hasError={validationErrors[column.slug]}
+                        hasError={!!validationErrors[column.slug]}
                     />
                 );
 
@@ -1309,15 +1514,34 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                 );
             }
 
-            default: // text
+            case 'text':
+            default: {
+                const patternConfig = parseTextPatternConfig(column.options);
                 return (
-                    <input
-                        type="text"
-                        value={currentValue}
-                        onChange={(e) => onChange(e.target.value)}
-                        className={baseInputClasses}
-                    />
+                    <div className="space-y-1">
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={currentValue}
+                                onChange={(e) => onChange(e.target.value)}
+                                className={baseInputClasses}
+                                placeholder={patternConfig.pattern ? `Matches: ${patternConfig.pattern}` : undefined}
+                            />
+                            {patternConfig.pattern && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400" title={`Pattern: ${patternConfig.pattern}`}>
+                                    <i className="fa-solid fa-code text-[10px]"></i>
+                                </div>
+                            )}
+                        </div>
+                        {patternConfig.description && (
+                            <p className="text-[10px] text-surface-400 flex items-center gap-1">
+                                <i className="fa-solid fa-circle-info text-[9px]" />
+                                <span>{patternConfig.description}</span>
+                            </p>
+                        )}
+                    </div>
                 );
+            }
         }
     };
 
@@ -1335,7 +1559,11 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                             </label>
                             {renderFieldEditor(column, currentValue)}
                             {validationErrors[column.slug] && (
-                                <p className="text-[10px] text-coral-600 mt-0.5">This field is required</p>
+                                <p className="text-[10px] text-coral-600 mt-0.5">
+                                    {typeof validationErrors[column.slug] === 'string'
+                                        ? validationErrors[column.slug]
+                                        : 'This field is required'}
+                                </p>
                             )}
                         </div>
                     );

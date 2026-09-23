@@ -29,6 +29,9 @@ export type GeneratorStrategy =
     | "past_year"
     | "future_days"
     | "today"
+    | "datetime"
+    | "time"
+    | "duration"
     // Checkbox strategies
     | "random_bool"
     | "mostly_true"
@@ -183,6 +186,14 @@ export function getDefaultGeneratorConfig(column: DatatableColumn): ColumnSeedCo
         strategy = "recent_days";
         params.min = 0;
         params.max = 60;
+    } else if (type === "datetime" || type === "date_time" || type === "date-time") {
+        strategy = "datetime";
+    } else if (type === "time") {
+        strategy = "time";
+    } else if (type === "duration") {
+        strategy = "duration";
+        params.min = 300;
+        params.max = 14400;
     } else if (type === "link") {
         strategy = "website";
     } else if (type === "textarea") {
@@ -302,6 +313,24 @@ export function generateValueForColumn(config: ColumnSeedConfig, rowIndex: numbe
         }
         case "today":
             return new Date().toISOString().split("T")[0];
+        case "datetime": {
+            const d = new Date();
+            d.setDate(d.getDate() - randInt(0, 30));
+            d.setHours(randInt(8, 20), randInt(0, 59), 0, 0);
+            return d.toISOString().slice(0, 16);
+        }
+        case "time": {
+            const h = String(randInt(8, 20)).padStart(2, "0");
+            const m = String(randInt(0, 5) * 10).padStart(2, "0");
+            return `${h}:${m}`;
+        }
+        case "duration": {
+            const min = params.min ?? 300;
+            const max = params.max ?? 14400;
+            const step = 300;
+            const steps = Math.floor((max - min) / step);
+            return min + randInt(0, steps) * step;
+        }
         case "random_bool":
             return Math.random() >= 0.5 ? 1 : 0;
         case "mostly_true":

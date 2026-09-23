@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
     listDatatables,
     getDatatable,
@@ -6,7 +6,7 @@ import {
     type DatatableColumn,
 } from "../../../lib/api";
 import { parseRefOptions, parseReverseRefOptions, getIdentityColumn } from "../../../lib/refCache";
-import { getTypeIcon } from "./columnTypes";
+import { getTypeIcon, parseTextPatternConfig } from "./columnTypes";
 import IconSelector from "./IconSelector";
 
 export interface ColumnCoreValues {
@@ -35,6 +35,33 @@ const ColumnCoreModal = ({ initialValues, currentTableId, onSave, onCancel, onDe
     const [required, setRequired] = useState(initialValues?.required || false);
     const [options, setOptions] = useState(initialValues?.options || "");
 
+    // Regex pattern state for text columns
+    const isTextType = columnType === 'text';
+    const isDurationType = columnType === 'duration';
+
+    const [regexPattern, setRegexPattern] = useState(() => {
+        if (initialValues?.column_type === 'text' && initialValues?.options) {
+            return parseTextPatternConfig(initialValues.options).pattern || "";
+        }
+        return "";
+    });
+    const [regexError, setRegexError] = useState(() => {
+        if (initialValues?.column_type === 'text' && initialValues?.options) {
+            return parseTextPatternConfig(initialValues.options).description || "";
+        }
+        return "";
+    });
+
+    const isRegexSyntaxValid = useMemo(() => {
+        if (!regexPattern) return true;
+        try {
+            new RegExp(regexPattern);
+            return true;
+        } catch {
+            return false;
+        }
+    }, [regexPattern]);
+
     // State for Ref and Reverse Ref column configuration
     const [allTables, setAllTables] = useState<Datatable[]>([]);
     const [refTargetTableId, setRefTargetTableId] = useState<number>(0);
@@ -49,10 +76,13 @@ const ColumnCoreModal = ({ initialValues, currentTableId, onSave, onCancel, onDe
     const columnTypes = [
         { id: "text", label: "Text" },
         { id: "number", label: "Number" },
+        { id: "duration", label: "Duration" },
+        { id: "date", label: "Date" },
+        { id: "datetime", label: "Date & Time" },
+        { id: "time", label: "Time" },
         { id: "email", label: "Email" },
         { id: "percent", label: "Percent" },
         { id: "rating", label: "Rating" },
-        { id: "date", label: "Date" },
         { id: "checkbox", label: "Checkbox" },
         { id: "dropdown", label: "Dropdown" },
         { id: "multiselect", label: "Multi-select" },
@@ -196,7 +226,8 @@ const ColumnCoreModal = ({ initialValues, currentTableId, onSave, onCancel, onDe
 
     const canSubmit = name.trim().length > 0 && 
         (!isRefType || refTargetTableId > 0) &&
-        (!isReverseRefType || (refTargetTableId > 0 && revTargetColSlug.trim().length > 0));
+        (!isReverseRefType || (refTargetTableId > 0 && revTargetColSlug.trim().length > 0)) &&
+        (!isTextType || isRegexSyntaxValid);
 
     return (
         <div className="space-y-4">
@@ -339,6 +370,112 @@ const ColumnCoreModal = ({ initialValues, currentTableId, onSave, onCancel, onDe
                     </div>
                 )}
 
+                {/* Duration info notice */}
+                {isDurationType && (
+                    <div className="p-3 bg-accent-50/60 border border-accent-200 rounded-lg flex items-center gap-2.5 text-xs text-accent-800">
+                        <i className="fa-solid fa-stopwatch text-accent-600 text-sm shrink-0" />
+                        <div>
+                            <span className="font-bold">Duration Field:</span> Stored as numeric seconds on the backend and displayed with user-friendly formatting (e.g. 1h 30m, 45s).
+                        </div>
+                    </div>
+                )}
+
+                {/* Text Regex Pattern Configuration */}
+                {isTextType && (
+                    <div className="p-3 bg-surface-50 border border-surface-200 rounded-lg space-y-2.5">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider flex items-center gap-1.5">
+                                <i className="fa-solid fa-code text-[10px] text-accent-600" />
+                                <span>Regex Pattern Validation (Optional)</span>
+                            </label>
+                            {!isRegexSyntaxValid && (
+                                <span className="text-[10px] text-coral-600 font-semibold">Invalid regex syntax</span>
+                            )}
+                        </div>
+                        <div className="space-y-1">
+                            <input
+                                type="text"
+                                value={regexPattern}
+                                onChange={(e) => setRegexPattern(e.target.value)}
+                                className={`w-full bg-white border rounded px-3 py-1.5 text-xs font-mono outline-none transition-all ${
+                                    !isRegexSyntaxValid
+                                        ? 'border-coral-500 focus:border-coral-600'
+                                        : 'border-surface-300 focus:border-accent-600'
+                                }`}
+                                placeholder="e.g. ^[a-zA-Z0-9_-]+$ or ^\d{3}-\d{4}$"
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-surface-500 uppercase tracking-wider">
+                                Validation Error Message / Help Text (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                value={regexError}
+                                onChange={(e) => setRegexError(e.target.value)}
+                                className="w-full bg-white border border-surface-300 rounded px-3 py-1.5 text-xs outline-none focus:border-accent-600"
+                                placeholder="e.g. Must contain only letters and numbers"
+                            />
+                        </div>
+                        {/* Quick Presets */}
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                            <span className="text-[9px] font-bold text-surface-400 uppercase">Presets:</span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRegexPattern("^[a-zA-Z0-9]+$");
+                                    setRegexError("Must contain only alphanumeric characters");
+                                }}
+                                className="px-1.5 py-0.5 bg-white border border-surface-200 hover:border-accent-400 rounded text-[10px] text-surface-600 hover:text-accent-700 transition-colors cursor-pointer"
+                            >
+                                Alphanumeric
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRegexPattern("^\\d+$");
+                                    setRegexError("Must contain digits only");
+                                }}
+                                className="px-1.5 py-0.5 bg-white border border-surface-200 hover:border-accent-400 rounded text-[10px] text-surface-600 hover:text-accent-700 transition-colors cursor-pointer"
+                            >
+                                Digits Only
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRegexPattern("^[a-zA-Z ]+$");
+                                    setRegexError("Must contain letters only");
+                                }}
+                                className="px-1.5 py-0.5 bg-white border border-surface-200 hover:border-accent-400 rounded text-[10px] text-surface-600 hover:text-accent-700 transition-colors cursor-pointer"
+                            >
+                                Letters Only
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRegexPattern("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+                                    setRegexError("Must be a valid email address format");
+                                }}
+                                className="px-1.5 py-0.5 bg-white border border-surface-200 hover:border-accent-400 rounded text-[10px] text-surface-600 hover:text-accent-700 transition-colors cursor-pointer"
+                            >
+                                Email Format
+                            </button>
+                            {regexPattern && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setRegexPattern("");
+                                        setRegexError("");
+                                    }}
+                                    className="px-1.5 py-0.5 bg-coral-50 border border-coral-200 text-coral-600 hover:bg-coral-100 rounded text-[10px] transition-colors cursor-pointer"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="space-y-1">
                     <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">Info</label>
                     <textarea
@@ -393,7 +530,15 @@ const ColumnCoreModal = ({ initialValues, currentTableId, onSave, onCancel, onDe
                     </button>
                     <button
                         type="button"
-                        onClick={() => onSave({ name, column_type: columnType, icon: icon.trim(), info, required, options })}
+                        onClick={() => {
+                            let finalOptions = options;
+                            if (isTextType) {
+                                finalOptions = regexPattern.trim()
+                                    ? JSON.stringify({ pattern: regexPattern.trim(), description: regexError.trim() })
+                                    : "";
+                            }
+                            onSave({ name, column_type: columnType, icon: icon.trim(), info, required, options: finalOptions });
+                        }}
                         disabled={!canSubmit}
                         className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                     >

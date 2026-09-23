@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { TABLE_TEMPLATES, type TableTemplate } from "../../../lib/templates";
-import { getTypeIcon } from "./columnTypes";
+import { getTypeIcon, parseTextPatternConfig } from "./columnTypes";
 import { TABLE_COLOR_PRESETS } from "../../../lib/tableColors";
 import { listDatatables, type Datatable } from "../../../lib/api";
 import { parseRefOptions } from "../../../lib/refCache";
@@ -34,10 +34,13 @@ interface CreateTableModalProps {
 const AVAILABLE_TYPES = [
     { value: "text", label: "Text", icon: "font" },
     { value: "number", label: "Number", icon: "hashtag" },
+    { value: "duration", label: "Duration", icon: "stopwatch" },
+    { value: "date", label: "Date", icon: "calendar" },
+    { value: "datetime", label: "Date & Time", icon: "calendar-days" },
+    { value: "time", label: "Time", icon: "clock" },
     { value: "email", label: "Email", icon: "envelope" },
     { value: "percent", label: "Percent", icon: "percent" },
     { value: "rating", label: "Rating", icon: "star" },
-    { value: "date", label: "Date", icon: "calendar" },
     { value: "checkbox", label: "Checkbox", icon: "square-check" },
     { value: "dropdown", label: "Dropdown", icon: "caret-down" },
     { value: "multiselect", label: "Multi-select", icon: "tags" },
@@ -389,7 +392,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                 {/* Quick Add Types Bar */}
                 <div className="flex items-center gap-1 overflow-x-auto py-0.5 text-[11px]">
                     <span className="text-surface-400 font-medium whitespace-nowrap mr-1 text-[10px]">+ Quick Add:</span>
-                    {["text", "number", "date", "dropdown", "checkbox", "textarea"].map(t => (
+                    {["text", "number", "duration", "date", "datetime", "time", "dropdown", "checkbox", "textarea"].map(t => (
                         <button
                             key={t}
                             type="button"
@@ -519,6 +522,36 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                                             <i className="fa-solid fa-trash-can text-[11px]" />
                                         </button>
                                     </div>
+
+                                    {/* Text Regex Pattern Config */}
+                                    {col.column_type === "text" && (
+                                        <div className="pl-7 pr-1 flex items-center gap-1.5 pt-1 border-t border-surface-100">
+                                            <span className="text-[9px] font-bold text-surface-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                                                <i className="fa-solid fa-code text-[8px]" /> Pattern:
+                                            </span>
+                                            <input
+                                                type="text"
+                                                value={parseTextPatternConfig(col.options).pattern || ""}
+                                                onChange={(e) => {
+                                                    const curr = parseTextPatternConfig(col.options);
+                                                    const val = e.target.value.trim();
+                                                    handleUpdateColumn(col.id, {
+                                                        options: val ? JSON.stringify({ pattern: val, description: curr.description || "" }) : ""
+                                                    });
+                                                }}
+                                                placeholder="Regex pattern (e.g. ^[a-zA-Z0-9_-]+$)"
+                                                className="flex-1 bg-surface-50 focus:bg-white border border-surface-200 rounded px-2 py-0.5 text-[11px] font-mono text-surface-700 outline-none focus:border-accent-600 h-6"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Duration Notice */}
+                                    {col.column_type === "duration" && (
+                                        <div className="pl-7 pr-1 flex items-center gap-1.5 pt-1 border-t border-surface-100 text-[10px] text-surface-400">
+                                            <i className="fa-solid fa-stopwatch text-[9px] text-accent-500" />
+                                            <span>Duration values stored as numeric seconds on backend</span>
+                                        </div>
+                                    )}
 
                                     {/* Conditional Options Input for dropdown/multiselect/radio */}
                                     {hasOptions && (

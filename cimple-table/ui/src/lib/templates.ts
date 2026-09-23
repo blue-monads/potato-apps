@@ -49,6 +49,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
             { name: "Priority", column_type: "dropdown", info: "Priority level", options: "Low, Medium, High, Urgent" },
             { name: "Assignee", column_type: "text", info: "Assigned person" },
             { name: "Due Date", column_type: "date", info: "Due date" },
+            { name: "Estimated Time", column_type: "duration", info: "Estimated duration" },
             { name: "Notes", column_type: "textarea", info: "Task notes" }
         ]
     },
@@ -76,7 +77,7 @@ export const TABLE_TEMPLATES: TableTemplate[] = [
         columns: [
             { name: "Event Name", column_type: "text", info: "Event title", required: true },
             { name: "Date", column_type: "date", info: "Event date" },
-            { name: "Time", column_type: "text", info: "Event time" },
+            { name: "Time", column_type: "time", info: "Event time" },
             { name: "Location", column_type: "text", info: "Event location" },
             { name: "Attendees", column_type: "number", info: "Expected attendees" },
             { name: "Status", column_type: "dropdown", info: "Event status", options: "Planning, Scheduled, Confirmed, Completed, Cancelled" }

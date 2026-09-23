@@ -52,6 +52,9 @@ const STRATEGY_LABELS: Record<GeneratorStrategy, string> = {
     description: "Product Description",
     note: "Short Status / Note",
     lorem: "Lorem Ipsum Paragraph",
+    datetime: "Date & Time (Recent)",
+    time: "Time (HH:mm)",
+    duration: "Duration (Seconds)",
 };
 
 const STRATEGIES_BY_TYPE: Record<string, GeneratorStrategy[]> = {
@@ -62,6 +65,9 @@ const STRATEGIES_BY_TYPE: Record<string, GeneratorStrategy[]> = {
     ],
     number: [
         "int_range", "price", "seq", "percentage", "rating"
+    ],
+    duration: [
+        "duration", "int_range"
     ],
     email: [
         "email", "fixed"
@@ -80,6 +86,12 @@ const STRATEGIES_BY_TYPE: Record<string, GeneratorStrategy[]> = {
     ],
     date: [
         "recent_days", "past_year", "future_days", "today"
+    ],
+    datetime: [
+        "datetime", "recent_days", "today"
+    ],
+    time: [
+        "time"
     ],
     checkbox: [
         "random_bool", "mostly_true", "mostly_false"

@@ -51,13 +51,27 @@ end
 local _unpack = table.unpack or unpack
 
 local function sql_type_for_column(col_type)
-    if col_type == "number" or col_type == "ref" or col_type == "percent" or col_type == "rating" then
+    if col_type == "number" or col_type == "ref" or col_type == "percent" or col_type == "rating" or col_type == "duration" then
         return "NUMERIC DEFAULT NULL"
     elseif col_type == "checkbox" then
         return "INTEGER DEFAULT 0"
     else
         return "TEXT DEFAULT ''"
     end
+end
+
+local function format_column_value(col, raw_val)
+    if raw_val == nil then return nil end
+    if col.column_type == "duration" or col.column_type == "number" then
+        if raw_val == "" then
+            return nil
+        end
+        local num = tonumber(raw_val)
+        if num ~= nil then
+            return num
+        end
+    end
+    return raw_val
 end
 
 local function generate_column_slug(table_id, name)
@@ -643,7 +657,7 @@ function query_datatable(ctx, table_id)
                 allowed_cols[slug] = true
             end
             table.insert(cols_array, col)
-            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" or col.column_type == "image" or col.column_type == "file" or col.column_type == "email" or col.column_type == "barcode" then
+            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" or col.column_type == "image" or col.column_type == "file" or col.column_type == "email" or col.column_type == "barcode" or col.column_type == "datetime" or col.column_type == "date_time" or col.column_type == "date" or col.column_type == "time" then
                 table.insert(text_cols, slug)
             end
         end
@@ -1183,7 +1197,7 @@ function create_row(ctx)
     local source = data.data or data
     for _, col in ipairs(columns) do
         if col.column_type ~= "reverse_ref" and col.slug and col.slug ~= "" and source[col.slug] ~= nil then
-            new_row[col.slug] = source[col.slug]
+            new_row[col.slug] = format_column_value(col, source[col.slug])
         end
     end
 
@@ -1199,7 +1213,7 @@ function create_row(ctx)
                 end
             end
             if col_obj and col_obj.column_type ~= "reverse_ref" and col_obj.slug and col_obj.slug ~= "" then
-                new_row[col_obj.slug] = c.value or ""
+                new_row[col_obj.slug] = format_column_value(col_obj, c.value)
             end
         end
     end
@@ -1276,7 +1290,7 @@ function update_row(ctx, row_id)
     local source = data.data or data
     for _, col in ipairs(columns) do
         if col.column_type ~= "reverse_ref" and col.slug and col.slug ~= "" and source[col.slug] ~= nil then
-            updates[col.slug] = source[col.slug]
+            updates[col.slug] = format_column_value(col, source[col.slug])
         end
     end
 
@@ -1292,7 +1306,7 @@ function update_row(ctx, row_id)
                 end
             end
             if col_obj and col_obj.column_type ~= "reverse_ref" and col_obj.slug and col_obj.slug ~= "" then
-                updates[col_obj.slug] = c.value or ""
+                updates[col_obj.slug] = format_column_value(col_obj, c.value)
             end
         end
     end
