@@ -1,5 +1,5 @@
 import { useState } from "react";
-import IconPickerModal, { POPULAR_ICONS } from "./IconPickerModal";
+import IconPickerModal from "./IconPickerModal";
 
 interface IconSelectorProps {
     value?: string;
@@ -92,28 +92,6 @@ export const IconSelector = ({
                         <i className="fa-solid fa-xmark text-xs" />
                     </button>
                 )}
-            </div>
-
-            {/* Quick suggested icon buttons */}
-            <div className="flex items-center gap-1 overflow-x-auto pt-0.5 text-[11px]">
-                <span className="text-[10px] font-semibold text-surface-400 uppercase tracking-wider mr-1 shrink-0">
-                    Quick:
-                </span>
-                {POPULAR_ICONS.slice(0, 10).map((ic) => (
-                    <button
-                        key={ic}
-                        type="button"
-                        onClick={() => onChange(ic)}
-                        className={`w-6 h-6 rounded flex items-center justify-center text-xs transition-colors cursor-pointer shrink-0 ${
-                            activeIcon === ic
-                                ? "bg-accent-600 text-white shadow-2xs"
-                                : "bg-surface-100 border border-surface-200 text-surface-500 hover:bg-surface-200"
-                        }`}
-                        title={ic}
-                    >
-                        <i className={`fa-solid fa-${ic} text-[10px]`} />
-                    </button>
-                ))}
             </div>
 
             {pickerOpen && (
