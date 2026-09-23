@@ -1641,6 +1641,7 @@ function renderInteractivePreviewInput(f: FormField, value: any, onChange: (val:
           onChange={onChange}
           placeholder={f.placeholder || "Upload a document, image, or file"}
           accept={f.attributes?.accept}
+          folderPath="submissions"
         />
       );
     case "location":

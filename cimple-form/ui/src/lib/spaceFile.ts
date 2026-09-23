@@ -112,14 +112,57 @@ export function openSpaceFilePicker(onSelect: (file: SpaceFile) => void): boolea
 /**
  * Directly uploads a file via Potatoverse space file API
  */
-export async function uploadSpaceFile(file: File, currentPath: string = ''): Promise<SpaceFile> {
+export async function uploadSpaceFile(file: File, currentPath: string = 'submissions'): Promise<SpaceFile> {
   const token = getSpaceToken();
+  const cleanPath = currentPath ? currentPath.replace(/^\/+|\/+$/g, '') : '';
 
-  // If token is missing, provide a safe local object URL fallback
+  const formData = new FormData();
+  formData.append('files', file);
+  formData.append('filename', file.name);
+
+  const url = new URL('/zz/api/core/space_file/upload', window.location.origin);
+  if (cleanPath) {
+    url.searchParams.set('path', cleanPath);
+  }
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = token;
+  }
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const rawId = data.file_id || data.id || file.name;
+      const fileId = cleanPath && !rawId.startsWith(cleanPath) && !rawId.includes('/')
+        ? `${cleanPath}/${rawId}`
+        : rawId;
+
+      return {
+        id: fileId,
+        name: file.name,
+        size: file.size,
+        mime: file.type || 'application/octet-stream',
+        url: getFilePreviewUrl(fileId),
+        download_url: getFileDownloadUrl(fileId),
+      };
+    }
+  } catch (err) {
+    console.warn("Direct space file upload failed, checking fallback:", err);
+  }
+
+  // If token is missing and server upload was not reachable, provide safe local object URL fallback
   if (!token) {
     const objectUrl = URL.createObjectURL(file);
+    const mockId = cleanPath ? `${cleanPath}/${file.name}` : file.name;
     return {
-      id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: `local-${Date.now()}-${mockId}`,
       name: file.name,
       size: file.size,
       mime: file.type || 'application/octet-stream',
@@ -128,38 +171,5 @@ export async function uploadSpaceFile(file: File, currentPath: string = ''): Pro
     };
   }
 
-  const formData = new FormData();
-  formData.append('files', file);
-  formData.append('filename', file.name);
-
-  const url = new URL('/zz/api/core/space_file/upload', window.location.origin);
-  if (currentPath) {
-    url.searchParams.set('path', currentPath);
-  }
-
-  const response = await fetch(url.toString(), {
-    method: 'POST',
-    headers: {
-      'Autorization': token,
-      'Authorization': token,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Upload failed: ${errorText || response.statusText}`);
-  }
-
-  const data = await response.json();
-  const fileId = data.file_id;
-
-  return {
-    id: fileId,
-    name: file.name,
-    size: file.size,
-    mime: file.type || 'application/octet-stream',
-    url: getFilePreviewUrl(fileId),
-    download_url: getFileDownloadUrl(fileId),
-  };
+  throw new Error('Upload failed: server error or invalid response');
 }

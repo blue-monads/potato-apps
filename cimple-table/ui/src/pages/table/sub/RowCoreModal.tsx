@@ -3,6 +3,15 @@ import { type Datatable, type DatatableRow, type DatatableColumn } from "../../.
 import { getCellValue } from "./columnTypes";
 import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
 import RefPickerModal from "./RefPickerModal";
+import {
+    parseFileValue,
+    serializeFileValue,
+    formatFileSize,
+    getFileIconClass,
+    openSpaceFilePicker,
+    uploadSpaceFile,
+    type SpaceFile,
+} from "../../../lib/spaceFile";
 
 const RefFieldInput = ({
     column,
@@ -198,6 +207,465 @@ const MultiRefFieldInput = ({
     );
 };
 
+const ImageFieldInput = ({
+    value,
+    onChange,
+    hasError,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    hasError?: boolean;
+}) => {
+    const [uploading, setUploading] = useState(false);
+    const [showUrlInput, setShowUrlInput] = useState(false);
+    const [urlText, setUrlText] = useState("");
+    const [dragActive, setDragActive] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    const file = parseFileValue(value);
+
+    const handleSelectFile = (sf: SpaceFile) => {
+        setErrorMsg(null);
+        setShowUrlInput(false);
+        onChange(serializeFileValue(sf));
+    };
+
+    const handleFileUpload = async (uploadedFile: File) => {
+        if (!uploadedFile) return;
+        setUploading(true);
+        setErrorMsg(null);
+        try {
+            const sf = await uploadSpaceFile(uploadedFile);
+            handleSelectFile(sf);
+        } catch (err: any) {
+            setErrorMsg(err?.message || "Failed to upload image");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleUrlSubmit = () => {
+        if (!urlText.trim()) return;
+        const parsed = parseFileValue(urlText.trim());
+        if (parsed) {
+            handleSelectFile(parsed);
+        } else {
+            onChange(urlText.trim());
+        }
+        setShowUrlInput(false);
+    };
+
+    if (file && !showUrlInput) {
+        return (
+            <div className={`p-2.5 rounded-lg border bg-surface-50 transition-all ${
+                hasError ? 'border-coral-500' : 'border-surface-300'
+            }`}>
+                <div className="flex items-center gap-3">
+                    <div className="relative shrink-0 w-16 h-16 rounded border border-surface-200 bg-white overflow-hidden flex items-center justify-center">
+                        {file.url ? (
+                            <img
+                                src={file.url}
+                                alt={file.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                        parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-lg"></i>';
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <i className="fa-solid fa-image text-surface-400 text-lg" />
+                        )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs text-surface-900 truncate" title={file.name}>
+                            {file.name}
+                        </div>
+                        {file.size > 0 && (
+                            <div className="text-[11px] text-surface-400 font-mono mt-0.5">
+                                {formatFileSize(file.size)}
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                            {file.url && (
+                                <a
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-medium text-accent-600 hover:text-accent-700 hover:underline flex items-center gap-1"
+                                >
+                                    <i className="fa-solid fa-up-right-from-square text-[9px]" />
+                                    <span>Preview</span>
+                                </a>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const opened = openSpaceFilePicker(handleSelectFile);
+                                    if (!opened) setShowUrlInput(true);
+                                }}
+                                className="text-[11px] font-medium text-surface-600 hover:text-surface-900 hover:underline cursor-pointer"
+                            >
+                                Change
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onChange("")}
+                                className="text-[11px] font-medium text-coral-600 hover:text-coral-700 hover:underline cursor-pointer"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <div
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+                className={`p-4 rounded-lg border-2 border-dashed transition-all text-center ${
+                    dragActive
+                        ? 'border-accent-500 bg-accent-50/30'
+                        : hasError
+                        ? 'border-coral-500 bg-coral-50/20'
+                        : 'border-surface-300 bg-surface-50/50 hover:border-surface-400'
+                }`}
+            >
+                {uploading ? (
+                    <div className="flex flex-col items-center justify-center py-2 space-y-1">
+                        <i className="fa-solid fa-circle-notch fa-spin text-accent-600 text-lg" />
+                        <span className="text-xs text-surface-600 font-medium">Uploading image...</span>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                        <div className="w-9 h-9 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center">
+                            <i className="fa-solid fa-image text-sm" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold text-surface-800">
+                                Drag & drop image here or
+                            </p>
+                            <p className="text-[11px] text-surface-400">
+                                PNG, JPG, GIF, WebP or SVG
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => openSpaceFilePicker(handleSelectFile)}
+                                className="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-surface-50 text-surface-700 rounded border border-surface-300 shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                                <i className="fa-solid fa-folder-open text-accent-600 text-[10px]" />
+                                <span>Browse Space</span>
+                            </button>
+
+                            <label className="px-2.5 py-1 text-xs font-semibold bg-accent-600 hover:bg-accent-700 text-white rounded shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors">
+                                <i className="fa-solid fa-cloud-arrow-up text-[10px]" />
+                                <span>Upload</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                            handleFileUpload(e.target.files[0]);
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {errorMsg && (
+                <div className="text-[11px] text-coral-600 flex items-center gap-1">
+                    <i className="fa-solid fa-circle-exclamation text-[10px]" />
+                    <span>{errorMsg}</span>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between px-1">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setShowUrlInput(!showUrlInput);
+                        setUrlText(file?.url || value || "");
+                    }}
+                    className="text-[11px] text-surface-500 hover:text-accent-600 hover:underline cursor-pointer"
+                >
+                    {showUrlInput ? "Hide URL input" : "or paste image URL"}
+                </button>
+            </div>
+
+            {showUrlInput && (
+                <div className="flex items-center gap-1.5 pt-1">
+                    <input
+                        type="url"
+                        value={urlText}
+                        onChange={(e) => setUrlText(e.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        className="flex-1 bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs outline-none focus:border-accent-600 transition-colors"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUrlSubmit();
+                            }
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleUrlSubmit}
+                        className="px-2.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-surface-700 rounded text-xs font-medium cursor-pointer transition-colors"
+                    >
+                        Apply
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const FileFieldInput = ({
+    value,
+    onChange,
+    hasError,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    hasError?: boolean;
+}) => {
+    const [uploading, setUploading] = useState(false);
+    const [showUrlInput, setShowUrlInput] = useState(false);
+    const [urlText, setUrlText] = useState("");
+    const [dragActive, setDragActive] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    const file = parseFileValue(value);
+
+    const handleSelectFile = (sf: SpaceFile) => {
+        setErrorMsg(null);
+        setShowUrlInput(false);
+        onChange(serializeFileValue(sf));
+    };
+
+    const handleFileUpload = async (uploadedFile: File) => {
+        if (!uploadedFile) return;
+        setUploading(true);
+        setErrorMsg(null);
+        try {
+            const sf = await uploadSpaceFile(uploadedFile);
+            handleSelectFile(sf);
+        } catch (err: any) {
+            setErrorMsg(err?.message || "Failed to upload file");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleUrlSubmit = () => {
+        if (!urlText.trim()) return;
+        const parsed = parseFileValue(urlText.trim());
+        if (parsed) {
+            handleSelectFile(parsed);
+        } else {
+            onChange(urlText.trim());
+        }
+        setShowUrlInput(false);
+    };
+
+    if (file && !showUrlInput) {
+        const iconClass = getFileIconClass(file.mime || file.name);
+        const downloadUrl = file.download_url || file.url;
+
+        return (
+            <div className={`p-2.5 rounded-lg border bg-surface-50 transition-all ${
+                hasError ? 'border-coral-500' : 'border-surface-300'
+            }`}>
+                <div className="flex items-center gap-3">
+                    <div className="shrink-0 w-10 h-10 rounded border border-surface-200 bg-white flex items-center justify-center">
+                        <i className={`${iconClass} text-lg`} />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs text-surface-900 truncate" title={file.name}>
+                            {file.name}
+                        </div>
+                        {file.size > 0 && (
+                            <div className="text-[11px] text-surface-400 font-mono mt-0.5">
+                                {formatFileSize(file.size)}
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5">
+                            {downloadUrl && (
+                                <a
+                                    href={downloadUrl}
+                                    target="_blank"
+                                    download={file.name}
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] font-medium text-accent-600 hover:text-accent-700 hover:underline flex items-center gap-1"
+                                >
+                                    <i className="fa-solid fa-download text-[9px]" />
+                                    <span>Download</span>
+                                </a>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const opened = openSpaceFilePicker(handleSelectFile);
+                                    if (!opened) setShowUrlInput(true);
+                                }}
+                                className="text-[11px] font-medium text-surface-600 hover:text-surface-900 hover:underline cursor-pointer"
+                            >
+                                Change
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onChange("")}
+                                className="text-[11px] font-medium text-coral-600 hover:text-coral-700 hover:underline cursor-pointer"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <div
+                onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+                className={`p-4 rounded-lg border-2 border-dashed transition-all text-center ${
+                    dragActive
+                        ? 'border-accent-500 bg-accent-50/30'
+                        : hasError
+                        ? 'border-coral-500 bg-coral-50/20'
+                        : 'border-surface-300 bg-surface-50/50 hover:border-surface-400'
+                }`}
+            >
+                {uploading ? (
+                    <div className="flex flex-col items-center justify-center py-2 space-y-1">
+                        <i className="fa-solid fa-circle-notch fa-spin text-accent-600 text-lg" />
+                        <span className="text-xs text-surface-600 font-medium">Uploading file...</span>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                        <div className="w-9 h-9 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center">
+                            <i className="fa-solid fa-paperclip text-sm" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-semibold text-surface-800">
+                                Drag & drop any file here or
+                            </p>
+                            <p className="text-[11px] text-surface-400">
+                                Documents, PDFs, archives, sheets, etc.
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => openSpaceFilePicker(handleSelectFile)}
+                                className="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-surface-50 text-surface-700 rounded border border-surface-300 shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                            >
+                                <i className="fa-solid fa-folder-open text-accent-600 text-[10px]" />
+                                <span>Browse Space</span>
+                            </button>
+
+                            <label className="px-2.5 py-1 text-xs font-semibold bg-accent-600 hover:bg-accent-700 text-white rounded shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors">
+                                <i className="fa-solid fa-cloud-arrow-up text-[10px]" />
+                                <span>Upload</span>
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        if (e.target.files && e.target.files[0]) {
+                                            handleFileUpload(e.target.files[0]);
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {errorMsg && (
+                <div className="text-[11px] text-coral-600 flex items-center gap-1">
+                    <i className="fa-solid fa-circle-exclamation text-[10px]" />
+                    <span>{errorMsg}</span>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between px-1">
+                <button
+                    type="button"
+                    onClick={() => {
+                        setShowUrlInput(!showUrlInput);
+                        setUrlText(file?.url || value || "");
+                    }}
+                    className="text-[11px] text-surface-500 hover:text-accent-600 hover:underline cursor-pointer"
+                >
+                    {showUrlInput ? "Hide URL/path input" : "or enter URL / path"}
+                </button>
+            </div>
+
+            {showUrlInput && (
+                <div className="flex items-center gap-1.5 pt-1">
+                    <input
+                        type="text"
+                        value={urlText}
+                        onChange={(e) => setUrlText(e.target.value)}
+                        placeholder="https://... or file path"
+                        className="flex-1 bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs outline-none focus:border-accent-600 transition-colors"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUrlSubmit();
+                            }
+                        }}
+                    />
+                    <button
+                        type="button"
+                        onClick={handleUrlSubmit}
+                        className="px-2.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-surface-700 rounded text-xs font-medium cursor-pointer transition-colors"
+                    >
+                        Apply
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 interface RowCoreModalProps {
     table: Datatable;
     row?: DatatableRow;
@@ -365,51 +833,20 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
 
             case 'image':
                 return (
-                    <div className="space-y-2">
-                        <div className="relative">
-                            <input
-                                type="url"
-                                value={currentValue}
-                                onChange={(e) => onChange(e.target.value)}
-                                className={baseInputClasses}
-                                placeholder="https://example.com/image.jpg"
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
-                                <i className="fa-solid fa-image text-[10px]"></i>
-                            </div>
-                        </div>
-                        {currentValue && (
-                            <div className="mt-2">
-                                <img 
-                                    src={currentValue} 
-                                    alt="Preview" 
-                                    className="max-w-full h-32 object-contain border border-surface-200 rounded"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
+                    <ImageFieldInput
+                        value={currentValue}
+                        onChange={onChange}
+                        hasError={validationErrors[column.slug]}
+                    />
                 );
 
             case 'file':
                 return (
-                    <div className="space-y-1">
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={currentValue}
-                                onChange={(e) => onChange(e.target.value)}
-                                className={baseInputClasses}
-                                placeholder="File URL or path"
-                            />
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
-                                <i className="fa-solid fa-file text-[10px]"></i>
-                            </div>
-                        </div>
-                        <p className="text-[10px] text-surface-400">Enter file URL or path</p>
-                    </div>
+                    <FileFieldInput
+                        value={currentValue}
+                        onChange={onChange}
+                        hasError={validationErrors[column.slug]}
+                    />
                 );
 
             case 'dropdown':

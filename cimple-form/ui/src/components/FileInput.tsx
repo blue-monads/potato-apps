@@ -13,6 +13,7 @@ interface FileInputProps {
   accept?: string;
   placeholder?: string;
   disabled?: boolean;
+  folderPath?: string;
 }
 
 export const FileInput: React.FC<FileInputProps> = ({
@@ -21,6 +22,7 @@ export const FileInput: React.FC<FileInputProps> = ({
   accept,
   placeholder,
   disabled = false,
+  folderPath = 'submissions',
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -49,7 +51,7 @@ export const FileInput: React.FC<FileInputProps> = ({
     setIsUploading(true);
     setUploadError(null);
     try {
-      const uploaded = await uploadSpaceFile(file);
+      const uploaded = await uploadSpaceFile(file, folderPath);
       onChange(uploaded);
     } catch (err: any) {
       setUploadError(err.message || 'Failed to upload file');

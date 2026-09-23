@@ -1,5 +1,6 @@
 import { type DatatableColumn, type DatatableRow } from "../../../lib/api";
 import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
+import { parseFileValue, formatFileSize, getFileIconClass, getFileDownloadUrl } from "../../../lib/spaceFile";
 
 const PILL_COLORS = [
     { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -108,6 +109,78 @@ const RefCellValue = ({ value, column }: { value: string; column: DatatableColum
     );
 };
 
+const ImageCellValue = ({ value }: { value: string }) => {
+    const file = parseFileValue(value);
+    if (!file || !file.url) return <span className="text-surface-300">—</span>;
+
+    return (
+        <div className="flex items-center gap-2 group/img max-w-full">
+            <a
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="relative shrink-0 w-7 h-7 rounded border border-surface-200 overflow-hidden bg-surface-50 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                title={`View ${file.name}`}
+            >
+                <img
+                    src={file.url}
+                    alt={file.name || 'image'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent) {
+                            parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-xs"></i>';
+                        }
+                    }}
+                />
+            </a>
+            <a
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title={file.name}
+                className="truncate text-xs text-surface-700 hover:text-accent-600 hover:underline"
+            >
+                {file.name}
+            </a>
+        </div>
+    );
+};
+
+const FileCellValue = ({ value }: { value: string }) => {
+    const file = parseFileValue(value);
+    if (!file) return <span className="text-surface-300">—</span>;
+
+    const iconClass = getFileIconClass(file.mime || file.name);
+    const sizeStr = formatFileSize(file.size);
+    const targetUrl = file.download_url || file.url || getFileDownloadUrl(file.id);
+
+    return (
+        <a
+            href={targetUrl}
+            target="_blank"
+            download={file.name}
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title={`Download ${file.name}${sizeStr ? ` (${sizeStr})` : ''}`}
+            className="inline-flex items-center gap-1.5 max-w-full px-2 py-0.5 rounded text-xs text-surface-700 hover:bg-surface-100 hover:text-accent-700 transition-colors group/file truncate"
+        >
+            <i className={`${iconClass} text-[11px] shrink-0`} />
+            <span className="truncate font-medium">{file.name}</span>
+            {sizeStr && (
+                <span className="text-[10px] text-surface-400 font-mono shrink-0">
+                    {sizeStr}
+                </span>
+            )}
+            <i className="fa-solid fa-arrow-down text-[9px] text-surface-400 opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0 ml-0.5" />
+        </a>
+    );
+};
+
 export const CellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {
     const type = column.column_type;
 
@@ -168,23 +241,11 @@ export const CellValue = ({ value, column }: { value: string; column: DatatableC
     }
 
     if (type === 'image') {
-        return (
-            <img
-                src={value}
-                alt=""
-                className="h-6 w-10 object-cover rounded border border-surface-200"
-                onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }}
-            />
-        );
+        return <ImageCellValue value={value} />;
     }
 
     if (type === 'file') {
-        return (
-            <span className="flex items-center gap-1.5 text-surface-600 truncate">
-                <i className="fa-solid fa-paperclip text-[10px] text-surface-400" />
-                <span className="truncate">{value}</span>
-            </span>
-        );
+        return <FileCellValue value={value} />;
     }
 
     return <span className="text-surface-800 truncate">{value}</span>;

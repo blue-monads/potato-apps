@@ -637,7 +637,7 @@ function query_datatable(ctx, table_id)
             end
             allowed_cols[slug] = true
             table.insert(cols_array, col)
-            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" then
+            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" or col.column_type == "image" or col.column_type == "file" then
                 table.insert(text_cols, slug)
             end
         end

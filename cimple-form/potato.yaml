@@ -35,4 +35,5 @@ developer:
     - server.lua
     - 'init/init.html,public/init.html'
     - 'init/schema.sql,schema.sql'
+    - 'submissions/**/*,submissions'
   build_command: 'cd ui && { [ -d node_modules ] || bun install; } && bun run build'

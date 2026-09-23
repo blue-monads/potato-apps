@@ -586,6 +586,7 @@ function renderSubmitterInput(f: FormField, value: any, onChange: (val: any) => 
           onChange={onChange}
           placeholder={f.placeholder || "Upload a document, image, or file"}
           accept={f.attributes?.accept}
+          folderPath="submissions"
         />
       );
 
