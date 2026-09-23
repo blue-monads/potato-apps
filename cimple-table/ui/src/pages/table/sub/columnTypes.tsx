@@ -25,6 +25,9 @@ export const TYPE_ICONS: Record<string, string> = {
     text: 'font',
     textarea: 'align-left',
     number: 'hashtag',
+    email: 'envelope',
+    percent: 'percent',
+    rating: 'star',
     date: 'calendar',
     checkbox: 'square-check',
     image: 'image',
@@ -240,6 +243,68 @@ export const CellValue = ({ value, column }: { value: string; column: DatatableC
         );
     }
 
+    if (type === 'email') {
+        return (
+            <a
+                href={`mailto:${value}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-accent-600 hover:underline truncate inline-flex items-center gap-1.5"
+            >
+                <i className="fa-solid fa-envelope text-[10px] text-surface-400 shrink-0" />
+                <span className="truncate">{value}</span>
+            </a>
+        );
+    }
+
+    if (type === 'percent') {
+        const num = Number(value);
+        const valid = value !== "" && !isNaN(num);
+        const clamped = valid ? Math.min(100, Math.max(0, num)) : null;
+        return (
+            <div className="flex items-center gap-2 max-w-[130px] w-full">
+                <div className="flex-1 h-2 bg-surface-100 rounded-full overflow-hidden border border-surface-200 min-w-[36px]">
+                    <div
+                        className={`h-full rounded-full transition-all ${
+                            clamped !== null && clamped >= 100
+                                ? 'bg-emerald-500'
+                                : clamped !== null && clamped >= 50
+                                ? 'bg-accent-500'
+                                : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${clamped ?? 0}%` }}
+                    />
+                </div>
+                <span className="font-mono tabular-nums text-xs font-semibold text-surface-700 shrink-0">
+                    {value}%
+                </span>
+            </div>
+        );
+    }
+
+    if (type === 'rating') {
+        const num = Number(value);
+        if (isNaN(num) || value === "") return <span className="text-surface-300">—</span>;
+        const clamped = Math.min(5, Math.max(0, num));
+        return (
+            <div className="inline-flex items-center gap-1.5" title={`${value} / 5`}>
+                <div className="flex items-center gap-0.5 text-xs text-amber-400 shrink-0">
+                    {[1, 2, 3, 4, 5].map((star) => {
+                        if (clamped >= star) {
+                            return <i key={star} className="fa-solid fa-star" />;
+                        } else if (clamped >= star - 0.5) {
+                            return <i key={star} className="fa-solid fa-star-half-stroke" />;
+                        } else {
+                            return <i key={star} className="fa-regular fa-star text-surface-200" />;
+                        }
+                    })}
+                </div>
+                <span className="font-mono tabular-nums text-xs font-semibold text-surface-700">
+                    {value}
+                </span>
+            </div>
+        );
+    }
+
     if (type === 'image') {
         return <ImageCellValue value={value} />;
     }
@@ -257,6 +322,22 @@ export const summarize = (column: DatatableColumn, values: string[]): string => 
     if (column.column_type === 'number') {
         const sum = filled.reduce((acc, v) => acc + (Number(v) || 0), 0);
         return `Sum ${Number(sum.toFixed(4))}`;
+    }
+
+    if (column.column_type === 'percent') {
+        const validNumbers = filled.map(Number).filter(n => !isNaN(n));
+        if (validNumbers.length === 0) return `${filled.length} filled`;
+        const sum = validNumbers.reduce((a, b) => a + b, 0);
+        const avg = sum / validNumbers.length;
+        return `Avg ${Number(avg.toFixed(1))}%`;
+    }
+
+    if (column.column_type === 'rating') {
+        const validNumbers = filled.map(Number).filter(n => !isNaN(n));
+        if (validNumbers.length === 0) return `${filled.length} filled`;
+        const sum = validNumbers.reduce((a, b) => a + b, 0);
+        const avg = sum / validNumbers.length;
+        return `★ ${Number(avg.toFixed(1))}/5`;
     }
 
     if (isBoolType(column.column_type)) {

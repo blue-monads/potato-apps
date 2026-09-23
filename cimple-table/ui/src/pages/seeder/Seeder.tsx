@@ -63,6 +63,15 @@ const STRATEGIES_BY_TYPE: Record<string, GeneratorStrategy[]> = {
     number: [
         "int_range", "price", "seq", "percentage", "rating"
     ],
+    email: [
+        "email", "fixed"
+    ],
+    percent: [
+        "percentage", "int_range", "seq", "fixed"
+    ],
+    rating: [
+        "rating", "int_range", "fixed"
+    ],
     dropdown: [
         "random_option"
     ],

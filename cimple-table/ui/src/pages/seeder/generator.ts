@@ -160,6 +160,16 @@ export function getDefaultGeneratorConfig(column: DatatableColumn): ColumnSeedCo
             params.min = 1;
             params.max = 100;
         }
+    } else if (type === "email") {
+        strategy = "email";
+    } else if (type === "percent") {
+        strategy = "percentage";
+        params.min = 0;
+        params.max = 100;
+    } else if (type === "rating") {
+        strategy = "rating";
+        params.min = 1;
+        params.max = 5;
     } else if (type === "dropdown") {
         strategy = "random_option";
         const rawOpts = column.options || "";

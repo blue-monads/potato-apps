@@ -46,6 +46,9 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
     const columnTypes = [
         { id: "text", label: "Text" },
         { id: "number", label: "Number" },
+        { id: "email", label: "Email" },
+        { id: "percent", label: "Percent" },
+        { id: "rating", label: "Rating" },
         { id: "date", label: "Date" },
         { id: "checkbox", label: "Checkbox" },
         { id: "dropdown", label: "Dropdown" },

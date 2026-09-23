@@ -51,7 +51,7 @@ end
 local _unpack = table.unpack or unpack
 
 local function sql_type_for_column(col_type)
-    if col_type == "number" or col_type == "ref" then
+    if col_type == "number" or col_type == "ref" or col_type == "percent" or col_type == "rating" then
         return "NUMERIC DEFAULT NULL"
     elseif col_type == "checkbox" then
         return "INTEGER DEFAULT 0"
@@ -637,7 +637,7 @@ function query_datatable(ctx, table_id)
             end
             allowed_cols[slug] = true
             table.insert(cols_array, col)
-            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" or col.column_type == "image" or col.column_type == "file" then
+            if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" or col.column_type == "image" or col.column_type == "file" or col.column_type == "email" then
                 table.insert(text_cols, slug)
             end
         end

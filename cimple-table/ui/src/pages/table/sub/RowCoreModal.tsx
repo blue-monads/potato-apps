@@ -666,6 +666,123 @@ const FileFieldInput = ({
     );
 };
 
+const RatingFieldInput = ({
+    value,
+    onChange,
+    hasError,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    hasError?: boolean;
+}) => {
+    const [hoverScore, setHoverScore] = useState<number | null>(null);
+
+    const num = Number(value);
+    const valid = value !== "" && !isNaN(num);
+    const score = valid ? Math.min(5, Math.max(0, num)) : 0;
+    const activeScore = hoverScore !== null ? hoverScore : score;
+
+    const ratingLabels: Record<number, string> = {
+        1: "1 - Poor",
+        2: "2 - Fair",
+        3: "3 - Good",
+        4: "4 - Very Good",
+        5: "5 - Excellent",
+    };
+
+    return (
+        <div className={`p-2.5 rounded-lg border bg-surface-50/50 space-y-2 transition-all ${
+            hasError ? 'border-coral-500 bg-coral-50/20' : 'border-surface-300'
+        }`}>
+            <div className="flex items-center justify-between">
+                <div
+                    className="flex items-center gap-1.5"
+                    onMouseLeave={() => setHoverScore(null)}
+                >
+                    {[1, 2, 3, 4, 5].map((star) => {
+                        const isFilled = activeScore >= star;
+                        return (
+                            <button
+                                key={star}
+                                type="button"
+                                onClick={() => {
+                                    if (score === star) {
+                                        onChange("");
+                                    } else {
+                                        onChange(String(star));
+                                    }
+                                }}
+                                onMouseEnter={() => setHoverScore(star)}
+                                className="p-1 rounded-sm text-2xl transition-all transform hover:scale-125 cursor-pointer focus:outline-hidden"
+                                title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                            >
+                                <i
+                                    className={`transition-colors ${
+                                        isFilled
+                                            ? 'fa-solid fa-star text-amber-400 drop-shadow-xs'
+                                            : 'fa-regular fa-star text-surface-300 hover:text-amber-200'
+                                    }`}
+                                />
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {valid ? (
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-sm font-bold text-surface-800 tabular-nums">
+                                {value}
+                            </span>
+                            <span className="text-[11px] text-surface-400 font-mono">/ 5</span>
+                            <button
+                                type="button"
+                                onClick={() => onChange("")}
+                                className="w-5 h-5 rounded hover:bg-coral-50 text-surface-400 hover:text-coral-600 flex items-center justify-center transition-colors cursor-pointer ml-1"
+                                title="Clear rating"
+                            >
+                                <i className="fa-solid fa-xmark text-xs" />
+                            </button>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-surface-400 italic">No rating</span>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-surface-500 pt-1 border-t border-surface-200/60">
+                <span className="font-medium text-surface-600">
+                    {activeScore > 0 ? ratingLabels[Math.round(activeScore)] || `${activeScore} stars` : "Click star to rate (1–5)"}
+                </span>
+
+                <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-surface-400">Custom:</span>
+                    <input
+                        type="number"
+                        min="0"
+                        max="5"
+                        step="0.1"
+                        value={value}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                                onChange("");
+                                return;
+                            }
+                            const n = Number(val);
+                            if (!isNaN(n) && n >= 0 && n <= 5) {
+                                onChange(val);
+                            }
+                        }}
+                        placeholder="0 - 5"
+                        className="w-14 bg-white border border-surface-200 rounded px-1.5 py-0.5 text-[11px] font-mono tabular-nums text-center outline-none focus:border-accent-600"
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+
 interface RowCoreModalProps {
     table: Datatable;
     row?: DatatableRow;
@@ -799,6 +916,82 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
                         onChange={(e) => onChange(e.target.value)}
                         className={baseInputClasses}
                         placeholder="0"
+                    />
+                );
+
+            case 'email':
+                return (
+                    <div className="relative">
+                        <input
+                            type="email"
+                            value={currentValue}
+                            onChange={(e) => onChange(e.target.value)}
+                            className={baseInputClasses}
+                            placeholder="user@example.com"
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+                            <i className="fa-solid fa-envelope text-[10px]"></i>
+                        </div>
+                    </div>
+                );
+
+            case 'percent': {
+                const numVal = Number(currentValue);
+                const validPercent = currentValue !== "" && !isNaN(numVal);
+                const clampedVal = validPercent ? Math.min(100, Math.max(0, numVal)) : 0;
+                return (
+                    <div className="space-y-1.5">
+                        <div className="relative">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="any"
+                                value={currentValue}
+                                onChange={(e) => onChange(e.target.value)}
+                                className={`${baseInputClasses} pr-8 font-mono tabular-nums`}
+                                placeholder="0 - 100"
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400 font-semibold text-xs">
+                                %
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={clampedVal}
+                                onChange={(e) => onChange(e.target.value)}
+                                className="flex-1 accent-accent-600 h-1.5 bg-surface-200 rounded-lg cursor-pointer"
+                            />
+                            <div className="flex items-center gap-1 shrink-0">
+                                {[0, 25, 50, 75, 100].map(p => (
+                                    <button
+                                        key={p}
+                                        type="button"
+                                        onClick={() => onChange(String(p))}
+                                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                                            currentValue === String(p)
+                                                ? 'bg-accent-600 text-white font-bold'
+                                                : 'bg-surface-100 hover:bg-surface-200 text-surface-600'
+                                        }`}
+                                    >
+                                        {p}%
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            case 'rating':
+                return (
+                    <RatingFieldInput
+                        value={currentValue}
+                        onChange={onChange}
+                        hasError={validationErrors[column.slug]}
                     />
                 );
 

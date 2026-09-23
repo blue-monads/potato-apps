@@ -34,6 +34,9 @@ interface CreateTableModalProps {
 const AVAILABLE_TYPES = [
     { value: "text", label: "Text", icon: "font" },
     { value: "number", label: "Number", icon: "hashtag" },
+    { value: "email", label: "Email", icon: "envelope" },
+    { value: "percent", label: "Percent", icon: "percent" },
+    { value: "rating", label: "Rating", icon: "star" },
     { value: "date", label: "Date", icon: "calendar" },
     { value: "checkbox", label: "Checkbox", icon: "square-check" },
     { value: "dropdown", label: "Dropdown", icon: "caret-down" },
