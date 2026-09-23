@@ -1,0 +1,2311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapfun — Map Workspace</title>
+
+  <!-- External libraries are loaded from CDNs; the app itself is a single HTML file. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --panel: #ffffff;
+      --panel-soft: #f4f5f7;
+      --border: #e5e7eb;
+      --border-strong: #d5d9e0;
+      --text: #172033;
+      --text-soft: #667085;
+      --muted: #98a2b3;
+      --accent: #4f46e5;
+      --accent-2: #eef0ff;
+      --danger: #d92d20;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 8px 24px rgba(16, 24, 40, .06);
+      --radius: 12px;
+      --sidebar: 320px;
+      --topbar: 58px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    button, input, textarea, select { font: inherit; }
+
+    .app {
+      height: 100%;
+      display: grid;
+      grid-template-rows: var(--topbar) 1fr;
+    }
+
+    .topbar {
+      background: rgba(255,255,255,.96);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 16px;
+      position: relative;
+      z-index: 1000;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 210px;
+    }
+
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: #172033;
+      color: white;
+      font-size: 13px;
+    }
+
+    .brand-title { font-weight: 750; letter-spacing: -0.02em; }
+    .brand-sub { color: var(--muted); font-size: 11px; margin-left: 3px; }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-left: auto;
+    }
+
+    .pill {
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 9px;
+      padding: 7px 10px;
+      color: var(--text-soft);
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: default;
+    }
+
+    .save-status {
+      color: #027a48;
+      background: #ecfdf3;
+      border-color: #abefc6;
+    }
+
+    .btn {
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--text);
+      border-radius: 9px;
+      height: 34px;
+      padding: 0 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: .16s ease;
+      user-select: none;
+    }
+
+    .btn:hover {
+      border-color: #bcc3ce;
+      background: #fafafa;
+    }
+
+    .btn:active { transform: translateY(1px); }
+
+    .btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .btn.primary:hover { filter: brightness(.97); }
+
+    .btn.icon {
+      width: 34px;
+      padding: 0;
+    }
+
+    .btn.danger {
+      color: var(--danger);
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--sidebar) 1fr;
+    }
+
+    .sidebar {
+      min-width: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 900;
+    }
+
+    .toolbar {
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      color: var(--text-soft);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 2px 4px;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .tool {
+      justify-content: flex-start;
+      font-size: 12px;
+      height: 38px;
+    }
+
+    .tool i {
+      width: 18px;
+      text-align: center;
+      color: var(--text-soft);
+    }
+
+    .tool.active {
+      border-color: #c7cdfd;
+      background: var(--accent-2);
+      color: #3730a3;
+    }
+
+    .tool.active i { color: var(--accent); }
+
+    .layers-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 12px 9px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .layers-title {
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .layers-count {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .layers-head-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .group-create {
+      display: inline-flex;
+    }
+
+    .group-create.ready {
+      background: #f2f4ff;
+      border-color: #c7cdfd;
+      color: #3730a3;
+    }
+
+    .tree-folder {
+      margin: 3px 0 5px;
+      border-radius: 9px;
+      transition: background .18s ease;
+    }
+
+    .tree-folder.folder-created-flash {
+      background: #f2f4ff;
+      box-shadow: inset 0 0 0 1px #dfe2ff;
+    }
+
+    .group-row {
+      display: grid;
+      grid-template-columns: 20px 22px 28px minmax(0,1fr) auto;
+      align-items: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 5px 7px;
+      border: 1px solid #e4e7ec;
+      background: #f7f8fa;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .group-row:hover {
+      background: #f2f4f7;
+      border-color: #d9dde5;
+    }
+
+    .group-row.hidden {
+      opacity: .58;
+    }
+
+    .group-row.hidden .group-name {
+      text-decoration: line-through;
+      text-decoration-color: #cbd0d8;
+    }
+
+    .group-toggle {
+      width: 24px;
+      height: 24px;
+      border: 0;
+      background: transparent;
+      color: #667085;
+      border-radius: 6px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+
+    .group-toggle:hover { background: #e9edf2; color: var(--text); }
+
+    .group-branch {
+      width: 22px;
+      height: 24px;
+      position: relative;
+    }
+
+    .group-branch::before {
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: -1px;
+      bottom: -1px;
+      border-left: 1px solid #dfe3e9;
+    }
+
+    .group-branch::after {
+      content: "";
+      position: absolute;
+      left: 9px;
+      top: 12px;
+      width: 12px;
+      border-top: 1px solid #dfe3e9;
+    }
+
+    .group-symbol {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: #e9ecff;
+      color: var(--accent);
+      font-size: 11px;
+    }
+
+    .group-info { min-width: 0; }
+
+    .group-name {
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .group-meta {
+      color: var(--muted);
+      font-size: 9px;
+      margin-top: 1px;
+    }
+
+    .group-actions {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .group-action {
+      width: 27px;
+      height: 27px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    .group-row:hover .group-action,
+    .group-row.hidden .group-action { opacity: 1; }
+
+    .group-action:hover { background: #e9edf2; color: var(--text); }
+    .group-action.danger:hover { color: var(--danger); background: #fff2f0; }
+
+    .folder-children {
+      margin-left: 27px;
+      padding-left: 7px;
+      border-left: 1px solid #dfe3e9;
+    }
+
+    .folder-children > .layer-row {
+      position: relative;
+      margin: 2px 0;
+      padding-left: 7px;
+    }
+
+    .folder-children > .layer-row::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      top: 50%;
+      width: 8px;
+      border-top: 1px solid #dfe3e9;
+    }
+
+    .folder-children > .layer-row:last-child::after {
+      content: "";
+      position: absolute;
+      left: -9px;
+      top: 50%;
+      bottom: -10px;
+      width: 1px;
+      background: var(--panel);
+    }
+
+    .group-create {
+      display: inline-flex;
+    }
+
+    .object-select {
+      display: grid;
+      place-items: center;
+    }
+
+    .object-check {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .layers {
+      overflow: auto;
+      min-height: 0;
+      flex: 1;
+      padding: 6px;
+    }
+
+    .empty {
+      padding: 24px 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .empty i {
+      font-size: 22px;
+      margin-bottom: 8px;
+      opacity: .55;
+      display: block;
+    }
+
+    .layer-row {
+      display: grid;
+      grid-template-columns: 28px minmax(0,1fr) 28px 28px;
+      align-items: center;
+      gap: 6px;
+      min-height: 46px;
+      padding: 6px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+
+    .layer-row:hover {
+      background: #f8f9fb;
+      border-color: #eef0f3;
+    }
+
+    .layer-row.selected {
+      background: #f2f4ff;
+      border-color: #dfe2ff;
+    }
+
+    .layer-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: #f1f3f6;
+      color: #475467;
+      font-size: 12px;
+      overflow: hidden;
+    }
+
+    .layer-info { min-width: 0; }
+    .layer-name {
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .layer-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      text-transform: capitalize;
+    }
+
+    .row-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 2px;
+    }
+
+    .row-action {
+      width: 27px;
+      height: 27px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    .layer-row:hover .row-action,
+    .layer-row.hidden .row-action,
+    .layer-row.selected .row-action { opacity: 1; }
+
+    .row-action:hover { background: #f1f3f6; color: var(--text); }
+    .row-action.eye-off { color: #98a2b3; opacity: 1; }
+    .row-delete:hover { color: var(--danger); background: #fff2f0; }
+
+    .move-menu {
+      position: fixed;
+      z-index: 5000;
+      min-width: 180px;
+      max-width: 260px;
+      padding: 5px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 14px 34px rgba(16,24,40,.16);
+    }
+
+    .move-menu-title {
+      padding: 6px 8px 5px;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 750;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .move-menu-item {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      border-radius: 7px;
+      min-height: 32px;
+      padding: 7px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      font-size: 11px;
+    }
+
+    .move-menu-item:hover { background: #f4f5f7; }
+    .move-menu-item.current { background: #f0f2ff; color: #3730a3; }
+    .move-menu-empty { padding: 8px; color: var(--muted); font-size: 11px; }
+
+    .layer-row.hidden { opacity: .56; }
+    .layer-row.hidden .layer-name { text-decoration: line-through; text-decoration-color: #cbd0d8; }
+
+    .map-wrap {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      background: #e9edf2;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .map-float {
+      position: absolute;
+      z-index: 700;
+      background: rgba(255,255,255,.96);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 10px;
+    }
+
+    .map-info {
+      left: 12px;
+      bottom: 12px;
+      padding: 7px 9px;
+      font-size: 11px;
+      color: var(--text-soft);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .cursor-tool {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .coords {
+      font-variant-numeric: tabular-nums;
+      color: #7c8798;
+    }
+
+    .ruler-card {
+      right: 12px;
+      top: 12px;
+      width: 250px;
+      padding: 11px;
+      display: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .ruler-card.open { display: block; }
+
+    .ruler-card h4 {
+      font-size: 12px;
+      margin: 0 0 8px;
+    }
+
+    .ruler-value {
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: -.02em;
+    }
+
+    .ruler-sub {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .ruler-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 9px;
+    }
+
+    .ruler-actions .btn { flex: 1; height: 31px; font-size: 11px; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(17,24,39,.28);
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      width: min(470px, calc(100vw - 28px));
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 24px 70px rgba(17,24,39,.18);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .modal-body { padding: 15px 16px; }
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-soft);
+    }
+
+    .input, .textarea, .select {
+      width: 100%;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      outline: none;
+      background: white;
+      padding: 9px 10px;
+      color: var(--text);
+    }
+
+    .input:focus, .textarea:focus, .select:focus {
+      border-color: #aab2ff;
+      box-shadow: 0 0 0 3px #eef0ff;
+    }
+
+    .textarea { min-height: 90px; resize: vertical; }
+
+    .modal-foot {
+      display: flex;
+      justify-content: flex-end;
+      gap: 7px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: #fbfbfc;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 6px;
+      max-height: 220px;
+      overflow: auto;
+    }
+
+    .icon-choice {
+      width: 100%;
+      aspect-ratio: 1;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #475467;
+      cursor: pointer;
+    }
+
+    .icon-choice:hover { background: #f8f9fb; }
+    .icon-choice.selected {
+      border-color: #aab2ff;
+      background: var(--accent-2);
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px #aab2ff;
+    }
+
+    .marker-pin {
+      width: 38px;
+      height: 38px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 5px 12px rgba(15, 23, 42, .24);
+      border: 2px solid white;
+    }
+
+    .marker-pin i {
+      transform: rotate(45deg);
+      color: white;
+      font-size: 15px;
+    }
+
+    .label-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: rgba(255,255,255,.95);
+      color: #182230;
+      border: 1px solid #d9dee7;
+      box-shadow: 0 3px 9px rgba(15,23,42,.14);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .leaflet-container { font: inherit; }
+    .leaflet-control-zoom {
+      margin: 12px !important;
+      border: 1px solid var(--border) !important;
+      box-shadow: var(--shadow) !important;
+      border-radius: 9px !important;
+      overflow: hidden;
+    }
+    .leaflet-control-zoom a {
+      width: 32px !important;
+      height: 32px !important;
+      line-height: 32px !important;
+      color: var(--text) !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--border) !important;
+    }
+    .leaflet-control-zoom a:last-child { border-bottom: 0 !important; }
+
+    .leaflet-control-attribution {
+      font-size: 9px;
+      background: rgba(255,255,255,.85) !important;
+      color: #7b8492;
+    }
+
+    @media (max-width: 860px) {
+      :root { --sidebar: 280px; }
+      .brand { min-width: 150px; }
+      .brand-sub, .save-status .save-label { display: none; }
+    }
+
+    @media (max-width: 680px) {
+      .workspace { grid-template-columns: 1fr; }
+      .sidebar {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: min(330px, 92vw);
+        height: calc(100vh - var(--topbar));
+        z-index: 1200;
+        transform: translateX(-105%);
+        transition: transform .2s ease;
+        box-shadow: 10px 0 30px rgba(16,24,40,.12);
+      }
+      .sidebar.mobile-open { transform: translateX(0); }
+      .brand { min-width: 0; }
+      .top-actions .mobile-hide { display: none; }
+      .mobile-menu { display: inline-flex !important; }
+    }
+
+    .mobile-menu { display: none; }
+
+    .leaflet-draw-toolbar a {
+      background-image: none !important;
+      width: 33px !important;
+      height: 33px !important;
+      display: grid !important;
+      place-items: center !important;
+      text-indent: 0 !important;
+      color: #475467 !important;
+      font-family: "Font Awesome 6 Free" !important;
+      font-weight: 900 !important;
+      font-size: 13px !important;
+    }
+
+    .leaflet-draw-draw-polyline a:before { content: "\f58e"; }
+    .leaflet-draw-draw-polygon a:before { content: "\f5ee"; }
+    .leaflet-draw-draw-rectangle a:before { content: "\f31e"; }
+    .leaflet-draw-draw-circle a:before { content: "\f111"; }
+    .leaflet-draw-edit-edit a:before { content: "\f304"; }
+    .leaflet-draw-edit-remove a:before { content: "\f2ed"; }
+    .leaflet-draw-actions a { font-family: inherit !important; }
+
+    .help-note {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.4;
+      border: 1px solid #edf0f4;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <button class="btn icon mobile-menu" id="mobileMenuBtn" title="Toggle sidebar">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="brand-mark"><i class="fa-solid fa-map"></i></div>
+        <div>
+          <div class="brand-title">MAPFUN</div>
+          <div class="brand-sub">visual map workspace</div>
+        </div>
+      </div>
+
+      <div class="pill save-status" id="saveStatus">
+        <i class="fa-solid fa-circle-check"></i>
+        <span class="save-label">Saved locally</span>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn mobile-hide" id="fitBtn" title="Fit all content">
+          <i class="fa-solid fa-expand"></i> Fit
+        </button>
+        <button class="btn mobile-hide" id="exportBtn" title="Export your map">
+          <i class="fa-solid fa-download"></i> Export
+        </button>
+        <label class="btn mobile-hide" title="Import a MAPFUN export">
+          <i class="fa-solid fa-upload"></i> Import
+          <input type="file" id="importInput" accept=".json,application/json" hidden />
+        </label>
+        <button class="btn icon" id="clearBtn" title="Clear everything">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar" id="sidebar">
+        <div class="toolbar">
+          <div class="section-label">Tools</div>
+          <div class="tool-grid">
+            <button class="btn tool" id="markerTool"><i class="fa-solid fa-location-dot"></i> Marker</button>
+            <button class="btn tool" id="labelTool"><i class="fa-solid fa-tag"></i> Label</button>
+            <button class="btn tool" id="rulerTool"><i class="fa-solid fa-ruler-horizontal"></i> Ruler</button>
+            <button class="btn tool active" id="selectTool"><i class="fa-solid fa-arrow-pointer"></i> Select</button>
+            <button class="btn tool" id="moveTool"><i class="fa-solid fa-up-down-left-right"></i> Move</button>
+          </div>
+
+          <div class="section-label" style="margin-top:4px">Draw</div>
+          <div class="tool-grid">
+            <button class="btn tool" id="drawLine"><i class="fa-solid fa-route"></i> Line</button>
+            <button class="btn tool" id="drawArrow"><i class="fa-solid fa-arrow-right"></i> Arrow</button>
+            <button class="btn tool" id="drawPolygon"><i class="fa-solid fa-draw-polygon"></i> Polygon</button>
+            <button class="btn tool" id="drawRect"><i class="fa-solid fa-vector-square"></i> Rectangle</button>
+            <button class="btn tool" id="drawCircle"><i class="fa-solid fa-circle"></i> Circle</button>
+          </div>
+
+          <div class="help-note">
+            Draw paths and areas, create curved great-circle arrows, then use Move to reposition any object. Click an object or its row to edit it.
+          </div>
+        </div>
+
+        <div class="layers-head">
+          <div>
+            <span class="layers-title">Map tree</span>
+            <span class="layers-count" id="layerCount">0</span>
+          </div>
+          <div class="layers-head-actions">
+            <button class="btn icon group-create" style="height:28px;width:28px" id="groupSelectedBtn" title="Create folder (selected items will be added if selected)">
+              <i class="fa-solid fa-folder-plus"></i>
+            </button>
+            <button class="btn icon" style="height:28px;width:28px" id="addMarkerMini" title="Add marker">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="layers" id="layers"></div>
+      </aside>
+
+      <section class="map-wrap">
+        <div id="map"></div>
+
+        <div class="map-float map-info">
+          <span class="cursor-tool"><i class="fa-solid fa-crosshairs"></i> <span id="modeText">Select</span></span>
+          <span class="coords" id="coordsText">Lat —, Lng —</span>
+        </div>
+
+        <div class="map-float ruler-card" id="rulerCard">
+          <h4><i class="fa-solid fa-ruler-horizontal"></i> Ruler</h4>
+          <div class="ruler-value" id="rulerValue">0 m</div>
+          <div class="ruler-sub" id="rulerPoints">0 points</div>
+          <div class="ruler-actions">
+            <button class="btn" id="rulerUndo"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+            <button class="btn" id="rulerClear"><i class="fa-solid fa-xmark"></i> Clear</button>
+            <button class="btn primary" id="rulerFinish"><i class="fa-solid fa-check"></i> Done</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="markerModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title"><i class="fa-solid fa-location-dot"></i> Add marker</div>
+        <button class="btn icon" id="markerCancelTop"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="markerName">Name</label>
+          <input class="input" id="markerName" maxlength="80" placeholder="e.g. Main entrance" />
+        </div>
+        <div class="field">
+          <label for="markerNotes">Notes</label>
+          <textarea class="textarea" id="markerNotes" maxlength="500" placeholder="Optional details"></textarea>
+        </div>
+        <div class="field">
+          <label>Icon</label>
+          <div class="icon-grid" id="iconGrid"></div>
+        </div>
+        <div class="field">
+          <label for="markerColor">Marker color</label>
+          <input class="input" id="markerColor" type="color" value="#4f46e5" style="padding:4px;height:38px" />
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="markerCancel">Cancel</button>
+        <button class="btn primary" id="markerSave"><i class="fa-solid fa-check"></i> Place marker</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="labelModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title"><i class="fa-solid fa-tag"></i> Add label</div>
+        <button class="btn icon" id="labelCancelTop"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="labelText">Label</label>
+          <input class="input" id="labelText" maxlength="100" placeholder="e.g. Parking" />
+        </div>
+        <div class="field">
+          <label for="labelColor">Text color</label>
+          <input class="input" id="labelColor" type="color" value="#172033" style="padding:4px;height:38px" />
+        </div>
+        <div class="field">
+          <label for="labelBg">Background</label>
+          <input class="input" id="labelBg" type="color" value="#ffffff" style="padding:4px;height:38px" />
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="labelCancel">Cancel</button>
+        <button class="btn primary" id="labelSave"><i class="fa-solid fa-check"></i> Place label</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="editModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title" id="editTitle">Edit object</div>
+        <button class="btn icon" id="editCancelTop"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="editBody"></div>
+      <div class="modal-foot">
+        <button class="btn danger" id="editDelete"><i class="fa-solid fa-trash-can"></i> Delete</button>
+        <button class="btn" id="editCancel">Cancel</button>
+        <button class="btn primary" id="editSave"><i class="fa-solid fa-check"></i> Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-path-drag@1.9.5/dist/index.js" crossorigin=""></script>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "mapfun-state-v1";
+
+      const ICONS = [
+        ["fa-location-dot", "Pin"], ["fa-house", "Home"], ["fa-building", "Building"],
+        ["fa-star", "Star"], ["fa-heart", "Heart"], ["fa-flag", "Flag"],
+        ["fa-camera", "Camera"], ["fa-car", "Car"], ["fa-bicycle", "Bike"],
+        ["fa-person-walking", "Walk"], ["fa-utensils", "Food"], ["fa-mug-hot", "Cafe"],
+        ["fa-tree", "Park"], ["fa-mountain-sun", "Mountain"], ["fa-water", "Water"],
+        ["fa-plane", "Airport"], ["fa-train", "Train"], ["fa-bus", "Bus"],
+        ["fa-hospital", "Hospital"], ["fa-school", "School"], ["fa-store", "Store"],
+        ["fa-cart-shopping", "Shop"], ["fa-paw", "Pet"], ["fa-wifi", "Wi-Fi"],
+        ["fa-circle-info", "Info"], ["fa-bell", "Alert"], ["fa-check", "Done"],
+        ["fa-xmark", "Closed"], ["fa-sun", "Sunny"], ["fa-moon", "Night"],
+        ["fa-location-crosshairs", "Target"], ["fa-map-pin", "Map pin"],
+        ["fa-briefcase", "Work"], ["fa-camera-retro", "Photo"], ["fa-gas-pump", "Fuel"],
+        ["fa-couch", "Place"], ["fa-umbrella-beach", "Beach"], ["fa-tent", "Camp"],
+        ["fa-key", "Key"], ["fa-circle-question", "Question"]
+      ];
+
+      const state = {
+        objects: [],
+        groups: [],
+        view: { center: [27.7172, 85.3240], zoom: 13 }
+      };
+
+      let map;
+      let drawnItems;
+      let drawControl;
+      let activeMode = "select";
+      let pendingPoint = null;
+      let pendingMarkerEditId = null;
+      let pendingLabelEditId = null;
+      let arrowStart = null;
+      let arrowPreview = null;
+      const selectedObjectIds = new Set();
+
+      let rulerPoints = [];
+      let rulerLine = null;
+      let rulerDots = [];
+
+      const $ = (id) => document.getElementById(id);
+
+      function uid(prefix = "obj") {
+        return prefix + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+      }
+
+      function setSaveStatus(text = "Saved locally") {
+        const el = $("saveStatus");
+        el.innerHTML = `<i class="fa-solid fa-circle-check"></i><span class="save-label">${text}</span>`;
+        el.classList.toggle("save-status", text.includes("Saved"));
+        if (!text.includes("Saved")) {
+          el.style.color = "#7a5af8";
+          el.style.background = "#f5f3ff";
+          el.style.borderColor = "#ddd6fe";
+        } else {
+          el.style.color = "";
+          el.style.background = "";
+          el.style.borderColor = "";
+        }
+      }
+
+      function saveState() {
+        state.view.center = map ? map.getCenter() : state.view.center;
+        state.view.zoom = map ? map.getZoom() : state.view.zoom;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        setSaveStatus("Saved locally");
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.objects)) {
+            state.objects = parsed.objects;
+            state.groups = Array.isArray(parsed.groups) ? parsed.groups : [];
+            state.groups.forEach(g => {
+              if (g.visible === undefined) g.visible = true;
+              if (g.collapsed === undefined) g.collapsed = false;
+            });
+            state.view = parsed.view || state.view;
+          }
+        } catch (err) {
+          console.warn("Could not load MAPFUN state:", err);
+        }
+      }
+
+      function promptClear() {
+        if (!state.objects.length && !localStorage.getItem(STORAGE_KEY)) return;
+        if (!confirm("Clear all MAPFUN objects and saved map state?")) return;
+        state.objects = [];
+        state.groups = [];
+        selectedObjectIds.clear();
+        localStorage.removeItem(STORAGE_KEY);
+        redrawObjects();
+        map.setView([27.7172, 85.3240], 13);
+        clearRuler();
+      }
+
+      function typeIcon(type) {
+        return {
+          marker: "fa-location-dot",
+          label: "fa-tag",
+          arrow: "fa-arrow-right",
+          polyline: "fa-route",
+          polygon: "fa-draw-polygon",
+          rectangle: "fa-vector-square",
+          circle: "fa-circle"
+        }[type] || "fa-layer-group";
+      }
+
+      function humanType(type) {
+        if (type === "polyline") return "line";
+        return type;
+      }
+
+      function formatDistance(meters) {
+        if (meters < 1000) return `${meters.toFixed(meters < 100 ? 1 : 0)} m`;
+        if (meters < 10000) return `${(meters / 1000).toFixed(2)} km`;
+        return `${(meters / 1000).toFixed(1)} km`;
+      }
+
+      function formatArea(sqMeters) {
+        if (sqMeters < 1000000) return `${sqMeters.toFixed(0)} m²`;
+        return `${(sqMeters / 1000000).toFixed(2)} km²`;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      const EARTH_RADIUS = 6371008.8;
+
+      function toRad(deg) { return deg * Math.PI / 180; }
+      function toDeg(rad) { return rad * 180 / Math.PI; }
+
+      // Interpolates along the sphere (great-circle), rather than drawing a straight
+      // line in latitude/longitude. This makes long-distance arrows follow the globe.
+      function sphericalPoint(lat, lng) {
+        const phi = toRad(lat), lambda = toRad(lng);
+        const cosPhi = Math.cos(phi);
+        return [cosPhi * Math.cos(lambda), cosPhi * Math.sin(lambda), Math.sin(phi)];
+      }
+
+      function greatCirclePoints(a, b, steps = 64) {
+        const va = sphericalPoint(a.lat, a.lng);
+        const vb = sphericalPoint(b.lat, b.lng);
+        let dot = va[0] * vb[0] + va[1] * vb[1] + va[2] * vb[2];
+        dot = Math.max(-1, Math.min(1, dot));
+        const omega = Math.acos(dot);
+        if (omega < 1e-8) return [[a.lat, a.lng], [b.lat, b.lng]];
+
+        const sinOmega = Math.sin(omega);
+        const points = [];
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const wa = Math.sin((1 - t) * omega) / sinOmega;
+          const wb = Math.sin(t * omega) / sinOmega;
+          const x = wa * va[0] + wb * vb[0];
+          const y = wa * va[1] + wb * vb[1];
+          const z = wa * va[2] + wb * vb[2];
+          points.push([
+            toDeg(Math.atan2(z, Math.hypot(x, y))),
+            toDeg(Math.atan2(y, x))
+          ]);
+        }
+        return points;
+      }
+
+      function distanceMeters(a, b) {
+        const phi1 = toRad(a.lat), phi2 = toRad(b.lat);
+        const dPhi = phi2 - phi1;
+        const dLambda = toRad(b.lng - a.lng);
+        const sinPhi = Math.sin(dPhi / 2);
+        const sinLambda = Math.sin(dLambda / 2);
+        const h = sinPhi * sinPhi + Math.cos(phi1) * Math.cos(phi2) * sinLambda * sinLambda;
+        return 2 * EARTH_RADIUS * Math.asin(Math.min(1, Math.sqrt(h)));
+      }
+
+      function bearingDegrees(a, b) {
+        const phi1 = toRad(a.lat), phi2 = toRad(b.lat);
+        const dLambda = toRad(b.lng - a.lng);
+        const y = Math.sin(dLambda) * Math.cos(phi2);
+        const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLambda);
+        return (toDeg(Math.atan2(y, x)) + 360) % 360;
+      }
+
+      function destinationPoint(point, distance, bearing) {
+        const delta = distance / EARTH_RADIUS;
+        const theta = toRad(bearing);
+        const phi1 = toRad(point.lat), lambda1 = toRad(point.lng);
+        const sinPhi1 = Math.sin(phi1), cosPhi1 = Math.cos(phi1);
+        const sinDelta = Math.sin(delta), cosDelta = Math.cos(delta);
+        const sinPhi2 = sinPhi1 * cosDelta + cosPhi1 * sinDelta * Math.cos(theta);
+        const phi2 = Math.asin(Math.max(-1, Math.min(1, sinPhi2)));
+        const lambda2 = lambda1 + Math.atan2(
+          Math.sin(theta) * sinDelta * cosPhi1,
+          cosDelta - sinPhi1 * Math.sin(phi2)
+        );
+        return {
+          lat: toDeg(phi2),
+          lng: ((toDeg(lambda2) + 540) % 360) - 180
+        };
+      }
+
+      function buildArrowLatLngs(a, b) {
+        const distance = distanceMeters(a, b);
+        const steps = Math.max(24, Math.min(96, Math.round(distance / 20000)));
+        const curve = greatCirclePoints(a, b, steps);
+        if (curve.length < 2) return curve;
+
+        const headLength = Math.max(150, Math.min(distance * 0.10, 120000));
+        const previous = curve[Math.max(0, curve.length - 2)];
+        const terminalBearing = bearingDegrees(
+          { lat: previous[0], lng: previous[1] },
+          b
+        );
+        const left = destinationPoint(b, headLength, terminalBearing + 180 - 25);
+        const right = destinationPoint(b, headLength, terminalBearing + 180 + 25);
+
+        // Curve to endpoint, then two small V strokes form an arrowhead.
+        return [
+          ...curve,
+          [left.lat, left.lng],
+          [b.lat, b.lng],
+          [right.lat, right.lng]
+        ];
+      }
+
+      function syncObjectFromLayer(obj, layer) {
+        if (obj.type === "marker" || obj.type === "label") {
+          const p = layer.getLatLng();
+          obj.latlng = [p.lat, p.lng];
+        } else if (obj.type === "circle") {
+          const p = layer.getLatLng();
+          obj.center = [p.lat, p.lng];
+          obj.radius = layer.getRadius();
+        } else if (obj.type === "rectangle") {
+          const b = layer.getBounds();
+          obj.bounds = [[b.getSouthWest().lat, b.getSouthWest().lng], [b.getNorthEast().lat, b.getNorthEast().lng]];
+        } else if (obj.type === "polyline" || obj.type === "polygon" || obj.type === "arrow") {
+          obj.latlngs = layer.getLatLngs();
+        }
+      }
+
+      function configureDraggable(layer, obj) {
+        if (layer.options) layer.options.draggable = true;
+        if (layer.dragging) layer.dragging.disable();
+
+        layer.on("dragstart", () => {
+          layer.__mapfunDragStarted = true;
+        });
+        layer.on("dragend", () => {
+          syncObjectFromLayer(obj, layer);
+          layer.__mapfunDraggedRecently = true;
+          setTimeout(() => { layer.__mapfunDraggedRecently = false; }, 120);
+          saveState();
+          renderLayers();
+        });
+      }
+
+      function markerIcon(icon, color) {
+        return L.divIcon({
+          className: "",
+          html: `<div class="marker-pin" style="background:${color}"><i class="fa-solid ${icon}"></i></div>`,
+          iconSize: [38, 38],
+          iconAnchor: [18, 34],
+          popupAnchor: [0, -30]
+        });
+      }
+
+      function labelIcon(text, color, bg) {
+        return L.divIcon({
+          className: "",
+          html: `<div class="label-chip" style="color:${color};background:${bg}">${escapeHtml(text)}</div>`,
+          iconSize: null,
+          iconAnchor: [0, 12]
+        });
+      }
+
+      function getGroup(groupId) {
+        return groupId ? state.groups.find(g => g.id === groupId) : null;
+      }
+
+      function isObjectVisible(obj) {
+        if (obj.visible === false) return false;
+        const group = getGroup(obj.groupId);
+        return !group || group.visible !== false;
+      }
+
+      function groupObjectsById() {
+        const map = new Map();
+        state.groups.forEach(g => map.set(g.id, []));
+        state.objects.forEach(obj => {
+          if (obj.groupId && map.has(obj.groupId)) map.get(obj.groupId).push(obj);
+        });
+        return map;
+      }
+
+      function cleanupEmptyGroups() {
+        // Empty folders are valid tree nodes and must persist until the user
+        // explicitly removes the folder with its folder-minus button.
+      }
+
+      function createObjectLayer(obj) {
+        if (!isObjectVisible(obj)) return null;
+
+        if (obj.type === "marker") {
+          const m = L.marker(obj.latlng, {
+            icon: markerIcon(obj.icon || "fa-location-dot", obj.color || "#4f46e5"),
+            draggable: true
+          });
+          const popup = `<strong>${escapeHtml(obj.name || "Marker")}</strong>${obj.notes ? `<br><span style="color:#667085">${escapeHtml(obj.notes)}</span>` : ""}`;
+          m.bindPopup(popup);
+          m.on("click", () => {
+            if (activeMode !== "move" && !m.__mapfunDraggedRecently) openEdit(obj.id);
+          });
+          configureDraggable(m, obj);
+          return m;
+        }
+
+        if (obj.type === "label") {
+          const m = L.marker(obj.latlng, {
+            icon: labelIcon(obj.text || "Label", obj.color || "#172033", obj.bg || "#ffffff"),
+            keyboard: false,
+            draggable: true
+          });
+          m.on("click", () => {
+            if (activeMode !== "move" && !m.__mapfunDraggedRecently) openEdit(obj.id);
+          });
+          configureDraggable(m, obj);
+          return m;
+        }
+
+        const style = {
+          color: obj.color || "#4f46e5",
+          weight: obj.weight || 3,
+          opacity: 0.9,
+          fillOpacity: obj.fillOpacity ?? 0.12,
+          draggable: true
+        };
+
+        let layer;
+        if (obj.type === "polyline") {
+          layer = L.polyline(obj.latlngs, style);
+        } else if (obj.type === "arrow") {
+          layer = L.polyline(obj.latlngs, { ...style, lineCap: "round", lineJoin: "round" });
+        } else if (obj.type === "polygon") {
+          layer = L.polygon(obj.latlngs, style);
+        } else if (obj.type === "rectangle") {
+          layer = L.rectangle(obj.bounds, style);
+        } else if (obj.type === "circle") {
+          layer = L.circle(obj.center, { ...style, radius: obj.radius });
+        }
+
+        if (!layer) return null;
+        configureDraggable(layer, obj);
+        layer.on("click", () => {
+          if (activeMode !== "move" && !layer.__mapfunDraggedRecently) openEdit(obj.id);
+        });
+        return layer;
+      }
+
+      function redrawObjects() {
+        drawnItems.clearLayers();
+        state.objects.forEach(obj => {
+          const layer = createObjectLayer(obj);
+          if (layer) {
+            layer.__mapfunId = obj.id;
+            layer.__mapfunObj = obj;
+            drawnItems.addLayer(layer);
+          }
+        });
+        renderLayers();
+        syncDragMode();
+      }
+
+      function renderObjectRow(obj, isChild = false) {
+        let label = "";
+        if (obj.type === "marker") label = obj.name || "Marker";
+        else if (obj.type === "label") label = obj.text || "Label";
+        else if (obj.type === "circle") label = "Circle • " + formatDistance(obj.radius);
+        else if (obj.type === "polygon") label = "Polygon";
+        else if (obj.type === "rectangle") label = "Rectangle";
+        else label = obj.label || (obj.type === "arrow" ? "Arrow" : "Line");
+
+        const meta = obj.type === "polygon" ? "area shape" : humanType(obj.type);
+        const selected = selectedObjectIds.has(obj.id);
+        return `
+          <div class="layer-row ${obj.visible === false ? "hidden" : ""} ${isChild ? "group-child" : ""}" data-id="${obj.id}">
+            <div class="object-select">
+              <input class="object-check" type="checkbox" data-select-object="${obj.id}" ${selected ? "checked" : ""} aria-label="Select ${escapeHtml(label)}" />
+            </div>
+            <div class="layer-icon" style="${obj.type === "marker" ? `background:${obj.color || "#4f46e5"};color:white` : ""}">
+              <i class="fa-solid ${obj.type === "marker" ? (obj.icon || "fa-location-dot") : typeIcon(obj.type)}"></i>
+            </div>
+            <div class="layer-info">
+              <div class="layer-name">${escapeHtml(label)}</div>
+              <div class="layer-meta">${escapeHtml(meta)}</div>
+            </div>
+            <div class="row-actions">
+              <button class="row-action ${obj.visible === false ? "eye-off" : ""}" data-toggle-visibility="${obj.id}" title="${obj.visible === false ? "Show" : "Hide"}">
+                <i class="fa-solid ${obj.visible === false ? "fa-eye-slash" : "fa-eye"}"></i>
+              </button>
+              <button class="row-action" data-move-object="${obj.id}" title="Move to folder">
+                <i class="fa-solid fa-folder-tree"></i>
+              </button>
+              <button class="row-action row-delete" data-delete="${obj.id}" title="Delete">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      function closeMoveMenu() {
+        document.querySelector(".move-menu")?.remove();
+      }
+
+      function openMoveMenu(objectId, anchor) {
+        closeMoveMenu();
+        const obj = state.objects.find(o => o.id === objectId);
+        if (!obj) return;
+
+        const menu = document.createElement("div");
+        menu.className = "move-menu";
+        menu.innerHTML = `<div class="move-menu-title">Move object</div>`;
+
+        const rootBtn = document.createElement("button");
+        rootBtn.className = `move-menu-item ${!obj.groupId ? "current" : ""}`;
+        rootBtn.innerHTML = `<i class="fa-solid fa-layer-group"></i><span>Root / no folder</span>`;
+        rootBtn.onclick = (e) => {
+          e.stopPropagation();
+          delete obj.groupId;
+          closeMoveMenu();
+          redrawObjects();
+          saveState();
+        };
+        menu.appendChild(rootBtn);
+
+        if (state.groups.length) {
+          state.groups.forEach(group => {
+            const btn = document.createElement("button");
+            btn.className = `move-menu-item ${obj.groupId === group.id ? "current" : ""}`;
+            const openIcon = group.collapsed ? "fa-folder" : "fa-folder-open";
+            btn.innerHTML = `<i class="fa-solid ${openIcon}" style="color:#f59e0b"></i><span>${escapeHtml(group.name || "Folder")}</span>`;
+            btn.onclick = (e) => {
+              e.stopPropagation();
+              obj.groupId = group.id;
+              group.collapsed = false;
+              closeMoveMenu();
+              redrawObjects();
+              saveState();
+              setTimeout(() => document.querySelector(`[data-folder-id="${group.id}"]`)?.scrollIntoView({ block: "nearest" }), 0);
+            };
+            menu.appendChild(btn);
+          });
+        } else {
+          const empty = document.createElement("div");
+          empty.className = "move-menu-empty";
+          empty.textContent = "No folders yet. Create one with the folder + button.";
+          menu.appendChild(empty);
+        }
+
+        document.body.appendChild(menu);
+        const r = anchor.getBoundingClientRect();
+        const mw = menu.offsetWidth;
+        const mh = menu.offsetHeight;
+        let left = r.right + 6;
+        let top = r.top;
+        if (left + mw > window.innerWidth - 8) left = Math.max(8, r.left - mw - 6);
+        if (top + mh > window.innerHeight - 8) top = Math.max(8, window.innerHeight - mh - 8);
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+
+        setTimeout(() => {
+          const onOutside = (e) => {
+            if (!menu.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) {
+              closeMoveMenu();
+              document.removeEventListener("mousedown", onOutside, true);
+            }
+          };
+          document.addEventListener("mousedown", onOutside, true);
+        }, 0);
+      }
+
+      function renderLayers() {
+        const host = $("layers");
+        $("layerCount").textContent = state.objects.length;
+        const groupMap = groupObjectsById();
+        const groupIds = new Set(state.groups.map(g => g.id));
+        const ungrouped = state.objects.filter(o => !o.groupId || !groupIds.has(o.groupId));
+        const selectedCount = selectedObjectIds.size;
+        const groupBtn = $("groupSelectedBtn");
+        groupBtn.disabled = false;
+        groupBtn.title = selectedCount ? `Create folder with ${selectedCount} selected item${selectedCount === 1 ? "" : "s"}` : "Create an empty folder";
+        groupBtn.classList.toggle("ready", selectedCount >= 1);
+
+        if (!state.objects.length && !state.groups.length) {
+          host.innerHTML = `<div class="empty"><i class="fa-regular fa-map"></i>No objects yet.<br>Drop a marker, label, or draw something on the map.<br><span style="display:inline-block;margin-top:8px">Use <i class="fa-solid fa-folder-plus" style="display:inline"></i> to create a folder.</span></div>`;
+          return;
+        }
+
+        let html = "";
+        state.groups.forEach(group => {
+          const members = groupMap.get(group.id) || [];
+          const hidden = group.visible === false;
+          const collapsed = group.collapsed === true;
+          html += `
+            <div class="tree-folder ${collapsed ? "is-collapsed" : "is-open"}" data-folder-id="${group.id}" title="Click folder to ${collapsed ? "open" : "collapse"}">
+              <div class="group-row ${hidden ? "hidden" : ""}" data-group-id="${group.id}">
+                <button class="group-toggle" data-toggle-collapse="${group.id}" title="${collapsed ? "Expand folder" : "Collapse folder"}">
+                  <i class="fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-down"}"></i>
+                </button>
+                <div class="group-branch" aria-hidden="true"></div>
+                <button class="group-toggle" data-toggle-group-visibility="${group.id}" title="${hidden ? "Show folder" : "Hide folder"}">
+                  <i class="fa-solid ${hidden ? "fa-eye-slash" : "fa-eye"}"></i>
+                </button>
+                <div class="group-info">
+                  <div class="group-name"><i class="fa-solid ${collapsed ? "fa-folder" : "fa-folder-open"}" style="margin-right:6px;color:#f59e0b"></i>${escapeHtml(group.name || "Folder")}</div>
+                  <div class="group-meta">${members.length} item${members.length === 1 ? "" : "s"}</div>
+                </div>
+                <div class="group-actions">
+                  <button class="group-action" data-rename-group="${group.id}" title="Rename folder"><i class="fa-solid fa-pen"></i></button>
+                  <button class="group-action danger" data-ungroup="${group.id}" title="Remove folder"><i class="fa-solid fa-folder-minus"></i></button>
+                </div>
+              </div>
+              ${collapsed ? "" : `<div class="folder-children">${members.map(obj => renderObjectRow(obj, true)).join("")}</div>`}
+            </div>
+          `;
+        });
+
+        ungrouped.forEach(obj => { html += renderObjectRow(obj, false); });
+        host.innerHTML = html;
+
+        host.querySelectorAll(".group-row").forEach(row => {
+          row.addEventListener("click", (e) => {
+            if (e.target.closest("[data-toggle-collapse], [data-toggle-group-visibility], [data-rename-group], [data-ungroup]")) return;
+            const group = getGroup(row.dataset.groupId);
+            if (!group) return;
+            group.collapsed = !group.collapsed;
+            renderLayers();
+            saveState();
+          });
+        });
+
+        host.querySelectorAll(".layer-row").forEach(row => {
+          row.addEventListener("click", (e) => {
+            if (e.target.closest("[data-delete], [data-toggle-visibility], [data-move-object], [data-select-object]")) return;
+            const obj = state.objects.find(o => o.id === row.dataset.id);
+            if (!obj) return;
+            focusObject(obj);
+            if (activeMode !== "move") openEdit(obj.id);
+          });
+        });
+
+        host.querySelectorAll("[data-select-object]").forEach(input => {
+          input.addEventListener("click", e => e.stopPropagation());
+          input.addEventListener("change", () => {
+            if (input.checked) selectedObjectIds.add(input.dataset.selectObject);
+            else selectedObjectIds.delete(input.dataset.selectObject);
+            renderLayers();
+          });
+        });
+
+        host.querySelectorAll("[data-move-object]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openMoveMenu(btn.dataset.moveObject, btn);
+          });
+        });
+
+        host.querySelectorAll("[data-toggle-visibility]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const obj = state.objects.find(o => o.id === btn.dataset.toggleVisibility);
+            if (!obj) return;
+            obj.visible = obj.visible === false;
+            redrawObjects();
+            saveState();
+          });
+        });
+
+        host.querySelectorAll("[data-toggle-group-visibility]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const group = getGroup(btn.dataset.toggleGroupVisibility);
+            if (!group) return;
+            group.visible = group.visible === false;
+            redrawObjects();
+            saveState();
+          });
+        });
+
+        host.querySelectorAll("[data-toggle-collapse]").forEach(btn => {
+          btn.addEventListener("click", e => {
+            e.stopPropagation();
+            const group = getGroup(btn.dataset.toggleCollapse);
+            if (!group) return;
+            group.collapsed = !group.collapsed;
+            renderLayers();
+            saveState();
+          });
+        });
+
+        host.querySelectorAll("[data-rename-group]").forEach(btn => {
+          btn.addEventListener("click", e => {
+            e.stopPropagation();
+            const group = getGroup(btn.dataset.renameGroup);
+            if (!group) return;
+            const name = prompt("Folder name", group.name || "Folder");
+            if (name === null) return;
+            group.name = name.trim() || "Folder";
+            renderLayers();
+            saveState();
+          });
+        });
+
+        host.querySelectorAll("[data-ungroup]").forEach(btn => {
+          btn.addEventListener("click", e => {
+            e.stopPropagation();
+            const groupId = btn.dataset.ungroup;
+            state.objects.forEach(obj => { if (obj.groupId === groupId) delete obj.groupId; });
+            state.groups = state.groups.filter(g => g.id !== groupId);
+            redrawObjects();
+            saveState();
+          });
+        });
+
+        host.querySelectorAll("[data-delete]").forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            removeObject(btn.dataset.delete);
+          });
+        });
+      }
+
+      function focusObject(obj) {
+        const layer = [...drawnItems.getLayers()].find(l => l.__mapfunId === obj.id);
+        if (layer) {
+          if (layer.getBounds) {
+            const b = layer.getBounds();
+            if (b.isValid()) map.fitBounds(b.pad(0.45));
+          } else if (obj.latlng) {
+            map.flyTo(obj.latlng, Math.max(map.getZoom(), 15), { duration: .35 });
+          }
+        }
+      }
+
+      function removeObject(id) {
+        state.objects = state.objects.filter(o => o.id !== id);
+        selectedObjectIds.delete(id);
+        cleanupEmptyGroups();
+        redrawObjects();
+        saveState();
+        closeModal("editModal");
+      }
+
+      function groupSelectedObjects() {
+        const selected = state.objects.filter(o => selectedObjectIds.has(o.id));
+        const defaultName = `New folder ${state.groups.length + 1}`;
+        const groupId = uid("group");
+        const group = {
+          id: groupId,
+          name: defaultName,
+          visible: true,
+          collapsed: false
+        };
+
+        // Folder creation is intentionally instant: no browser prompt means the
+        // button always has an immediate, visible effect. Use the pencil icon
+        // on the folder row to rename it.
+        state.groups.push(group);
+        selected.forEach(obj => { obj.groupId = groupId; });
+        selectedObjectIds.clear();
+        redrawObjects();
+        saveState();
+
+        // Bring the new folder into view and flash it briefly.
+        const folder = document.querySelector(`[data-folder-id="${groupId}"]`);
+        if (folder) {
+          folder.scrollIntoView({ block: "nearest" });
+          folder.classList.add("folder-created-flash");
+          setTimeout(() => folder.classList.remove("folder-created-flash"), 700);
+        }
+      }
+
+      function syncDragMode() {
+        const enable = activeMode === "move";
+        const allLayers = drawnItems ? drawnItems.getLayers() : [];
+        allLayers.forEach(layer => {
+          if (!layer.dragging) return;
+          if (enable) layer.dragging.enable();
+          else layer.dragging.disable();
+        });
+      }
+
+      function setMode(mode) {
+        activeMode = mode;
+        $("modeText").textContent = mode === "ruler" ? "Ruler" : mode === "marker" ? "Marker" : mode === "label" ? "Label" : mode === "arrow" ? (arrowStart ? "Arrow • click end" : "Arrow • click start") : mode === "move" ? "Move" : "Select";
+        document.querySelectorAll(".tool").forEach(b => b.classList.remove("active"));
+        if (mode === "marker") $("markerTool").classList.add("active");
+        if (mode === "label") $("labelTool").classList.add("active");
+        if (mode === "ruler") $("rulerTool").classList.add("active");
+        if (mode === "select") $("selectTool").classList.add("active");
+        if (mode === "move") $("moveTool").classList.add("active");
+        if (mode === "arrow") $("drawArrow").classList.add("active");
+
+        $("rulerCard").classList.toggle("open", mode === "ruler");
+
+        if (mode !== "ruler") clearRuler();
+        if (mode !== "arrow") clearArrowPreview();
+
+        syncDragMode();
+
+        if (mode === "move") map.getContainer().style.cursor = "grab";
+        else if (["marker", "label", "ruler", "arrow"].includes(mode)) map.getContainer().style.cursor = "crosshair";
+        else map.getContainer().style.cursor = "";
+      }
+
+      function openMarkerModal(point, editId = null) {
+        pendingPoint = point;
+        pendingMarkerEditId = editId;
+
+        const obj = editId ? state.objects.find(o => o.id === editId) : null;
+        $("markerName").value = obj?.name || "";
+        $("markerNotes").value = obj?.notes || "";
+        $("markerColor").value = obj?.color || "#4f46e5";
+
+        document.querySelectorAll(".icon-choice").forEach(b => b.classList.remove("selected"));
+        const selected = obj?.icon || "fa-location-dot";
+        document.querySelector(`[data-icon="${selected}"]`)?.classList.add("selected");
+
+        $("markerModal").classList.add("open");
+        setTimeout(() => $("markerName").focus(), 30);
+      }
+
+      function openLabelModal(point, editId = null) {
+        pendingPoint = point;
+        pendingLabelEditId = editId;
+        const obj = editId ? state.objects.find(o => o.id === editId) : null;
+        $("labelText").value = obj?.text || "";
+        $("labelColor").value = obj?.color || "#172033";
+        $("labelBg").value = obj?.bg || "#ffffff";
+        $("labelModal").classList.add("open");
+        setTimeout(() => $("labelText").focus(), 30);
+      }
+
+      function selectedIcon() {
+        return document.querySelector(".icon-choice.selected")?.dataset.icon || "fa-location-dot";
+      }
+
+      function openEdit(id) {
+        const obj = state.objects.find(o => o.id === id);
+        if (!obj) return;
+
+        $("editTitle").textContent = `Edit ${humanType(obj.type)}`;
+        $("editBody").innerHTML = buildEditBody(obj);
+        $("editModal").dataset.id = id;
+        $("editModal").classList.add("open");
+      }
+
+      function buildEditBody(obj) {
+        if (obj.type === "marker") {
+          return `
+            <div class="field"><label>Name</label><input class="input" id="editName" value="${escapeHtml(obj.name || "")}" /></div>
+            <div class="field"><label>Notes</label><textarea class="textarea" id="editNotes">${escapeHtml(obj.notes || "")}</textarea></div>
+            <div class="field"><label>Color</label><input class="input" id="editColor" type="color" value="${obj.color || "#4f46e5"}" style="padding:4px;height:38px" /></div>
+          `;
+        }
+        if (obj.type === "label") {
+          return `
+            <div class="field"><label>Label</label><input class="input" id="editText" value="${escapeHtml(obj.text || "")}" /></div>
+            <div class="field"><label>Text color</label><input class="input" id="editTextColor" type="color" value="${obj.color || "#172033"}" style="padding:4px;height:38px" /></div>
+            <div class="field"><label>Background</label><input class="input" id="editBg" type="color" value="${obj.bg || "#ffffff"}" style="padding:4px;height:38px" /></div>
+          `;
+        }
+        if (obj.type === "circle") {
+          return `
+            <div class="field"><label>Stroke color</label><input class="input" id="editColor" type="color" value="${obj.color || "#4f46e5"}" style="padding:4px;height:38px" /></div>
+            <div class="field"><label>Radius</label><input class="input" id="editRadius" type="number" min="1" step="1" value="${Math.round(obj.radius || 1)}" /></div>
+          `;
+        }
+        return `
+          <div class="field"><label>Stroke color</label><input class="input" id="editColor" type="color" value="${obj.color || "#4f46e5"}" style="padding:4px;height:38px" /></div>
+          <div class="field"><label>Stroke width</label><input class="input" id="editWeight" type="number" min="1" max="12" step="1" value="${obj.weight || 3}" /></div>
+          <div class="field"><label>Fill opacity</label><input class="input" id="editFill" type="number" min="0" max="1" step="0.05" value="${obj.fillOpacity ?? 0.12}" /></div>
+        `;
+      }
+
+      function saveEdit() {
+        const id = $("editModal").dataset.id;
+        const obj = state.objects.find(o => o.id === id);
+        if (!obj) return;
+
+        if (obj.type === "marker") {
+          obj.name = $("editName").value.trim() || "Marker";
+          obj.notes = $("editNotes").value.trim();
+          obj.color = $("editColor").value;
+        } else if (obj.type === "label") {
+          obj.text = $("editText").value.trim() || "Label";
+          obj.color = $("editTextColor").value;
+          obj.bg = $("editBg").value;
+        } else if (obj.type === "circle") {
+          obj.color = $("editColor").value;
+          obj.radius = Math.max(1, Number($("editRadius").value) || obj.radius);
+        } else {
+          obj.color = $("editColor").value;
+          obj.weight = Math.min(12, Math.max(1, Number($("editWeight").value) || 3));
+          obj.fillOpacity = Math.min(1, Math.max(0, Number($("editFill").value) || 0));
+        }
+
+        redrawObjects();
+        saveState();
+        closeModal("editModal");
+      }
+
+      function closeModal(id) {
+        $(id).classList.remove("open");
+      }
+
+      function addMarkerAt(latlng) {
+        openMarkerModal(latlng);
+      }
+
+      function addLabelAt(latlng) {
+        openLabelModal(latlng);
+      }
+
+      function placeMarker() {
+        if (!pendingPoint) return;
+        const obj = pendingMarkerEditId ? state.objects.find(o => o.id === pendingMarkerEditId) : {
+          id: uid("marker"), type: "marker", latlng: pendingPoint
+        };
+        obj.name = $("markerName").value.trim() || "Marker";
+        obj.notes = $("markerNotes").value.trim();
+        obj.icon = selectedIcon();
+        obj.color = $("markerColor").value;
+
+        if (!pendingMarkerEditId) state.objects.push(obj);
+        redrawObjects();
+        saveState();
+        closeModal("markerModal");
+        pendingPoint = null;
+        pendingMarkerEditId = null;
+        setMode("select");
+      }
+
+      function placeLabel() {
+        if (!pendingPoint) return;
+        const obj = pendingLabelEditId ? state.objects.find(o => o.id === pendingLabelEditId) : {
+          id: uid("label"), type: "label", latlng: pendingPoint
+        };
+        obj.text = $("labelText").value.trim() || "Label";
+        obj.color = $("labelColor").value;
+        obj.bg = $("labelBg").value;
+
+        if (!pendingLabelEditId) state.objects.push(obj);
+        redrawObjects();
+        saveState();
+        closeModal("labelModal");
+        pendingPoint = null;
+        pendingLabelEditId = null;
+        setMode("select");
+      }
+
+      function addDrawnObject(layer, type) {
+        const obj = {
+          id: uid(type),
+          type,
+          visible: true,
+          color: "#4f46e5",
+          weight: 3,
+          fillOpacity: 0.12
+        };
+
+        if (type === "polyline" || type === "polygon") {
+          obj.latlngs = layer.getLatLngs();
+        } else if (type === "rectangle") {
+          const b = layer.getBounds();
+          obj.bounds = [[b.getSouthWest().lat, b.getSouthWest().lng], [b.getNorthEast().lat, b.getNorthEast().lng]];
+        } else if (type === "circle") {
+          const c = layer.getLatLng();
+          obj.center = [c.lat, c.lng];
+          obj.radius = layer.getRadius();
+        }
+
+        state.objects.push(obj);
+        saveState();
+        redrawObjects();
+      }
+
+      function clearArrowPreview() {
+        arrowStart = null;
+        if (arrowPreview) {
+          if (arrowPreview.__startDot) map.removeLayer(arrowPreview.__startDot);
+          map.removeLayer(arrowPreview);
+          arrowPreview = null;
+        }
+      }
+
+      function updateArrowPreview(endPoint) {
+        if (!arrowStart) return;
+        const latlngs = buildArrowLatLngs(arrowStart, endPoint);
+        if (!arrowPreview) {
+          arrowPreview = L.polyline(latlngs, {
+            color: "#111827", weight: 3, opacity: 0.8, dashArray: "7 6",
+            lineCap: "round", lineJoin: "round", interactive: false
+          }).addTo(map);
+        } else {
+          arrowPreview.setLatLngs(latlngs);
+        }
+      }
+
+      function startArrow() {
+        clearArrowPreview();
+        setMode("arrow");
+      }
+
+      function startRuler() {
+        rulerPoints = [];
+        if (rulerLine) {
+          map.removeLayer(rulerLine);
+          rulerLine = null;
+        }
+        rulerDots.forEach(d => map.removeLayer(d));
+        rulerDots = [];
+        updateRulerUI();
+        setMode("ruler");
+      }
+
+      function updateRulerUI() {
+        let total = 0;
+        for (let i = 1; i < rulerPoints.length; i++) {
+          total += map.distance(rulerPoints[i - 1], rulerPoints[i]);
+        }
+        $("rulerValue").textContent = formatDistance(total);
+        $("rulerPoints").textContent = `${rulerPoints.length} point${rulerPoints.length === 1 ? "" : "s"}`;
+
+        if (rulerLine) map.removeLayer(rulerLine);
+        rulerLine = rulerPoints.length >= 2
+          ? L.polyline(rulerPoints, { color: "#111827", weight: 3, dashArray: "8 7", opacity: 0.9 }).addTo(map)
+          : null;
+      }
+
+      function clearRuler() {
+        rulerPoints = [];
+        if (rulerLine) { map.removeLayer(rulerLine); rulerLine = null; }
+        rulerDots.forEach(d => map.removeLayer(d));
+        rulerDots = [];
+        updateRulerUI();
+      }
+
+      function finishRuler() {
+        if (rulerPoints.length < 2) {
+          setMode("select");
+          return;
+        }
+
+        const meters = rulerPoints.slice(1).reduce((acc, p, i) => acc + map.distance(rulerPoints[i], p), 0);
+        state.objects.push({
+          id: uid("ruler"),
+          type: "polyline",
+          visible: true,
+          latlngs: rulerPoints.map(p => [p.lat, p.lng]),
+          color: "#111827",
+          weight: 3,
+          fillOpacity: 0,
+          isRuler: true,
+          label: `Ruler • ${formatDistance(meters)}`
+        });
+        saveState();
+        clearRuler();
+        redrawObjects();
+        setMode("select");
+      }
+
+      function fitAll() {
+        if (!state.objects.length) {
+          map.setView(state.view.center, state.view.zoom);
+          return;
+        }
+        const layers = drawnItems.getLayers();
+        const bounds = L.featureGroup(layers).getBounds();
+        if (bounds.isValid()) map.fitBounds(bounds.pad(.22));
+      }
+
+      // ----- Map -----
+      loadState();
+
+      map = L.map("map", {
+        center: state.view.center,
+        zoom: state.view.zoom,
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 20,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      drawnItems = new L.FeatureGroup().addTo(map);
+
+      drawControl = new L.Control.Draw({
+        position: "topright",
+        draw: {
+          polyline: {
+            shapeOptions: { color: "#4f46e5", weight: 3 }
+          },
+          polygon: {
+            allowIntersection: false,
+            shapeOptions: { color: "#4f46e5", weight: 3, fillOpacity: 0.12 }
+          },
+          rectangle: {
+            shapeOptions: { color: "#4f46e5", weight: 3, fillOpacity: 0.10 }
+          },
+          circle: {
+            shapeOptions: { color: "#4f46e5", weight: 3, fillOpacity: 0.10 }
+          },
+          marker: false,
+          circlemarker: false
+        },
+        edit: false
+      });
+      map.addControl(drawControl);
+
+      // Hide Leaflet Draw by default; sidebar tools trigger it.
+      document.querySelector(".leaflet-draw-toolbar").style.display = "none";
+
+      redrawObjects();
+
+      map.on("mousemove", (e) => {
+        $("coordsText").textContent = `Lat ${e.latlng.lat.toFixed(5)}, Lng ${e.latlng.lng.toFixed(5)}`;
+      });
+
+      map.on("click", (e) => {
+        if (activeMode === "marker") {
+          addMarkerAt(e.latlng);
+        } else if (activeMode === "label") {
+          addLabelAt(e.latlng);
+        } else if (activeMode === "ruler") {
+          rulerPoints.push(e.latlng);
+          const dot = L.circleMarker(e.latlng, {
+            radius: 5, color: "#111827", weight: 2, fillColor: "#fff", fillOpacity: 1
+          }).addTo(map);
+          rulerDots.push(dot);
+          updateRulerUI();
+        } else if (activeMode === "arrow") {
+          if (!arrowStart) {
+            arrowStart = e.latlng;
+            $("modeText").textContent = "Arrow • click end";
+            const startDot = L.circleMarker(arrowStart, {
+              radius: 5, color: "#111827", weight: 2, fillColor: "#fff", fillOpacity: 1, interactive: false
+            }).addTo(map);
+            arrowPreview = L.polyline([arrowStart], {
+              color: "#111827", weight: 3, opacity: 0.8, dashArray: "7 6", interactive: false
+            }).addTo(map);
+            arrowPreview.__startDot = startDot;
+          } else {
+            const start = arrowStart;
+            const end = e.latlng;
+            const latlngs = buildArrowLatLngs(start, end);
+            state.objects.push({
+              id: uid("arrow"),
+              type: "arrow",
+              visible: true,
+              latlngs,
+              color: "#111827",
+              weight: 3,
+              fillOpacity: 0
+            });
+            clearArrowPreview();
+            saveState();
+            redrawObjects();
+            setMode("select");
+          }
+        }
+      });
+
+      map.on("mousemove", (e) => {
+        if (activeMode === "arrow" && arrowStart) updateArrowPreview(e.latlng);
+      });
+
+      map.on("draw:created", (e) => {
+        let type = e.layerType;
+        addDrawnObject(e.layer, type);
+        setMode("select");
+      });
+
+      map.on("moveend zoomend", saveState);
+
+      // ----- Icon grid -----
+      $("iconGrid").innerHTML = ICONS.map(([icon, title]) =>
+        `<button type="button" class="icon-choice ${icon === "fa-location-dot" ? "selected" : ""}" data-icon="${icon}" title="${title}">
+          <i class="fa-solid ${icon}"></i>
+        </button>`
+      ).join("");
+
+      $("iconGrid").addEventListener("click", (e) => {
+        const b = e.target.closest(".icon-choice");
+        if (!b) return;
+        document.querySelectorAll(".icon-choice").forEach(x => x.classList.remove("selected"));
+        b.classList.add("selected");
+      });
+
+      // ----- UI actions -----
+      $("markerTool").onclick = () => {
+        setMode("marker");
+      };
+
+      $("labelTool").onclick = () => {
+        setMode("label");
+      };
+
+      $("selectTool").onclick = () => setMode("select");
+      $("moveTool").onclick = () => setMode("move");
+
+      $("rulerTool").onclick = () => startRuler();
+
+      const startDraw = (kind) => {
+        if (kind === "arrow") {
+          startArrow();
+          return;
+        }
+        setMode("select");
+        const tool = {
+          polyline: ".leaflet-draw-draw-polyline",
+          polygon: ".leaflet-draw-draw-polygon",
+          rectangle: ".leaflet-draw-draw-rectangle",
+          circle: ".leaflet-draw-draw-circle"
+        }[kind];
+        document.querySelector(tool)?.click();
+      };
+
+      $("drawLine").onclick = () => startDraw("polyline");
+      $("drawArrow").onclick = () => startDraw("arrow");
+      $("drawPolygon").onclick = () => startDraw("polygon");
+      $("drawRect").onclick = () => startDraw("rectangle");
+      $("drawCircle").onclick = () => startDraw("circle");
+
+      $("addMarkerMini").onclick = () => {
+        const center = map.getCenter();
+        addMarkerAt(center);
+      };
+      $("groupSelectedBtn").onclick = groupSelectedObjects;
+
+      $("fitBtn").onclick = fitAll;
+      $("clearBtn").onclick = promptClear;
+
+      $("rulerUndo").onclick = () => {
+        if (!rulerPoints.length) return;
+        rulerPoints.pop();
+        const dot = rulerDots.pop();
+        if (dot) map.removeLayer(dot);
+        updateRulerUI();
+      };
+
+      $("rulerClear").onclick = clearRuler;
+      $("rulerFinish").onclick = finishRuler;
+
+      $("markerCancel").onclick = () => {
+        closeModal("markerModal");
+        pendingPoint = null;
+        pendingMarkerEditId = null;
+        setMode("select");
+      };
+      $("markerCancelTop").onclick = $("markerCancel").onclick;
+      $("markerSave").onclick = placeMarker;
+
+      $("labelCancel").onclick = () => {
+        closeModal("labelModal");
+        pendingPoint = null;
+        pendingLabelEditId = null;
+        setMode("select");
+      };
+      $("labelCancelTop").onclick = $("labelCancel").onclick;
+      $("labelSave").onclick = placeLabel;
+
+      $("editCancel").onclick = () => closeModal("editModal");
+      $("editCancelTop").onclick = () => closeModal("editModal");
+      $("editDelete").onclick = () => removeObject($("editModal").dataset.id);
+      $("editSave").onclick = saveEdit;
+
+      ["markerModal", "labelModal", "editModal"].forEach(id => {
+        $(id).addEventListener("click", (e) => {
+          if (e.target === $(id)) {
+            closeModal(id);
+            pendingPoint = null;
+            setMode("select");
+          }
+        });
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeMoveMenu();
+          closeModal("markerModal");
+          closeModal("labelModal");
+          closeModal("editModal");
+          setMode("select");
+        }
+      });
+
+      $("mobileMenuBtn").onclick = () => $("sidebar").classList.toggle("mobile-open");
+
+      // Export/import
+      $("exportBtn").onclick = () => {
+        saveState();
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `mapfun-export-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      $("importInput").addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          const parsed = JSON.parse(await file.text());
+          if (!parsed || !Array.isArray(parsed.objects)) throw new Error("Invalid MAPFUN file");
+          state.objects = parsed.objects;
+          state.groups = Array.isArray(parsed.groups) ? parsed.groups : [];
+          state.groups.forEach(g => {
+            if (g.visible === undefined) g.visible = true;
+            if (g.collapsed === undefined) g.collapsed = false;
+          });
+          selectedObjectIds.clear();
+          cleanupEmptyGroups();
+          state.view = parsed.view || state.view;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          map.setView(state.view.center, state.view.zoom);
+          redrawObjects();
+          setSaveStatus("Imported & saved");
+          setTimeout(() => setSaveStatus("Saved locally"), 1200);
+        } catch (err) {
+          alert("Could not import that file. Please choose a valid MAPFUN JSON export.");
+        }
+        e.target.value = "";
+      });
+
+      // Replace generic object labels for ruler lines in the layer list.
+      const originalRenderLayers = renderLayers;
+      window.renderLayers = originalRenderLayers;
+
+      // Prevent accidental page scroll while interacting with map.
+      map.getContainer().addEventListener("wheel", () => {}, { passive: true });
+
+      // Make custom drawn toolbar available through keyboard-friendly buttons if desired:
+      const drawModes = {
+        polyline: () => document.querySelector(".leaflet-draw-draw-polyline")?.click(),
+        polygon: () => document.querySelector(".leaflet-draw-draw-polygon")?.click(),
+        rectangle: () => document.querySelector(".leaflet-draw-draw-rectangle")?.click(),
+        circle: () => document.querySelector(".leaflet-draw-draw-circle")?.click()
+      };
+
+      // Small shortcut menu on right-click: useful on desktop.
+      map.on("contextmenu", (e) => {
+        e.originalEvent.preventDefault();
+        const pick = confirm("Add a marker here?\n\nOK = marker, Cancel = nothing");
+        if (pick) addMarkerAt(e.latlng);
+      });
+
+      // Ensure the saved canvas is immediately visible.
+      setMode("select");
+      setSaveStatus("Saved locally");
+    })();
+  </script>
+</body>
+</html>

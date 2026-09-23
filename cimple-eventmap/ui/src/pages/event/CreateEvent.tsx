@@ -8,6 +8,7 @@ import { eventTypesApi } from '../../lib/eventTypesApi';
 import { type EventType } from '../../lib/eventTypesApi';
 import { MapPin, Save, X, Plus, ImagePlus } from 'lucide-react';
 import { BASE_PATH } from '../../lib/base';
+import { Header } from '../../components/Header';
 
 /** File object returned by window.spaceFilePicker(token).showModal(onSelect) */
 interface SpaceFile {
@@ -195,17 +196,23 @@ const CreateEvent = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Create New Event</h1>
-                <button
-                    onClick={() => navigate(`${BASE_PATH}events`)}
-                    className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <X className="w-4 h-4" />
-                    Cancel
-                </button>
-            </div>
+        <div className="h-screen w-full flex flex-col bg-slate-50 overflow-hidden">
+            <Header />
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-4xl mx-auto p-4 md:p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Events Publisher</h1>
+                            <p className="text-xs text-gray-500">Publish and broadcast new geotagged event</p>
+                        </div>
+                        <button
+                            onClick={() => navigate(`${BASE_PATH}maps`)}
+                            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors text-xs font-semibold"
+                        >
+                            <X className="w-4 h-4" />
+                            Back to Map
+                        </button>
+                    </div>
 
             {error && (
                 <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
@@ -496,6 +503,8 @@ const CreateEvent = () => {
                     </button>
                 </div>
             </form>
+                </div>
+            </div>
         </div>
     );
 };

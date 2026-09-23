@@ -33,7 +33,7 @@ function run_schema_sql(ctx)
         return
     end
 
-    local result, ddlerr = potato.db.run_ddl(schema)
+    local _, ddlerr = potato.db.run_ddl(schema)
     if ddlerr ~= nil then
         req.json(500, {
             message = "Failed to apply schema: " .. tostring(ddlerr)
@@ -602,6 +602,8 @@ function get_feature(ctx, feature_id)
     req.json(200, feature)
 end
 
+-- Geopoly disabled (Turso SQLite does not support geopoly virtual tables)
+--[[
 -- Helper function to convert geometry to geopoly format
 -- Geopoly format: array of [x, y] coordinate pairs
 function geometry_to_geopoly(geometry, feature_type)
@@ -649,6 +651,7 @@ function geometry_to_geopoly(geometry, feature_type)
 
     return geopoly_coords
 end
+--]]
 
 function create_feature(ctx)
     local req = ctx.request()
@@ -679,7 +682,8 @@ function create_feature(ctx)
         return
     end
 
-    -- Insert into geopoly table for spatial queries
+    --[[
+    -- Insert into geopoly table for spatial queries (disabled for Turso SQLite)
     if body.geometry ~= nil then
         local geopoly_coords = geometry_to_geopoly(body.geometry, body.feature_type or "point")
         if geopoly_coords ~= nil then
@@ -696,6 +700,7 @@ function create_feature(ctx)
             end
         end
     end
+    --]]
 
     local createdFeature, fetchErr = potato.db.find_by_id("Features", id)
     if fetchErr ~= nil then
@@ -782,7 +787,8 @@ function update_feature(ctx, feature_id)
         return
     end
 
-    -- Update geopoly table if geometry changed
+    --[[
+    -- Update geopoly table if geometry changed (disabled for Turso SQLite)
     if body.geometry ~= nil then
         -- Delete existing geopoly entry
         local delete_geopoly = "DELETE FROM FeatureLocations WHERE feature_id = ?"
@@ -800,6 +806,7 @@ function update_feature(ctx, feature_id)
             end
         end
     end
+    --]]
 
     -- Get updated feature
     local updatedFeature, fetchErr = potato.db.find_by_id("Features", feature_id)
@@ -848,9 +855,11 @@ function delete_feature(ctx, feature_id)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    -- Delete from geopoly table first
+    --[[
+    -- Delete from geopoly table first (disabled for Turso SQLite)
     local delete_geopoly = "DELETE FROM FeatureLocations WHERE feature_id = ?"
     potato.db.run_query(delete_geopoly, feature_id)
+    --]]
 
     -- Delete from Features table
     local err = potato.db.delete_by_id("Features", feature_id)

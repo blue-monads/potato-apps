@@ -50,65 +50,112 @@ export interface Feature {
     created_at: string;
 }
 
-// Normalize geometry to ensure it's in the correct format
-function normalizeGeometry(geometry: any, featureType: 'point' | 'line' | 'area'): any {
+export function sanitizePoint(pt: any): [number, number] | null {
+    if (!pt) return null;
+    if (Array.isArray(pt) && pt.length >= 2) {
+        const lat = typeof pt[0] === 'number' ? pt[0] : parseFloat(pt[0]);
+        const lng = typeof pt[1] === 'number' ? pt[1] : parseFloat(pt[1]);
+        if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+    }
+    if (typeof pt === 'object' && pt !== null) {
+        const lat = typeof pt.lat === 'number' ? pt.lat : parseFloat(pt.lat ?? pt.latitude);
+        const lng = typeof pt.lng === 'number' ? pt.lng : parseFloat(pt.lng ?? pt.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+    }
+    if (typeof pt === 'string') {
+        const cleaned = pt.replace(/[\[\]]/g, '').trim();
+        const parts = cleaned.split(/[\s,]+/).filter(p => p.length > 0);
+        if (parts.length >= 2) {
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+            if (!isNaN(lat) && !isNaN(lng)) return [lat, lng];
+        }
+    }
+    return null;
+}
+
+export function isValidPoint(geom: any): geom is [number, number] {
+    return Array.isArray(geom) && 
+           geom.length === 2 && 
+           typeof geom[0] === 'number' && 
+           typeof geom[1] === 'number' && 
+           !isNaN(geom[0]) && 
+           !isNaN(geom[1]);
+}
+
+export function isValidLine(geom: any): geom is [number, number][] {
+    return Array.isArray(geom) && 
+           geom.length >= 2 && 
+           geom.every(isValidPoint);
+}
+
+export function isValidArea(geom: any): geom is [number, number][] {
+    return Array.isArray(geom) && 
+           geom.length >= 3 && 
+           geom.every(isValidPoint);
+}
+
+// Normalize geometry to ensure it's in the correct format and free of nulls
+export function normalizeGeometry(geometry: any, featureType: string): any {
     if (!geometry) return null;
 
-    // Point: should be [lat, lng]
-    if (featureType === 'point') {
-        if (Array.isArray(geometry) && geometry.length === 2) {
-            const [lat, lng] = geometry;
-            if (typeof lat === 'number' && typeof lng === 'number') {
-                return [lat, lng];
-            }
-            // Try to parse if they're strings
-            const parsedLat = typeof lat === 'string' ? parseFloat(lat) : lat;
-            const parsedLng = typeof lng === 'string' ? parseFloat(lng) : lng;
-            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                return [parsedLat, parsedLng];
-            }
+    // GeoJSON Feature or Geometry object
+    if (typeof geometry === 'object' && !Array.isArray(geometry)) {
+        if (geometry.coordinates) {
+            geometry = geometry.coordinates;
+        } else if (geometry.geometry && geometry.geometry.coordinates) {
+            geometry = geometry.geometry.coordinates;
+        } else {
+            const pt = sanitizePoint(geometry);
+            if (pt && featureType === 'point') return pt;
         }
-        return null;
     }
 
-    // Line/Area: should be [[lat, lng], [lat, lng], ...]
+    if (featureType === 'point') {
+        return sanitizePoint(geometry);
+    }
+
     if (featureType === 'line' || featureType === 'area') {
         if (!Array.isArray(geometry)) return null;
-        
-        return geometry.map((coord: any) => {
-            // If coord is already a valid [lat, lng] pair
-            if (Array.isArray(coord) && coord.length === 2) {
-                const [lat, lng] = coord;
-                if (typeof lat === 'number' && typeof lng === 'number') {
-                    return [lat, lng];
-                }
-                // Try to parse if they're strings
-                const parsedLat = typeof lat === 'string' ? parseFloat(lat) : lat;
-                const parsedLng = typeof lng === 'string' ? parseFloat(lng) : lng;
-                if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                    return [parsedLat, parsedLng];
-                }
-            }
-            
-            // If coord is a string like "[51.5 -0.1]" or "[51.5, -0.1]"
-            if (typeof coord === 'string') {
-                // Remove brackets and split by space or comma
-                const cleaned = coord.replace(/[\[\]]/g, '').trim();
-                const parts = cleaned.split(/[\s,]+/).filter(p => p.length > 0);
-                if (parts.length >= 2) {
-                    const lat = parseFloat(parts[0]);
-                    const lng = parseFloat(parts[1]);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        return [lat, lng];
-                    }
-                }
-            }
-            
-            return null;
-        }).filter((coord: any) => coord !== null && Array.isArray(coord) && coord.length === 2);
+
+        // Flatten nested rings if any: [[[lat, lng], ...]] -> [[lat, lng], ...]
+        let points = geometry;
+        while (Array.isArray(points) && points.length === 1 && Array.isArray(points[0]) && Array.isArray(points[0][0])) {
+            points = points[0];
+        }
+
+        const result: [number, number][] = [];
+        for (const item of points) {
+            const pt = sanitizePoint(item);
+            if (pt) result.push(pt);
+        }
+
+        if (featureType === 'line') {
+            return result.length >= 2 ? result : null;
+        }
+        if (featureType === 'area') {
+            return result.length >= 3 ? result : null;
+        }
     }
 
     return null;
+}
+
+function processFeature(feature: Feature): Feature {
+    if (feature.geometry) {
+        feature.geometry = normalizeGeometry(feature.geometry, feature.feature_type);
+    } else if (feature.geometry_data && feature.geometry_data !== '{}') {
+        try {
+            const parsed = JSON.parse(feature.geometry_data);
+            feature.geometry = normalizeGeometry(parsed, feature.feature_type);
+        } catch (e) {
+            console.error('Failed to parse geometry:', e);
+            feature.geometry = null;
+        }
+    } else {
+        feature.geometry = null;
+    }
+    return feature;
 }
 
 export const featuresApi = {
@@ -126,20 +173,7 @@ export const featuresApi = {
             return [];
         }
         // Parse geometry_data for each feature
-        return data.map(feature => {
-            // First try to use geometry if it's already parsed
-            if (feature.geometry) {
-                feature.geometry = normalizeGeometry(feature.geometry, feature.feature_type);
-            } else if (feature.geometry_data && feature.geometry_data !== '{}') {
-                try {
-                    const parsed = JSON.parse(feature.geometry_data);
-                    feature.geometry = normalizeGeometry(parsed, feature.feature_type);
-                } catch (e) {
-                    console.error('Failed to parse geometry:', e);
-                }
-            }
-            return feature;
-        });
+        return data.map(processFeature);
     },
     
     get: async (id: number): Promise<Feature> => {
@@ -147,19 +181,7 @@ export const featuresApi = {
         if (response.error) {
             throw new Error(response.error);
         }
-        const feature = response.data!;
-        // First try to use geometry if it's already parsed
-        if (feature.geometry) {
-            feature.geometry = normalizeGeometry(feature.geometry, feature.feature_type);
-        } else if (feature.geometry_data && feature.geometry_data !== '{}') {
-            try {
-                const parsed = JSON.parse(feature.geometry_data);
-                feature.geometry = normalizeGeometry(parsed, feature.feature_type);
-            } catch (e) {
-                console.error('Failed to parse geometry:', e);
-            }
-        }
-        return feature;
+        return processFeature(response.data!);
     },
     
     create: async (feature: Partial<Feature>): Promise<Feature> => {
@@ -176,7 +198,24 @@ export const featuresApi = {
         if (response.error) {
             throw new Error(response.error);
         }
-        return response.data!;
+        return processFeature(response.data!);
+    },
+    
+    update: async (id: number, feature: Partial<Feature>): Promise<Feature> => {
+        const response = await apiRequest<Feature>(`/features/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                name: feature.name,
+                description: feature.description,
+                color: feature.color,
+                feature_type: feature.feature_type,
+                geometry: feature.geometry,
+            }),
+        });
+        if (response.error) {
+            throw new Error(response.error);
+        }
+        return processFeature(response.data!);
     },
     
     delete: async (id: number): Promise<void> => {

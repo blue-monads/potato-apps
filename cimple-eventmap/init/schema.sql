@@ -9,7 +9,6 @@ create table if not exists EventTypes(
 );
 
 
-
 -- Event Feed
 create table if not exists Events(
     id INTEGER PRIMARY KEY,
@@ -30,11 +29,6 @@ create table if not exists EventImages(
     image_url TEXT NOT NULL
 );
 
-create VIRTUAL table if not exists EventLocations using geopoly(
-    event_id
-);
-
-
 create table if not exists Features(
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -43,8 +37,4 @@ create table if not exists Features(
     feature_type TEXT NOT NULL DEFAULT '', -- point, area, line
     geometry_data JSON NOT NULL DEFAULT '{}',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-create VIRTUAL table if not exists FeatureLocations using geopoly(
-    feature_id
 );

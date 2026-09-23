@@ -5,7 +5,8 @@ import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Layers, Trash2, Plus } from 'lucide-react';
 import { BASE_PATH } from '../../lib/base';
-import { featuresApi, type Feature } from '../../lib/featuresApi';
+import { featuresApi, type Feature, isValidPoint, isValidLine, isValidArea } from '../../lib/featuresApi';
+import { Header } from '../../components/Header';
 
 // Fix for default marker icons in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -51,7 +52,8 @@ const FeatureEditor = () => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="p-6 border-b border-gray-200">
+            <Header />
+            <div className="p-6 border-b border-gray-200 bg-white">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Layers className="w-6 h-6 text-gray-700" />
@@ -141,7 +143,7 @@ const FeatureEditor = () => {
                             {features.map((feature) => {
                                 if (!feature.geometry) return null;
                                 
-                                if (feature.feature_type === 'point') {
+                                if (feature.feature_type === 'point' && isValidPoint(feature.geometry)) {
                                     return (
                                         <Marker
                                             key={feature.id}
@@ -154,22 +156,22 @@ const FeatureEditor = () => {
                                             })}
                                         />
                                     );
-                                } else if (feature.feature_type === 'line') {
+                                } else if (feature.feature_type === 'line' && isValidLine(feature.geometry)) {
                                     return (
                                         <Polyline
                                             key={feature.id}
                                             positions={feature.geometry}
-                                            color={feature.color}
+                                            color={feature.color || '#3b82f6'}
                                             weight={3}
                                         />
                                     );
-                                } else if (feature.feature_type === 'area') {
+                                } else if (feature.feature_type === 'area' && isValidArea(feature.geometry)) {
                                     return (
                                         <Polygon
                                             key={feature.id}
-                                            positions={[...feature.geometry, feature.geometry[0]]}
-                                            color={feature.color}
-                                            fillColor={feature.color}
+                                            positions={feature.geometry}
+                                            color={feature.color || '#10b981'}
+                                            fillColor={feature.color || '#10b981'}
                                             fillOpacity={0.3}
                                             weight={2}
                                         />
