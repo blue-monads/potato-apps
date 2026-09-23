@@ -9,6 +9,7 @@ interface CreateColumnModalProps {
 const CreateColumnModal = ({ tableId, onSave, onCancel }: CreateColumnModalProps) => {
     return (
         <ColumnCoreModal
+            currentTableId={tableId}
             onSave={async (values) => {
                 await onSave({
                     table_id: tableId,

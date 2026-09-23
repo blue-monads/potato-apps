@@ -182,20 +182,22 @@ local function ensure_actual_table(table_id)
     if columns ~= nil and type(columns) == "table" and #columns > 0 then
         local existing_cols = get_existing_table_columns(table_name)
         for _, col in ipairs(columns) do
-            local slug = col.slug
-            if slug == nil or slug == "" then
-                slug = generate_column_slug(table_id, col.name)
-                col.slug = slug
-                potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
-            end
-            if not existing_cols[string.lower(slug)] then
-                local col_type_sql = sql_type_for_column(col.column_type)
-                local alter_ddl = string.format("ALTER TABLE %s ADD COLUMN %s %s", table_name, slug, col_type_sql)
-                local _, alter_err = potato.db.run_ddl(alter_ddl)
-                if alter_err ~= nil then
-                    print("ensure_actual_table alter_ddl err:", alter_err)
+            if col.column_type ~= "reverse_ref" then
+                local slug = col.slug
+                if slug == nil or slug == "" then
+                    slug = generate_column_slug(table_id, col.name)
+                    col.slug = slug
+                    potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
                 end
-                existing_cols[string.lower(slug)] = true
+                if not existing_cols[string.lower(slug)] then
+                    local col_type_sql = sql_type_for_column(col.column_type)
+                    local alter_ddl = string.format("ALTER TABLE %s ADD COLUMN %s %s", table_name, slug, col_type_sql)
+                    local _, alter_err = potato.db.run_ddl(alter_ddl)
+                    if alter_err ~= nil then
+                        print("ensure_actual_table alter_ddl err:", alter_err)
+                    end
+                    existing_cols[string.lower(slug)] = true
+                end
             end
         end
     end
@@ -504,12 +506,14 @@ function create_column(ctx)
         return
     end
 
-    -- Run DDL to add column to Actual<table_id>
-    local col_type_sql = sql_type_for_column(column.column_type)
-    local ddl = string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql)
-    local _, ddl_err = potato.db.run_ddl(ddl)
-    if ddl_err ~= nil then
-        print("Warning: ALTER TABLE ADD COLUMN error:", ddl_err)
+    if column.column_type ~= "reverse_ref" then
+        -- Run DDL to add column to Actual<table_id>
+        local col_type_sql = sql_type_for_column(column.column_type)
+        local ddl = string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql)
+        local _, ddl_err = potato.db.run_ddl(ddl)
+        if ddl_err ~= nil then
+            print("Warning: ALTER TABLE ADD COLUMN error:", ddl_err)
+        end
     end
     
     local result, fetch_err = potato.db.find_by_id("DatatableColumns", id)
@@ -635,7 +639,9 @@ function query_datatable(ctx, table_id)
                 col.slug = slug
                 potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
             end
-            allowed_cols[slug] = true
+            if col.column_type ~= "reverse_ref" then
+                allowed_cols[slug] = true
+            end
             table.insert(cols_array, col)
             if col.column_type == "text" or col.column_type == "textarea" or col.column_type == "link" or col.column_type == "image" or col.column_type == "file" or col.column_type == "email" or col.column_type == "barcode" then
                 table.insert(text_cols, slug)
@@ -904,6 +910,165 @@ function resolve_ref_ids(ctx, table_id)
     })
 end
 
+function resolve_reverse_refs(ctx, table_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local data = req.bind_json() or {}
+    local target_table_id = tonumber(data.target_table_id)
+    local target_column_slug = data.target_column_slug
+    local row_ids = data.row_ids or {}
+
+    if target_table_id == nil or target_column_slug == nil or target_column_slug == "" then
+        req.json(400, { error = "target_table_id and target_column_slug are required" })
+        return
+    end
+
+    if type(row_ids) ~= "table" or #row_ids == 0 then
+        req.json(200, {
+            target_table_id = target_table_id,
+            target_column_slug = target_column_slug,
+            mapping = {},
+            rows = {}
+        })
+        return
+    end
+
+    local valid_ids = {}
+    local seen = {}
+    for _, id_val in ipairs(row_ids) do
+        local n = tonumber(id_val)
+        if n ~= nil and not seen[n] then
+            seen[n] = true
+            table.insert(valid_ids, n)
+        end
+    end
+
+    if #valid_ids == 0 then
+        req.json(200, {
+            target_table_id = target_table_id,
+            target_column_slug = target_column_slug,
+            mapping = {},
+            rows = {}
+        })
+        return
+    end
+
+    local actual_tbl = ensure_actual_table(target_table_id)
+    local target_columns = get_table_columns(target_table_id)
+    local target_cols_array = {}
+    local target_col_def = nil
+    if target_columns ~= nil and type(target_columns) == "table" then
+        for _, col in ipairs(target_columns) do
+            if col.slug and col.slug ~= "" then
+                table.insert(target_cols_array, col)
+                if col.slug == target_column_slug then
+                    target_col_def = col
+                end
+            end
+        end
+    end
+
+    -- Determine query strategy based on column type
+    local is_multi = false
+    if target_col_def ~= nil and (target_col_def.column_type == "multiref" or target_col_def.column_type == "text") then
+        is_multi = true
+    end
+
+    local query_rows = nil
+    local query_err = nil
+
+    if not is_multi then
+        -- Single ref: use simple IN (?, ?, ...)
+        local placeholders = {}
+        for i = 1, #valid_ids do
+            table.insert(placeholders, "?")
+        end
+        local in_clause = table.concat(placeholders, ", ")
+        local sql = string.format("SELECT * FROM %s WHERE %s IN (%s)", actual_tbl, target_column_slug, in_clause)
+        query_rows, query_err = potato.db.run_query(sql, _unpack(valid_ids))
+    else
+        -- Multi ref: target column can be single ID, comma-separated "1,2", or "[1, 2]"
+        local clauses = {}
+        local params = {}
+        for _, id in ipairs(valid_ids) do
+            local s_id = tostring(id)
+            table.insert(clauses, string.format(
+                "(%s = ? OR %s LIKE ? OR %s LIKE ? OR %s LIKE ?)",
+                target_column_slug, target_column_slug, target_column_slug, target_column_slug
+            ))
+            table.insert(params, s_id)
+            table.insert(params, s_id .. ",%")
+            table.insert(params, "%," .. s_id)
+            table.insert(params, "%," .. s_id .. ",%")
+        end
+        local sql = string.format("SELECT * FROM %s WHERE %s", actual_tbl, table.concat(clauses, " OR "))
+        query_rows, query_err = potato.db.run_query(sql, _unpack(params))
+    end
+
+    if query_err ~= nil then
+        print("resolve_reverse_refs query_err:", query_err)
+    end
+
+    -- Helper to check if a row value contains a specific id
+    local function row_matches_id(val, check_id)
+        if val == nil then return false end
+        if type(val) == "number" then
+            return val == check_id
+        end
+        local s = tostring(val):gsub("%s+", "")
+        if s == tostring(check_id) then return true end
+        for part in string.gmatch(s, "([^,]+)") do
+            part = part:gsub("[^%d]", "")
+            if tonumber(part) == check_id then
+                return true
+            end
+        end
+        return false
+    end
+
+    local mapping = {}
+    for _, id in ipairs(valid_ids) do
+        mapping[tostring(id)] = {}
+    end
+
+    local result_rows = {}
+    local seen_rows = {}
+
+    if query_rows ~= nil and type(query_rows) == "table" then
+        for _, arow in ipairs(query_rows) do
+            local r_id = tonumber(arow.id) or arow.id
+            if not seen_rows[r_id] then
+                seen_rows[r_id] = true
+                local r = {
+                    id = r_id,
+                    created_at = arow.created_at or "",
+                    updated_at = arow.updated_at or ""
+                }
+                for _, col in ipairs(target_cols_array) do
+                    r[col.slug] = arow[col.slug] or ""
+                end
+                table.insert(result_rows, r)
+            end
+
+            local raw_val = arow[target_column_slug]
+            for _, id in ipairs(valid_ids) do
+                if row_matches_id(raw_val, id) then
+                    table.insert(mapping[tostring(id)], r_id)
+                end
+            end
+        end
+    end
+
+    req.json(200, {
+        target_table_id = target_table_id,
+        target_column_slug = target_column_slug,
+        mapping = mapping,
+        rows = result_rows
+    })
+end
+
 function seed_datatable_rows(ctx, table_id)
     local req = ctx.request()
     local userId = get_user_id(req)
@@ -935,7 +1100,7 @@ function seed_datatable_rows(ctx, table_id)
             updated_at = now_ts
         }
         for _, col in ipairs(columns) do
-            if col.slug and col.slug ~= "" and r[col.slug] ~= nil then
+            if col.column_type ~= "reverse_ref" and col.slug and col.slug ~= "" and r[col.slug] ~= nil then
                 new_row[col.slug] = r[col.slug]
             end
         end
@@ -1017,7 +1182,7 @@ function create_row(ctx)
     -- Accept row values by column slug (data.task or data.data.task)
     local source = data.data or data
     for _, col in ipairs(columns) do
-        if col.slug and col.slug ~= "" and source[col.slug] ~= nil then
+        if col.column_type ~= "reverse_ref" and col.slug and col.slug ~= "" and source[col.slug] ~= nil then
             new_row[col.slug] = source[col.slug]
         end
     end
@@ -1025,9 +1190,16 @@ function create_row(ctx)
     -- If submitted as cells array [{ column_id, value }]
     if data.cells ~= nil and type(data.cells) == "table" then
         for _, c in ipairs(data.cells) do
-            local slug = col_map_by_id[tonumber(c.column_id) or c.column_id]
-            if slug ~= nil and slug ~= "" then
-                new_row[slug] = c.value or ""
+            local c_id = tonumber(c.column_id) or c.column_id
+            local col_obj = nil
+            for _, col in ipairs(columns) do
+                if (tonumber(col.id) or col.id) == c_id then
+                    col_obj = col
+                    break
+                end
+            end
+            if col_obj and col_obj.column_type ~= "reverse_ref" and col_obj.slug and col_obj.slug ~= "" then
+                new_row[col_obj.slug] = c.value or ""
             end
         end
     end
@@ -1103,7 +1275,7 @@ function update_row(ctx, row_id)
     -- Accept row values by column slug (data.task or data.data.task)
     local source = data.data or data
     for _, col in ipairs(columns) do
-        if col.slug and col.slug ~= "" and source[col.slug] ~= nil then
+        if col.column_type ~= "reverse_ref" and col.slug and col.slug ~= "" and source[col.slug] ~= nil then
             updates[col.slug] = source[col.slug]
         end
     end
@@ -1111,9 +1283,16 @@ function update_row(ctx, row_id)
     -- If submitted as cells array [{ column_id, value }]
     if data.cells ~= nil and type(data.cells) == "table" then
         for _, c in ipairs(data.cells) do
-            local slug = col_map_by_id[tonumber(c.column_id) or c.column_id]
-            if slug ~= nil and slug ~= "" then
-                updates[slug] = c.value or ""
+            local c_id = tonumber(c.column_id) or c.column_id
+            local col_obj = nil
+            for _, col in ipairs(columns) do
+                if (tonumber(col.id) or col.id) == c_id then
+                    col_obj = col
+                    break
+                end
+            end
+            if col_obj and col_obj.column_type ~= "reverse_ref" and col_obj.slug and col_obj.slug ~= "" then
+                updates[col_obj.slug] = c.value or ""
             end
         end
     end
@@ -1384,6 +1563,18 @@ function on_http(ctx)
 
     if path == "/resolve_ref_ids" and method == "POST" then
         return resolve_ref_ids(ctx)
+    end
+
+    local resolve_rev_match = string.match(path, "^/datatables/(%d+)/resolve_reverse_refs$")
+    if resolve_rev_match and method == "POST" then
+        local table_id = tonumber(resolve_rev_match)
+        if table_id ~= nil then
+            return resolve_reverse_refs(ctx, table_id)
+        end
+    end
+
+    if path == "/resolve_reverse_refs" and method == "POST" then
+        return resolve_reverse_refs(ctx)
     end
 
     local query_match = string.match(path, "^/datatables/(%d+)/query$")

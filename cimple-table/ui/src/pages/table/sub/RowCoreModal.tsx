@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { type Datatable, type DatatableRow, type DatatableColumn } from "../../../lib/api";
 import { getCellValue } from "./columnTypes";
-import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
+import {
+    parseRefOptions,
+    parseRefIds,
+    parseReverseRefOptions,
+    getRowIdentityText,
+    useRefResolution,
+    useReverseRefResolution,
+} from "../../../lib/refCache";
 import RefPickerModal from "./RefPickerModal";
 import {
     parseFileValue,
@@ -203,6 +210,101 @@ const MultiRefFieldInput = ({
                         Clear All ({ids.length})
                     </button>
                 )}
+            </div>
+        </div>
+    );
+};
+
+const RowRefBadge = ({
+    tableId,
+    rowId,
+    identityColSlug,
+}: {
+    tableId: number;
+    rowId: number;
+    identityColSlug?: string;
+}) => {
+    const resolvedRow = useRefResolution(tableId, rowId);
+    const identityText = getRowIdentityText(resolvedRow, identityColSlug);
+
+    return (
+        <span
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-white text-surface-700 border border-surface-200 shadow-2xs"
+            title={`Referenced record #${rowId} in table ${tableId}`}
+        >
+            <i className="fa-solid fa-arrow-up-right-from-square text-[9px] text-accent-500" />
+            <span className="truncate max-w-[150px]">{identityText || `#${rowId}`}</span>
+            {identityText && <span className="text-[10px] text-surface-400 font-mono">#{rowId}</span>}
+        </span>
+    );
+};
+
+const ReverseRefFieldView = ({
+    column,
+    row,
+}: {
+    column: DatatableColumn;
+    row?: DatatableRow;
+}) => {
+    const opts = parseReverseRefOptions(column.options);
+    const targetTableId = opts?.target_table_id;
+    const targetColSlug = opts?.target_column_slug;
+
+    if (!row || !targetTableId || !targetColSlug) {
+        return (
+            <div className="p-3 bg-surface-50 border border-surface-200 rounded-lg text-xs text-surface-400 italic">
+                {!row ? "Save this row first to view linked reverse references." : "Target table or foreign key column not configured."}
+            </div>
+        );
+    }
+
+    const { loading, refIds } = useReverseRefResolution(
+        column.table_id,
+        column.slug,
+        row.id,
+        targetTableId,
+        targetColSlug
+    );
+
+    const ids = Array.isArray(refIds) ? refIds : [];
+
+    return (
+        <div className="space-y-2 p-3 bg-surface-50 border border-surface-200 rounded-lg">
+            <div className="flex items-center justify-between text-xs text-surface-600">
+                <span className="font-medium flex items-center gap-1.5">
+                    <i className="fa-solid fa-reply text-[10px] text-accent-600" />
+                    <span>Referencing Records ({loading ? "..." : ids.length})</span>
+                </span>
+                <span className="text-[10px] text-surface-400 font-mono">
+                    Table #{targetTableId} &rarr; {targetColSlug}
+                </span>
+            </div>
+
+            {loading ? (
+                <div className="flex items-center gap-2 py-2 text-xs text-surface-500 animate-pulse">
+                    <i className="fa-solid fa-spinner fa-spin text-accent-500" />
+                    <span>Loading linked references...</span>
+                </div>
+            ) : ids.length === 0 ? (
+                <div className="py-2 text-xs text-surface-400 italic">
+                    No records in Table #{targetTableId} currently reference this row.
+                </div>
+            ) : (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                    {ids.map(id => (
+                        <RowRefBadge
+                            key={id}
+                            tableId={targetTableId}
+                            rowId={id}
+                            identityColSlug={opts?.identity_column}
+                        />
+                    ))}
+                </div>
+            )}
+
+            <div className="text-[10px] text-surface-400 border-t border-surface-200/60 pt-1.5 flex items-center gap-1">
+                <i className="fa-solid fa-circle-info text-[9px]" />
+                <span>Reverse references are computed automatically from records in Table #{targetTableId}.</span>
             </div>
         </div>
     );
@@ -867,6 +969,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
         let hasErrors = false;
 
         table.columns?.forEach(column => {
+            if (column.column_type === 'reverse_ref') return;
             if (column.required) {
                 const value = cellValues[column.slug] || "";
                 if (!value.trim()) {
@@ -879,7 +982,13 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
         setValidationErrors(errors);
 
         if (!hasErrors) {
-            onSave(cellValues);
+            const payload: Record<string, string> = {};
+            table.columns?.forEach(column => {
+                if (column.column_type !== 'reverse_ref') {
+                    payload[column.slug] = cellValues[column.slug] !== undefined ? cellValues[column.slug] : "";
+                }
+            });
+            onSave(payload);
         }
     };
 
@@ -900,6 +1009,14 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
         const onChange = (val: string) => handleValueChange(column.slug, val);
 
         switch (column.column_type) {
+            case 'reverse_ref':
+                return (
+                    <ReverseRefFieldView
+                        column={column}
+                        row={row}
+                    />
+                );
+
             case 'ref':
                 return (
                     <RefFieldInput

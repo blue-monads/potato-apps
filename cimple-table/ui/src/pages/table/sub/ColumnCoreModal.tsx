@@ -5,7 +5,7 @@ import {
     type Datatable,
     type DatatableColumn,
 } from "../../../lib/api";
-import { parseRefOptions, getIdentityColumn } from "../../../lib/refCache";
+import { parseRefOptions, parseReverseRefOptions, getIdentityColumn } from "../../../lib/refCache";
 import { getTypeIcon } from "./columnTypes";
 import IconSelector from "./IconSelector";
 
@@ -20,13 +20,14 @@ export interface ColumnCoreValues {
 
 interface ColumnCoreModalProps {
     initialValues?: ColumnCoreValues;
+    currentTableId?: number;
     onSave: (values: ColumnCoreValues) => Promise<void>;
     onCancel: () => void;
     onDelete?: () => Promise<void>;
     submitLabel: string;
 }
 
-const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabel }: ColumnCoreModalProps) => {
+const ColumnCoreModal = ({ initialValues, currentTableId, onSave, onCancel, onDelete, submitLabel }: ColumnCoreModalProps) => {
     const [name, setName] = useState(initialValues?.name || "");
     const [columnType, setColumnType] = useState(initialValues?.column_type || "text");
     const [icon, setIcon] = useState(initialValues?.icon || "");
@@ -34,14 +35,16 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
     const [required, setRequired] = useState(initialValues?.required || false);
     const [options, setOptions] = useState(initialValues?.options || "");
 
-    // State for Ref column configuration
+    // State for Ref and Reverse Ref column configuration
     const [allTables, setAllTables] = useState<Datatable[]>([]);
     const [refTargetTableId, setRefTargetTableId] = useState<number>(0);
     const [refIdentityCol, setRefIdentityCol] = useState<string>("");
+    const [revTargetColSlug, setRevTargetColSlug] = useState<string>("");
     const [targetColumns, setTargetColumns] = useState<DatatableColumn[]>([]);
 
     const needsOptions = columnType === 'dropdown' || columnType === 'multiselect' || columnType === 'radio';
     const isRefType = columnType === 'ref' || columnType === 'multiref';
+    const isReverseRefType = columnType === 'reverse_ref';
 
     const columnTypes = [
         { id: "text", label: "Text" },
@@ -55,6 +58,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
         { id: "multiselect", label: "Multi-select" },
         { id: "ref", label: "Table Ref" },
         { id: "multiref", label: "Table Multi-Ref" },
+        { id: "reverse_ref", label: "Table Reverse Ref" },
         { id: "link", label: "Link" },
         { id: "textarea", label: "Textarea" },
         { id: "image", label: "Image" },
@@ -73,7 +77,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
         });
     }, []);
 
-    // Initialize ref options if editing an existing ref column
+    // Initialize ref / reverse ref options if editing an existing column
     useEffect(() => {
         if (isRefType && options) {
             const parsed = parseRefOptions(options);
@@ -81,10 +85,17 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                 setRefTargetTableId(parsed.target_table_id);
                 setRefIdentityCol(parsed.identity_column || "");
             }
+        } else if (isReverseRefType && options) {
+            const parsed = parseReverseRefOptions(options);
+            if (parsed?.target_table_id) {
+                setRefTargetTableId(parsed.target_table_id);
+                setRevTargetColSlug(parsed.target_column_slug || "");
+                setRefIdentityCol(parsed.identity_column || "");
+            }
         }
-    }, [isRefType]);
+    }, [isRefType, isReverseRefType]);
 
-    // Load columns for selected ref target table
+    // Load columns for selected ref / reverse ref target table
     useEffect(() => {
         if (refTargetTableId > 0) {
             getDatatable(refTargetTableId).then(res => {
@@ -92,40 +103,100 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                     const cols = res.data.columns;
                     setTargetColumns(cols);
 
+                    let chosenRevCol = revTargetColSlug;
+                    if (isReverseRefType && !chosenRevCol) {
+                        const matchingCol = cols.find(c => {
+                            if (c.column_type === 'ref' || c.column_type === 'multiref') {
+                                const parsed = parseRefOptions(c.options);
+                                return parsed?.target_table_id === currentTableId;
+                            }
+                            return false;
+                        });
+                        if (matchingCol) {
+                            chosenRevCol = matchingCol.slug;
+                            setRevTargetColSlug(matchingCol.slug);
+                        } else {
+                            const firstRef = cols.find(c => c.column_type === 'ref' || c.column_type === 'multiref');
+                            if (firstRef) {
+                                chosenRevCol = firstRef.slug;
+                                setRevTargetColSlug(firstRef.slug);
+                            }
+                        }
+                    }
+
                     // Auto-select identity column if not already selected
-                    if (!refIdentityCol) {
+                    let chosenIdentity = refIdentityCol;
+                    if (!chosenIdentity) {
                         const autoIdCol = getIdentityColumn(cols);
                         if (autoIdCol) {
+                            chosenIdentity = autoIdCol.slug;
                             setRefIdentityCol(autoIdCol.slug);
-                            setOptions(JSON.stringify({
-                                target_table_id: refTargetTableId,
-                                identity_column: autoIdCol.slug,
-                            }));
                         }
+                    }
+
+                    if (isReverseRefType) {
+                        setOptions(JSON.stringify({
+                            target_table_id: refTargetTableId,
+                            target_column_slug: chosenRevCol || "",
+                            identity_column: chosenIdentity || "",
+                        }));
+                    } else if (isRefType) {
+                        setOptions(JSON.stringify({
+                            target_table_id: refTargetTableId,
+                            identity_column: chosenIdentity || "",
+                        }));
                     }
                 }
             });
         }
-    }, [refTargetTableId]);
+    }, [refTargetTableId, isReverseRefType, isRefType]);
 
     const handleRefTableChange = (tid: number) => {
         setRefTargetTableId(tid);
         setRefIdentityCol("");
+        setRevTargetColSlug("");
+        if (isReverseRefType) {
+            setOptions(JSON.stringify({
+                target_table_id: tid,
+                target_column_slug: "",
+                identity_column: "",
+            }));
+        } else {
+            setOptions(JSON.stringify({
+                target_table_id: tid,
+                identity_column: "",
+            }));
+        }
+    };
+
+    const handleRevTargetColChange = (colSlug: string) => {
+        setRevTargetColSlug(colSlug);
         setOptions(JSON.stringify({
-            target_table_id: tid,
-            identity_column: "",
+            target_table_id: refTargetTableId,
+            target_column_slug: colSlug,
+            identity_column: refIdentityCol,
         }));
     };
 
     const handleRefIdentityChange = (colSlug: string) => {
         setRefIdentityCol(colSlug);
-        setOptions(JSON.stringify({
-            target_table_id: refTargetTableId,
-            identity_column: colSlug,
-        }));
+        if (isReverseRefType) {
+            setOptions(JSON.stringify({
+                target_table_id: refTargetTableId,
+                target_column_slug: revTargetColSlug,
+                identity_column: colSlug,
+            }));
+        } else {
+            setOptions(JSON.stringify({
+                target_table_id: refTargetTableId,
+                identity_column: colSlug,
+            }));
+        }
     };
 
-    const canSubmit = name.trim().length > 0 && (!isRefType || refTargetTableId > 0);
+    const canSubmit = name.trim().length > 0 && 
+        (!isRefType || refTargetTableId > 0) &&
+        (!isReverseRefType || (refTargetTableId > 0 && revTargetColSlug.trim().length > 0));
 
     return (
         <div className="space-y-4">
@@ -150,7 +221,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                                 onChange={(e) => {
                                     const newType = e.target.value;
                                     setColumnType(newType);
-                                    if ((newType === 'ref' || newType === 'multiref') && allTables.length > 0 && refTargetTableId === 0) {
+                                    if ((newType === 'ref' || newType === 'multiref' || newType === 'reverse_ref') && allTables.length > 0 && refTargetTableId === 0) {
                                         handleRefTableChange(allTables[0].id);
                                     }
                                 }}
@@ -176,17 +247,17 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                     </div>
                 </div>
 
-                {/* Table Ref Configuration */}
-                {isRefType && (
+                {/* Table Ref / Reverse Ref Configuration */}
+                {(isRefType || isReverseRefType) && (
                     <div className="p-3 bg-accent-50/60 border border-accent-200 rounded-lg space-y-3">
                         <div className="flex items-center gap-2 text-accent-800 text-xs font-bold">
-                            <i className="fa-solid fa-link text-[11px]" />
-                            <span>Table Reference Settings</span>
+                            <i className={`fa-solid fa-${isReverseRefType ? 'reply' : 'link'} text-[11px]`} />
+                            <span>{isReverseRefType ? 'Table Reverse Ref Settings' : 'Table Reference Settings'}</span>
                         </div>
 
                         <div className="space-y-1">
                             <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider">
-                                Target Datatable
+                                {isReverseRefType ? 'Referencing Datatable (Source of Records)' : 'Target Datatable'}
                             </label>
                             <div className="relative">
                                 <select
@@ -194,7 +265,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                                     onChange={(e) => handleRefTableChange(Number(e.target.value))}
                                     className="w-full bg-white border border-surface-300 rounded px-3 py-1.5 text-xs outline-none focus:border-accent-600 appearance-none cursor-pointer pr-8"
                                 >
-                                    <option value={0}>-- Select target table --</option>
+                                    <option value={0}>-- Select datatable --</option>
                                     {allTables.map(t => (
                                         <option key={t.id} value={t.id}>{t.name} (ID: #{t.id})</option>
                                     ))}
@@ -204,6 +275,39 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                                 </div>
                             </div>
                         </div>
+
+                        {/* For Reverse Ref: Foreign Key column in the referencing datatable */}
+                        {isReverseRefType && refTargetTableId > 0 && targetColumns.length > 0 && (
+                            <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider">
+                                    Foreign Key Column (in #{refTargetTableId})
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        value={revTargetColSlug}
+                                        onChange={(e) => handleRevTargetColChange(e.target.value)}
+                                        className="w-full bg-white border border-surface-300 rounded px-3 py-1.5 text-xs outline-none focus:border-accent-600 appearance-none cursor-pointer pr-8"
+                                    >
+                                        <option value="">-- Select column referencing this table --</option>
+                                        {targetColumns.map(col => {
+                                            const isColRef = col.column_type === 'ref' || col.column_type === 'multiref';
+                                            const pointsHere = isColRef && currentTableId && parseRefOptions(col.options)?.target_table_id === currentTableId;
+                                            return (
+                                                <option key={col.id} value={col.slug}>
+                                                    {col.name} ({col.column_type}){pointsHere ? ' ★ (References this table)' : ''}
+                                                </option>
+                                            );
+                                        })}
+                                    </select>
+                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+                                        <i className="fa-solid fa-chevron-down text-[9px]"></i>
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-surface-500">
+                                    Records in Table #{refTargetTableId} matching this table's row ID via this column will be shown.
+                                </p>
+                            </div>
+                        )}
 
                         {refTargetTableId > 0 && targetColumns.length > 0 && (
                             <div className="space-y-1">
@@ -228,7 +332,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
                                     </div>
                                 </div>
                                 <p className="text-[10px] text-surface-500">
-                                    This field's text will render as the label in this table's cells.
+                                    This field's text will render as the label on the linked badges.
                                 </p>
                             </div>
                         )}

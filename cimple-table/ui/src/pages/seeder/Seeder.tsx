@@ -145,8 +145,10 @@ const Seeder = () => {
                 tbl.columns = cols;
                 setCurrentTable(tbl);
 
-                // Initialize column configurations with smart defaults
-                const initialConfigs = cols.map(c => getDefaultGeneratorConfig(c));
+                // Initialize column configurations with smart defaults (ignoring virtual reverse_ref)
+                const initialConfigs = cols
+                    .filter(c => c.column_type !== 'reverse_ref')
+                    .map(c => getDefaultGeneratorConfig(c));
                 setConfigs(initialConfigs);
             }
             setLoadingTable(false);

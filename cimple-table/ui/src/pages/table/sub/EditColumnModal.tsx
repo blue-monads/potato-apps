@@ -11,6 +11,7 @@ interface EditColumnModalProps {
 const EditColumnModal = ({ column, onSave, onDelete, onCancel }: EditColumnModalProps) => {
     return (
         <ColumnCoreModal
+            currentTableId={column.table_id}
             initialValues={{
                 name: column.name,
                 column_type: column.column_type,

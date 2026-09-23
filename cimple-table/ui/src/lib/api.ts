@@ -212,6 +212,12 @@ export interface RefColumnOptions {
     identity_column?: string;
 }
 
+export interface ReverseRefColumnOptions {
+    target_table_id: number;
+    target_column_slug: string;
+    identity_column?: string;
+}
+
 export async function resolveRefIds(
     tableId: number,
     ids: number[]
@@ -219,5 +225,30 @@ export async function resolveRefIds(
     return apiRequest<{ table_id: number; rows: DatatableRow[] }>(`/resolve_ref_ids`, {
         method: 'POST',
         body: JSON.stringify({ table_id: tableId, ids }),
+    });
+}
+
+export async function resolveReverseRefs(
+    targetTableId: number,
+    targetColumnSlug: string,
+    rowIds: number[]
+): Promise<ApiResponse<{
+    target_table_id: number;
+    target_column_slug: string;
+    mapping: Record<string, number[]>;
+    rows: DatatableRow[];
+}>> {
+    return apiRequest<{
+        target_table_id: number;
+        target_column_slug: string;
+        mapping: Record<string, number[]>;
+        rows: DatatableRow[];
+    }>(`/resolve_reverse_refs`, {
+        method: 'POST',
+        body: JSON.stringify({
+            target_table_id: targetTableId,
+            target_column_slug: targetColumnSlug,
+            row_ids: rowIds,
+        }),
     });
 }

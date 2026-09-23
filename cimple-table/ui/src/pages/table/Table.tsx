@@ -32,7 +32,13 @@ import {
     getTypeIcon,
     summarize,
 } from "./sub/columnTypes";
-import { parseRefOptions, parseRefIds, batchResolveRefs } from "../../lib/refCache";
+import {
+    parseRefOptions,
+    parseRefIds,
+    batchResolveRefs,
+    parseReverseRefOptions,
+    stageBatchResolveReverseRefs,
+} from "../../lib/refCache";
 import { getTableColorConfig } from "../../lib/tableColors";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
@@ -277,8 +283,15 @@ const Table = () => {
                     }
                 }
             }
+            if (col.column_type === 'reverse_ref') {
+                const revOpts = parseReverseRefOptions(col.options);
+                if (currentTable && revOpts?.target_table_id && revOpts?.target_column_slug) {
+                    const rowIds = rows.map(r => r.id);
+                    stageBatchResolveReverseRefs(currentTable.id, col.slug, revOpts.target_table_id, revOpts.target_column_slug, rowIds);
+                }
+            }
         });
-    }, [rows, columns]);
+    }, [rows, columns, currentTable?.id]);
 
     const loadMoreDown = async () => {
         if (!currentTable || loadingMoreDown || bottomOffset >= totalCount) return;
@@ -1016,7 +1029,7 @@ const Table = () => {
                                                         className="h-9 max-w-xs px-3 border-b border-r border-surface-200 overflow-hidden whitespace-nowrap"
                                                     >
                                                         <div className="flex items-center overflow-hidden">
-                                                            <CellValue value={getCellValue(row, col)} column={col} />
+                                                            <CellValue value={getCellValue(row, col)} column={col} row={row} />
                                                         </div>
                                                     </td>
                                                 ))}

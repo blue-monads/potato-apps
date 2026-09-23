@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { type DatatableColumn, type DatatableRow } from "../../../lib/api";
-import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
+import {
+    parseRefOptions,
+    parseRefIds,
+    parseReverseRefOptions,
+    getRowIdentityText,
+    useRefResolution,
+    useReverseRefResolution,
+} from "../../../lib/refCache";
 import { parseFileValue, formatFileSize, getFileIconClass, getFileDownloadUrl } from "../../../lib/spaceFile";
 import BarcodeModal from "./BarcodeModal";
 
@@ -41,6 +48,7 @@ export const TYPE_ICONS: Record<string, string> = {
     barcode: 'barcode',
     ref: 'arrow-up-right-from-square',
     multiref: 'layer-group',
+    reverse_ref: 'reply',
 };
 
 export const getTypeIcon = (type: string) => TYPE_ICONS[type] || 'font';
@@ -109,6 +117,51 @@ const RefCellValue = ({ value, column }: { value: string; column: DatatableColum
                     tableId={targetTableId}
                     rowId={id}
                     identityColSlug={opts.identity_column}
+                />
+            ))}
+        </div>
+    );
+};
+
+const ReverseRefCellValue = ({ row, column }: { row?: DatatableRow; column: DatatableColumn }) => {
+    const opts = parseReverseRefOptions(column.options);
+    const targetTableId = opts?.target_table_id;
+    const targetColSlug = opts?.target_column_slug;
+
+    if (!row || !targetTableId || !targetColSlug) {
+        return <span className="text-surface-300">—</span>;
+    }
+
+    const { loading, refIds } = useReverseRefResolution(
+        column.table_id,
+        column.slug,
+        row.id,
+        targetTableId,
+        targetColSlug
+    );
+
+    if (loading) {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium text-surface-400 bg-surface-50 border border-surface-200 animate-pulse">
+                <i className="fa-solid fa-spinner fa-spin text-[10px] text-accent-500" />
+                <span>Loading...</span>
+            </span>
+        );
+    }
+
+    const ids = Array.isArray(refIds) ? refIds : [];
+    if (ids.length === 0) {
+        return <span className="text-surface-300">—</span>;
+    }
+
+    return (
+        <div className="flex items-center gap-1 overflow-hidden flex-wrap py-0.5">
+            {ids.map(id => (
+                <SingleRefBadge
+                    key={id}
+                    tableId={targetTableId}
+                    rowId={id}
+                    identityColSlug={opts?.identity_column}
                 />
             ))}
         </div>
@@ -237,8 +290,12 @@ const BarcodeCellValue = ({ value, columnName }: { value: string; columnName?: s
     );
 };
 
-export const CellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {
+export const CellValue = ({ value, column, row }: { value: string; column: DatatableColumn; row?: DatatableRow }) => {
     const type = column.column_type;
+
+    if (type === 'reverse_ref') {
+        return <ReverseRefCellValue row={row} column={column} />;
+    }
 
     if (!value) return <span className="text-surface-300">—</span>;
 

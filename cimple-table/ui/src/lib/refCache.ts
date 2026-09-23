@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { resolveRefIds, type DatatableRow, type DatatableColumn, type RefColumnOptions } from "./api";
+import {
+    resolveRefIds,
+    resolveReverseRefs,
+    type DatatableRow,
+    type DatatableColumn,
+    type RefColumnOptions,
+    type ReverseRefColumnOptions,
+} from "./api";
 
 // Global in-memory cache: tableId -> (rowId -> DatatableRow)
 const refCache: Record<number, Record<number, DatatableRow>> = {};
@@ -51,6 +58,11 @@ export function parseRefIds(val: any): number[] {
     if (typeof val === 'number') return [val];
     if (Array.isArray(val)) {
         return val.map(v => typeof v === 'number' ? v : parseInt(String(v), 10)).filter(n => !isNaN(n) && n > 0);
+    }
+    if (typeof val === 'object') {
+        const values = Object.values(val);
+        if (values.length === 0) return [];
+        return values.map(v => typeof v === 'number' ? v : parseInt(String(v), 10)).filter(n => !isNaN(n) && n > 0);
     }
     const str = String(val).trim();
     if (!str) return [];
@@ -214,4 +226,201 @@ export function useRefResolution(tableId?: number, rowId?: number | string): Dat
 
     if (!isValid || !tableId) return undefined;
     return refCache[tableId]?.[nRowId];
+}
+
+// Global in-memory cache for reverse refs: `${currentTableId}:${colSlug}:${rowId}` -> array of referencing row IDs
+const reverseRefCache: Record<string, number[]> = {};
+const reverseRefPending = new Set<string>();
+
+interface StagedReverseQueueItem {
+    currentTableId: number;
+    colSlug: string;
+    targetTableId: number;
+    targetColSlug: string;
+    rowIds: Set<number>;
+}
+const stagedReverseQueues: Map<string, StagedReverseQueueItem> = new Map();
+let stagedTimer: any = null;
+
+/**
+ * Parse JSON or string options for a reverse ref column.
+ * e.g. '{"target_table_id": 2, "target_column_slug": "author", "identity_column": "title"}'
+ */
+export function parseReverseRefOptions(options?: string): ReverseRefColumnOptions | null {
+    if (!options || !options.trim()) return null;
+    try {
+        const parsed = JSON.parse(options);
+        if (parsed && typeof parsed.target_table_id === 'number' && parsed.target_column_slug) {
+            return {
+                target_table_id: parsed.target_table_id,
+                target_column_slug: String(parsed.target_column_slug),
+                identity_column: parsed.identity_column || undefined,
+            };
+        }
+    } catch {
+        // Fallback for simple "tableId:columnSlug:identityCol" string format
+        const parts = options.split(':');
+        const tid = parseInt(parts[0], 10);
+        if (!isNaN(tid) && parts[1]) {
+            return {
+                target_table_id: tid,
+                target_column_slug: parts[1],
+                identity_column: parts[2] || undefined,
+            };
+        }
+    }
+    return null;
+}
+
+export function getReverseRefIds(currentTableId: number, colSlug: string, rowId: number | string): number[] | undefined {
+    const key = `${currentTableId}:${colSlug}:${rowId}`;
+    return reverseRefCache[key];
+}
+
+export function isReverseRefLoading(currentTableId: number, colSlug: string, rowId: number | string): boolean {
+    const key = `${currentTableId}:${colSlug}:${rowId}`;
+    return reverseRefPending.has(key);
+}
+
+function flushStagedReverseRefs() {
+    stagedTimer = null;
+    const queues = Array.from(stagedReverseQueues.values());
+    stagedReverseQueues.clear();
+
+    for (const queue of queues) {
+        const allIds = Array.from(queue.rowIds);
+        if (allIds.length === 0) continue;
+
+        // Process in chunks of 100 to keep SQL IN clauses clean and bounded
+        const chunkSize = 100;
+        for (let i = 0; i < allIds.length; i += chunkSize) {
+            const chunk = allIds.slice(i, i + chunkSize);
+            (async () => {
+                try {
+                    const res = await resolveReverseRefs(queue.targetTableId, queue.targetColSlug, chunk);
+                    if (res.data) {
+                        // 1. Cache returned rows into refCache
+                        if (Array.isArray(res.data.rows)) {
+                            if (!refCache[queue.targetTableId]) {
+                                refCache[queue.targetTableId] = {};
+                            }
+                            res.data.rows.forEach(r => {
+                                const rId = typeof r.id === 'number' ? r.id : parseInt(String(r.id), 10);
+                                if (!isNaN(rId)) {
+                                    refCache[queue.targetTableId][rId] = r;
+                                }
+                            });
+                        }
+
+                        // 2. Cache mappings for all requested IDs in this chunk
+                        const mapping = res.data.mapping || {};
+                        chunk.forEach(id => {
+                            const raw = mapping[String(id)] ?? mapping[Number(id)];
+                            const refIds = parseRefIds(raw);
+                            reverseRefCache[`${queue.currentTableId}:${queue.colSlug}:${id}`] = refIds;
+                        });
+
+                        notifyListeners();
+                    }
+                } catch (err) {
+                    console.error("Failed to resolve reverse refs:", err);
+                } finally {
+                    chunk.forEach(id => {
+                        reverseRefPending.delete(`${queue.currentTableId}:${queue.colSlug}:${id}`);
+                    });
+                    notifyListeners();
+                }
+            })();
+        }
+    }
+}
+
+/**
+ * Stage and batch-resolve reverse references across multiple rows.
+ */
+export function stageBatchResolveReverseRefs(
+    currentTableId: number,
+    colSlug: string,
+    targetTableId: number,
+    targetColSlug: string,
+    rowIds: (number | string)[]
+) {
+    if (!currentTableId || !colSlug || !targetTableId || !targetColSlug) return;
+
+    const numericIds = Array.from(new Set(
+        rowIds
+            .map(id => typeof id === 'number' ? id : parseInt(String(id), 10))
+            .filter(id => !isNaN(id) && id > 0)
+    ));
+
+    const needed = numericIds.filter(id => {
+        const key = `${currentTableId}:${colSlug}:${id}`;
+        return reverseRefCache[key] === undefined && !reverseRefPending.has(key);
+    });
+
+    if (needed.length === 0) return;
+
+    needed.forEach(id => reverseRefPending.add(`${currentTableId}:${colSlug}:${id}`));
+
+    const queueKey = `${currentTableId}:${colSlug}:${targetTableId}:${targetColSlug}`;
+    let queue = stagedReverseQueues.get(queueKey);
+    if (!queue) {
+        queue = {
+            currentTableId,
+            colSlug,
+            targetTableId,
+            targetColSlug,
+            rowIds: new Set<number>(),
+        };
+        stagedReverseQueues.set(queueKey, queue);
+    }
+    needed.forEach(id => queue!.rowIds.add(id));
+
+    if (!stagedTimer) {
+        stagedTimer = setTimeout(flushStagedReverseRefs, 50);
+    }
+}
+
+/**
+ * Hook to subscribe to reverse ref updates and trigger staged lazy loading.
+ */
+export function useReverseRefResolution(
+    currentTableId?: number,
+    colSlug?: string,
+    rowId?: number | string,
+    targetTableId?: number,
+    targetColSlug?: string
+): { loading: boolean; refIds: number[] } {
+    const [, setTick] = useState(0);
+
+    const nRowId = rowId !== undefined ? (typeof rowId === 'number' ? rowId : parseInt(String(rowId), 10)) : NaN;
+    const isValid = !!currentTableId && !!colSlug && !isNaN(nRowId) && nRowId > 0 && !!targetTableId && !!targetColSlug;
+
+    useEffect(() => {
+        const handleChange = () => setTick(t => t + 1);
+        listeners.add(handleChange);
+        return () => {
+            listeners.delete(handleChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (isValid && currentTableId && colSlug && nRowId && targetTableId && targetColSlug) {
+            const cached = getReverseRefIds(currentTableId, colSlug, nRowId);
+            if (cached === undefined) {
+                stageBatchResolveReverseRefs(currentTableId, colSlug, targetTableId, targetColSlug, [nRowId]);
+            }
+        }
+    }, [isValid, currentTableId, colSlug, nRowId, targetTableId, targetColSlug]);
+
+    if (!isValid || !currentTableId || !colSlug || !nRowId) {
+        return { loading: false, refIds: [] };
+    }
+
+    const cached = getReverseRefIds(currentTableId, colSlug, nRowId);
+    if (cached !== undefined) {
+        return { loading: false, refIds: Array.isArray(cached) ? cached : [] };
+    }
+
+    return { loading: true, refIds: [] };
 }

@@ -43,6 +43,7 @@ const AVAILABLE_TYPES = [
     { value: "multiselect", label: "Multi-select", icon: "tags" },
     { value: "ref", label: "Table Ref", icon: "arrow-up-right-from-square" },
     { value: "multiref", label: "Table Multi-Ref", icon: "layer-group" },
+    { value: "reverse_ref", label: "Table Reverse Ref", icon: "reply" },
     { value: "textarea", label: "Textarea", icon: "align-left" },
     { value: "link", label: "Link", icon: "link" },
     { value: "file", label: "File", icon: "paperclip" },
