@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { type DatatableColumn, type DatatableRow } from "../../../lib/api";
 import { parseRefOptions, parseRefIds, getRowIdentityText, useRefResolution } from "../../../lib/refCache";
 import { parseFileValue, formatFileSize, getFileIconClass, getFileDownloadUrl } from "../../../lib/spaceFile";
+import BarcodeModal from "./BarcodeModal";
 
 const PILL_COLORS = [
     { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -36,6 +38,7 @@ export const TYPE_ICONS: Record<string, string> = {
     dropdown: 'caret-down',
     radio: 'circle-dot',
     multiselect: 'tags',
+    barcode: 'barcode',
     ref: 'arrow-up-right-from-square',
     multiref: 'layer-group',
 };
@@ -184,10 +187,64 @@ const FileCellValue = ({ value }: { value: string }) => {
     );
 };
 
+const BarcodeCellValue = ({ value, columnName }: { value: string; columnName?: string }) => {
+    const [modalOpen, setModalOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    if (!value) return <span className="text-surface-300">—</span>;
+
+    const handleCopy = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
+    return (
+        <>
+            <div className="inline-flex items-center gap-1.5 max-w-full group/barcode">
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-100 hover:bg-surface-200 border border-surface-200 text-surface-800 font-mono text-[11px] tracking-wider transition-colors cursor-pointer truncate"
+                    title={`Click to view barcode: ${value}`}
+                >
+                    <i className="fa-solid fa-barcode text-surface-500 text-[10px] shrink-0" />
+                    <span className="truncate font-medium">{value}</span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="w-5 h-5 rounded hover:bg-surface-200 text-surface-400 hover:text-surface-700 flex items-center justify-center opacity-0 group-hover/barcode:opacity-100 transition-opacity cursor-pointer shrink-0"
+                    title="Copy barcode text"
+                >
+                    <i className={`fa-solid ${copied ? 'fa-check text-emerald-600' : 'fa-copy'} text-[10px]`} />
+                </button>
+            </div>
+
+            {modalOpen && (
+                <BarcodeModal
+                    value={value}
+                    columnName={columnName}
+                    onClose={() => setModalOpen(false)}
+                />
+            )}
+        </>
+    );
+};
+
 export const CellValue = ({ value, column }: { value: string; column: DatatableColumn }) => {
     const type = column.column_type;
 
     if (!value) return <span className="text-surface-300">—</span>;
+
+    if (type === 'barcode') {
+        return <BarcodeCellValue value={value} columnName={column.name} />;
+    }
 
     if (type === 'ref' || type === 'multiref') {
         return <RefCellValue value={value} column={column} />;

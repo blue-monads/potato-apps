@@ -170,6 +170,8 @@ export function getDefaultGeneratorConfig(column: DatatableColumn): ColumnSeedCo
         strategy = "rating";
         params.min = 1;
         params.max = 5;
+    } else if (type === "barcode") {
+        strategy = "sku";
     } else if (type === "dropdown") {
         strategy = "random_option";
         const rawOpts = column.options || "";

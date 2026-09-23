@@ -72,6 +72,9 @@ const STRATEGIES_BY_TYPE: Record<string, GeneratorStrategy[]> = {
     rating: [
         "rating", "int_range", "fixed"
     ],
+    barcode: [
+        "sku", "uuid", "fixed"
+    ],
     dropdown: [
         "random_option"
     ],

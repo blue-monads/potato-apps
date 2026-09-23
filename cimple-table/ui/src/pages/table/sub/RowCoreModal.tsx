@@ -12,6 +12,7 @@ import {
     uploadSpaceFile,
     type SpaceFile,
 } from "../../../lib/spaceFile";
+import { BarcodeSvg } from "./BarcodeModal";
 
 const RefFieldInput = ({
     column,
@@ -783,6 +784,60 @@ const RatingFieldInput = ({
     );
 };
 
+const BarcodeFieldInput = ({
+    value,
+    onChange,
+    hasError,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    hasError?: boolean;
+}) => {
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+                <div className="relative flex-1">
+                    <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder="Scan or enter barcode / SKU..."
+                        className={`w-full bg-white border rounded px-3 py-2 text-sm font-mono tracking-wider outline-none focus:border-accent-600 transition-all pr-8 ${
+                            hasError ? 'border-coral-500 focus:border-coral-600' : 'border-surface-300'
+                        }`}
+                    />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-surface-400">
+                        <i className="fa-solid fa-barcode text-xs" />
+                    </div>
+                </div>
+
+                {value && (
+                    <button
+                        type="button"
+                        onClick={() => onChange("")}
+                        className="w-8 h-8 rounded hover:bg-coral-50 text-surface-400 hover:text-coral-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                        title="Clear barcode"
+                    >
+                        <i className="fa-solid fa-xmark text-xs" />
+                    </button>
+                )}
+            </div>
+
+            {value && (
+                <div className="p-2.5 bg-surface-50 border border-surface-200 rounded-lg flex flex-col items-center justify-center overflow-x-auto">
+                    <BarcodeSvg
+                        value={value}
+                        height={50}
+                        moduleWidth={2}
+                        showText={true}
+                        className="border-none p-0 bg-transparent"
+                    />
+                </div>
+            )}
+        </div>
+    );
+};
+
 interface RowCoreModalProps {
     table: Datatable;
     row?: DatatableRow;
@@ -989,6 +1044,15 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
             case 'rating':
                 return (
                     <RatingFieldInput
+                        value={currentValue}
+                        onChange={onChange}
+                        hasError={validationErrors[column.slug]}
+                    />
+                );
+
+            case 'barcode':
+                return (
+                    <BarcodeFieldInput
                         value={currentValue}
                         onChange={onChange}
                         hasError={validationErrors[column.slug]}

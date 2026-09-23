@@ -59,6 +59,7 @@ const ColumnCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabe
         { id: "textarea", label: "Textarea" },
         { id: "image", label: "Image" },
         { id: "file", label: "File" },
+        { id: "barcode", label: "Barcode" },
         { id: "radio", label: "Radio" },
     ];
 

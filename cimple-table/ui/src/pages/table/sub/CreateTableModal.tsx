@@ -47,6 +47,7 @@ const AVAILABLE_TYPES = [
     { value: "link", label: "Link", icon: "link" },
     { value: "file", label: "File", icon: "paperclip" },
     { value: "image", label: "Image", icon: "image" },
+    { value: "barcode", label: "Barcode", icon: "barcode" },
     { value: "radio", label: "Radio", icon: "circle-dot" },
 ];
 

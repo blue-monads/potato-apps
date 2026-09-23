@@ -92,8 +92,8 @@ export function getIdentityColumn(columns: DatatableColumn[]): DatatableColumn |
     );
     if (partial) return partial;
 
-    // 3. First text, link, or email column
-    const firstText = columns.find(c => c.column_type === 'text' || c.column_type === 'link' || c.column_type === 'email');
+    // 3. First text, link, email, or barcode column
+    const firstText = columns.find(c => c.column_type === 'text' || c.column_type === 'link' || c.column_type === 'email' || c.column_type === 'barcode');
     if (firstText) return firstText;
 
     // 4. First column that is not 'id'
