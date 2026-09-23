@@ -116,4 +116,13 @@ export const eventsApi = {
         }
         return response.data!;
     },
+
+    delete: async (id: number): Promise<void> => {
+        const response = await apiRequest<void>(`/events/${id}`, {
+            method: 'DELETE',
+        });
+        if (response.error) {
+            throw new Error(response.error);
+        }
+    },
 };

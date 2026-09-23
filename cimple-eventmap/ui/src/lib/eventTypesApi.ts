@@ -83,4 +83,13 @@ export const eventTypesApi = {
         }
         return response.data!;
     },
+
+    delete: async (id: number): Promise<void> => {
+        const response = await apiRequest<void>(`/event-types/${id}`, {
+            method: 'DELETE',
+        });
+        if (response.error) {
+            throw new Error(response.error);
+        }
+    },
 };

@@ -241,6 +241,44 @@ function create_event(ctx)
     req.json(201, createdEvent)
 end
 
+function delete_event(ctx, event_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local existingEvent, err = potato.db.find_by_id("Events", event_id)
+    if err ~= nil then
+        req.json(404, {
+            error = "Event not found: " .. tostring(err)
+        })
+        return
+    end
+
+    local deleteImgSql = "DELETE FROM EventImages WHERE event_id = ?"
+    potato.db.exec(deleteImgSql, event_id)
+
+    local deleteErr = potato.db.delete_by_id("Events", event_id)
+    if deleteErr ~= nil then
+        req.json(500, {
+            error = "Failed to delete event: " .. tostring(deleteErr)
+        })
+        return
+    end
+
+    local broadcastParams = {
+        type = "event_deleted",
+        data = {
+            id = event_id
+        }
+    }
+    potato.cap.execute("xEasyWS", "broadcast", broadcastParams)
+
+    req.json(200, {
+        message = "Event deleted successfully",
+        id = event_id
+    })
+end
+
 -- EventTypes API
 function list_event_types(ctx)
     local req = ctx.request()
@@ -491,8 +529,12 @@ function on_http(ctx)
     local event_id_match = string.match(path, "^/events/(%d+)$")
     if event_id_match then
         local event_id = tonumber(event_id_match)
-        if event_id ~= nil and method == "GET" then
-            return get_event(ctx, event_id)
+        if event_id ~= nil then
+            if method == "GET" then
+                return get_event(ctx, event_id)
+            elseif method == "DELETE" then
+                return delete_event(ctx, event_id)
+            end
         end
     end
 
