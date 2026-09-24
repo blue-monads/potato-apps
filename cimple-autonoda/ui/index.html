@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>cimple-autonoda</title>
+
+
+    <style>
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script id="main-script" type="module" src="./src/main.tsx"></script>
+
+    <!-- IN DEV MODE -->
+
+
+    
+    <script src="../../static/libspace.js"></script>
+    <link rel="stylesheet" href="../../static/fontawesome/css/all.min.css">
+
+    <script>
+
+      if (!window.spaceGetToken('cimple-autonoda')) {
+        window.spaceRedirrectToAuth('/zz/space/cimple-autonoda');
+      }
+      
+    </script>
+    
+  </body>
+
+
+</html>
