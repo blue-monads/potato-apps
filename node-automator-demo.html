@@ -1,0 +1,2914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Node Automator - Visual Workflow Engine</title>
+  <style>
+    :root {
+      --bg-canvas: #f8fafc;
+      --bg-card: #ffffff;
+      --border-color: #e2e8f0;
+      --border-dark: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      
+      /* Airtable-like brand & accents */
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --primary-border: #bfdbfe;
+      
+      --trigger-color: #0284c7;
+      --trigger-bg: #f0f9ff;
+      --trigger-border: #bae6fd;
+      
+      --logic-color: #7c3aed;
+      --logic-bg: #f5f3ff;
+      --logic-border: #ddd6fe;
+      
+      --action-color: #0d9488;
+      --action-bg: #f0fdfa;
+      --action-border: #99f6e4;
+      
+      --true-color: #10b981;
+      --true-bg: #ecfdf5;
+      --false-color: #ef4444;
+      --false-bg: #fef2f2;
+      
+      --wire-default: #94a3b8;
+      --wire-active: #3b82f6;
+      --wire-true: #10b981;
+      --wire-false: #ef4444;
+      
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+      --shadow-node: 0 2px 5px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.07);
+      --shadow-node-selected: 0 0 0 2px #2563eb, 0 8px 16px -2px rgba(37, 99, 235, 0.15);
+      
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-canvas);
+      color: var(--text-main);
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Top Navigation Bar */
+    header.app-header {
+      height: 52px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 40;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      color: #1e293b;
+      letter-spacing: -0.01em;
+    }
+
+    .logo-icon {
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+    }
+
+    .workflow-title-input {
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      border: 1px solid transparent;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: transparent;
+      transition: all 0.15s;
+    }
+    .workflow-title-input:hover {
+      border-color: var(--border-color);
+      background: #f8fafc;
+    }
+    .workflow-title-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: white;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+    .status-pill.running .status-dot {
+      background: #eab308;
+      box-shadow: 0 0 6px #eab308;
+      animation: pulse-dot 1s infinite;
+    }
+    .status-pill.success .status-dot {
+      background: #10b981;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      background: white;
+      color: #334155;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .btn:hover {
+      background: #f8fafc;
+      border-color: var(--border-dark);
+      color: var(--text-main);
+    }
+    .btn:active {
+      transform: translateY(1px);
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+      border-color: #1d4ed8;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      border-color: #1e40af;
+      color: white;
+    }
+    .btn-primary.running {
+      background: #0284c7;
+      pointer-events: none;
+    }
+    .btn-secondary {
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+      color: #334155;
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    /* Main Workspace Layout */
+    .workspace {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Left Palette / Library */
+    .palette-bar {
+      width: 200px;
+      background: white;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      padding: 12px;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .palette-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+
+    .palette-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: grab;
+      transition: all 0.15s ease;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 6px;
+    }
+    .palette-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+    .palette-card:active {
+      cursor: grabbing;
+    }
+
+    .palette-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .palette-card.trigger .palette-icon {
+      background: var(--trigger-bg);
+      color: var(--trigger-color);
+      border: 1px solid var(--trigger-border);
+    }
+    .palette-card.logic .palette-icon {
+      background: var(--logic-bg);
+      color: var(--logic-color);
+      border: 1px solid var(--logic-border);
+    }
+    .palette-card.action .palette-icon {
+      background: var(--action-bg);
+      color: var(--action-color);
+      border: 1px solid var(--action-border);
+    }
+
+    .palette-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .palette-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .palette-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Canvas Viewport */
+    .canvas-viewport {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+      background-size: 20px 20px;
+      cursor: default;
+    }
+    .canvas-viewport.panning {
+      cursor: grab;
+    }
+    .canvas-viewport.panning-active {
+      cursor: grabbing;
+    }
+
+    /* Transform Container for pan & zoom */
+    .canvas-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform-origin: 0 0;
+      pointer-events: none;
+    }
+    .canvas-layer * {
+      pointer-events: auto;
+    }
+
+    /* SVG Connections Layer */
+    .connections-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 6000px;
+      height: 6000px;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .connection-path {
+      stroke-width: 2.5px;
+      fill: none;
+      transition: stroke 0.2s, stroke-width 0.2s;
+      cursor: pointer;
+      pointer-events: stroke;
+    }
+    .connection-path:hover {
+      stroke-width: 4px;
+      stroke: #3b82f6;
+    }
+    .connection-path.active-pulse {
+      stroke-dasharray: 8 4;
+      animation: dash 0.6s linear infinite;
+    }
+    @keyframes dash {
+      to {
+        stroke-dashoffset: -12;
+      }
+    }
+
+    .connection-hitbox {
+      stroke-width: 16px;
+      stroke: transparent;
+      fill: none;
+      cursor: pointer;
+      pointer-events: stroke;
+    }
+
+    /* Node Cards */
+    .flow-node {
+      position: absolute;
+      width: 260px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      box-shadow: var(--shadow-node);
+      z-index: 10;
+      cursor: move;
+      transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+    .flow-node:hover {
+      box-shadow: 0 6px 14px -2px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.08);
+    }
+    .flow-node.selected {
+      box-shadow: var(--shadow-node-selected);
+      border-color: var(--primary);
+    }
+    .flow-node.executing {
+      box-shadow: 0 0 0 3px #3b82f6, 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+      transform: scale(1.02);
+      transition: all 0.2s;
+    }
+    .flow-node.executed-success {
+      border-color: #10b981;
+    }
+    .flow-node.executed-false {
+      border-color: #f59e0b;
+    }
+
+    .node-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      border-top-left-radius: 9px;
+      border-top-right-radius: 9px;
+    }
+    .flow-node.trigger .node-header {
+      background: linear-gradient(to right, #f0f9ff, #ffffff);
+      border-bottom: 1px solid var(--trigger-border);
+    }
+    .flow-node.logic .node-header {
+      background: linear-gradient(to right, #f5f3ff, #ffffff);
+      border-bottom: 1px solid var(--logic-border);
+    }
+    .flow-node.action .node-header {
+      background: linear-gradient(to right, #f0fdfa, #ffffff);
+      border-bottom: 1px solid var(--action-border);
+    }
+
+    .node-title-group {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+      flex: 1;
+    }
+    .node-type-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .flow-node.trigger .node-type-icon {
+      background: #0284c7;
+      color: white;
+    }
+    .flow-node.logic .node-type-icon {
+      background: #7c3aed;
+      color: white;
+    }
+    .flow-node.action .node-type-icon {
+      background: #0d9488;
+      color: white;
+    }
+
+    .node-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .node-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .node-delete-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.6;
+      transition: all 0.15s;
+    }
+    .node-delete-btn:hover {
+      opacity: 1;
+      background: #fee2e2;
+      color: #ef4444;
+    }
+
+    .node-body {
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #475569;
+      position: relative;
+    }
+
+    .node-summary-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 7px;
+      background: #f1f5f9;
+      color: #334155;
+      border-radius: 5px;
+      margin-bottom: 6px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .node-rule-preview {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 5px 7px;
+      color: #334155;
+      margin-top: 4px;
+      line-height: 1.4;
+      max-height: 70px;
+      overflow-y: auto;
+    }
+
+    .node-rule-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #ede9fe;
+      color: #6d28d9;
+      margin-bottom: 2px;
+    }
+
+    /* Execution state badge on node */
+    .node-exec-status {
+      font-size: 10px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-top: 6px;
+      float: right;
+    }
+    .node-exec-status.running {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    .node-exec-status.true {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .node-exec-status.false {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .node-exec-status.done {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    /* Connection Ports (Handles) */
+    .port {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid #64748b;
+      position: absolute;
+      cursor: crosshair;
+      z-index: 15;
+      transition: transform 0.15s, border-color 0.15s, background-color 0.15s;
+    }
+    .port:hover {
+      transform: scale(1.4);
+      border-color: #2563eb;
+      background: #2563eb;
+    }
+    .port.connecting {
+      transform: scale(1.4);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Port positions */
+    .port-in {
+      left: -7px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .port-in:hover {
+      transform: translateY(-50%) scale(1.4);
+    }
+
+    .port-out {
+      right: -7px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .port-out:hover {
+      transform: translateY(-50%) scale(1.4);
+    }
+
+    /* Logic block multiple out ports */
+    .port-out-true {
+      right: -7px;
+      top: 36px;
+      border-color: var(--true-color);
+    }
+    .port-out-true:hover {
+      border-color: var(--true-color);
+      background: var(--true-color);
+    }
+    .port-out-false {
+      right: -7px;
+      bottom: 16px;
+      border-color: var(--false-color);
+    }
+    .port-out-false:hover {
+      border-color: var(--false-color);
+      background: var(--false-color);
+    }
+
+    .port-label {
+      position: absolute;
+      right: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      pointer-events: none;
+    }
+    .port-label.true {
+      top: 34px;
+      color: #059669;
+    }
+    .port-label.false {
+      bottom: 14px;
+      color: #dc2626;
+    }
+
+    /* Canvas Controls Toolbar */
+    .canvas-toolbar {
+      position: absolute;
+      bottom: 20px;
+      left: 220px;
+      display: flex;
+      align-items: center;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 4px;
+      gap: 4px;
+      box-shadow: var(--shadow-md);
+      z-index: 30;
+    }
+    .toolbar-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .toolbar-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .toolbar-zoom-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      min-width: 44px;
+      text-align: center;
+    }
+
+    /* Right Inspector / Configuration Drawer */
+    .inspector-drawer {
+      width: 380px;
+      background: #ffffff;
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 35;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.03);
+      transition: transform 0.25s ease;
+    }
+    .inspector-drawer.collapsed {
+      transform: translateX(100%);
+      display: none;
+    }
+
+    .inspector-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fcfdfe;
+    }
+    .inspector-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .inspector-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .inspector-category {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #64748b;
+    }
+
+    .inspector-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .form-label .helper {
+      font-size: 11px;
+      font-weight: normal;
+      color: #94a3b8;
+    }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: #ffffff;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    .form-textarea {
+      min-height: 80px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    /* Logic Rule Builder Rows */
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .rule-row {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+    .rule-row-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+    }
+    .rule-fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .rule-row-remove {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .rule-row-remove:hover {
+      background: #fee2e2;
+    }
+
+    /* Segmented Mode Button (AND / OR) */
+    .segmented-control {
+      display: flex;
+      background: #e2e8f0;
+      padding: 2px;
+      border-radius: 6px;
+    }
+    .segment-btn {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 0;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #475569;
+      transition: all 0.15s;
+    }
+    .segment-btn.active {
+      background: white;
+      color: #2563eb;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+
+    /* Bottom Execution / Trace Drawer */
+    .trace-drawer {
+      height: 220px;
+      background: #ffffff;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      z-index: 30;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+      transition: height 0.2s ease;
+    }
+    .trace-drawer.collapsed {
+      height: 38px;
+    }
+
+    .trace-header {
+      height: 38px;
+      padding: 0 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .trace-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .trace-badge {
+      font-size: 11px;
+      font-weight: 600;
+      background: #e2e8f0;
+      color: #475569;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    .trace-content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+    .trace-list {
+      width: 320px;
+      border-right: 1px solid var(--border-color);
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: #fafbfc;
+    }
+    .trace-item {
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .trace-item:hover {
+      border-color: #94a3b8;
+    }
+    .trace-item.active {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+    .trace-item-title {
+      font-weight: 600;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .trace-item-status {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .trace-item-status.pass { background: #d1fae5; color: #065f46; }
+    .trace-item-status.fail { background: #fee2e2; color: #991b1b; }
+    .trace-item-status.done { background: #e0f2fe; color: #0369a1; }
+
+    .trace-detail {
+      flex: 1;
+      padding: 12px 16px;
+      overflow-y: auto;
+      background: #ffffff;
+      font-size: 12px;
+    }
+    .trace-detail pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      background: #f8fafc;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      overflow-x: auto;
+      margin-top: 6px;
+    }
+
+    /* Modal for Quick Test Payload */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal-box {
+      width: 520px;
+      max-width: 90vw;
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 15px;
+      background: #f8fafc;
+    }
+    .modal-body {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      background: #f8fafc;
+    }
+
+    /* Quick helper badges & pill indicators */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-purple { background: #ede9fe; color: #6d28d9; }
+    .badge-teal { background: #ccfbf1; color: #115e59; }
+
+    /* SVG wire connector ghost */
+    .ghost-wire {
+      stroke: #3b82f6;
+      stroke-width: 2.5px;
+      stroke-dasharray: 4 3;
+      fill: none;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top App Navigation Bar -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="logo-badge">
+        <div class="logo-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+        </div>
+        <span>Node Automator</span>
+      </div>
+      <input type="text" id="workflowTitleInput" class="workflow-title-input" value="Order Processing & VIP Routing Pipeline" title="Click to rename workflow">
+      <div id="statusPill" class="status-pill">
+        <span class="status-dot"></span>
+        <span id="statusText">Ready</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Presets Selector -->
+      <select id="presetSelector" class="form-select" style="width: auto; padding: 5px 8px; font-size: 12px;" title="Load example workflow preset">
+        <option value="ecommerce">Template: E-Commerce VIP Triage</option>
+        <option value="lead">Template: SaaS Lead Qualification</option>
+        <option value="blank">Empty Workflow</option>
+      </select>
+
+      <button id="btnEditPayload" class="btn btn-secondary btn-sm" title="Inspect or modify test incoming payload">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        Test Payload
+      </button>
+
+      <button id="btnRunWorkflow" class="btn btn-primary" title="Trigger simulation with current payload">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <span>Test Workflow</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace: Palette + Canvas + Inspector -->
+  <main class="workspace">
+    
+    <!-- Left Blocks Palette -->
+    <aside class="palette-bar">
+      <div>
+        <div class="palette-section-title">Block Types</div>
+        
+        <!-- 1. Trigger Block -->
+        <div class="palette-card trigger" draggable="true" data-type="trigger" data-subtype="webhook">
+          <div class="palette-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          </div>
+          <div class="palette-info">
+            <div class="palette-name">Trigger (Event)</div>
+            <div class="palette-desc">JSON payload origin</div>
+          </div>
+        </div>
+
+        <!-- 2. Logic Block -->
+        <div class="palette-card logic" draggable="true" data-type="logic" data-subtype="condition">
+          <div class="palette-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
+          </div>
+          <div class="palette-info">
+            <div class="palette-name">Logic Block</div>
+            <div class="palette-desc">AND/OR rules (T/F)</div>
+          </div>
+        </div>
+
+        <!-- 3. Action Blocks -->
+        <div class="palette-card action" draggable="true" data-type="action" data-subtype="webhook">
+          <div class="palette-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          </div>
+          <div class="palette-info">
+            <div class="palette-name">Webhook Action</div>
+            <div class="palette-desc">HTTP POST / GET API</div>
+          </div>
+        </div>
+
+        <div class="palette-card action" draggable="true" data-type="action" data-subtype="email">
+          <div class="palette-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+          </div>
+          <div class="palette-info">
+            <div class="palette-name">Send Email</div>
+            <div class="palette-desc">Alert or confirmation</div>
+          </div>
+        </div>
+
+        <div class="palette-card action" draggable="true" data-type="action" data-subtype="enrich">
+          <div class="palette-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <div class="palette-info">
+            <div class="palette-name">Enrich / Transform</div>
+            <div class="palette-desc">Append / mutate data</div>
+          </div>
+        </div>
+
+        <div class="palette-card action" draggable="true" data-type="action" data-subtype="log">
+          <div class="palette-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </div>
+          <div class="palette-info">
+            <div class="palette-name">Log / Audit</div>
+            <div class="palette-desc">Console & trace note</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-light); line-height: 1.4;">
+        💡 <strong>Tip:</strong> Drag blocks onto canvas. Connect ports by dragging from circle to circle. Click any block to configure rules & actions.
+      </div>
+    </aside>
+
+    <!-- Canvas Area -->
+    <div id="canvasViewport" class="canvas-viewport">
+      <div id="canvasLayer" class="canvas-layer">
+        <!-- SVG Connections Layer -->
+        <svg id="connectionsSvg" class="connections-svg">
+          <defs>
+            <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
+            </marker>
+            <marker id="arrowhead-true" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+            </marker>
+            <marker id="arrowhead-false" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
+            </marker>
+          </defs>
+          <g id="wiresGroup"></g>
+          <path id="ghostWire" class="ghost-wire" d="M 0 0" style="display: none;"></path>
+        </svg>
+
+        <!-- HTML Flow Nodes rendered here -->
+        <div id="nodesContainer"></div>
+      </div>
+
+      <!-- Canvas Floating Zoom / View Controls -->
+      <div class="canvas-toolbar">
+        <button id="btnZoomOut" class="toolbar-btn" title="Zoom Out">-</button>
+        <span id="zoomLevelDisplay" class="toolbar-zoom-text">100%</span>
+        <button id="btnZoomIn" class="toolbar-btn" title="Zoom In">+</button>
+        <button id="btnZoomFit" class="toolbar-btn" title="Reset View" style="margin-left: 4px;">⟲</button>
+      </div>
+    </div>
+
+    <!-- Right Inspector / Configuration Drawer -->
+    <aside id="inspectorDrawer" class="inspector-drawer">
+      <div class="inspector-header">
+        <div class="inspector-title-wrap">
+          <div id="inspectorTypeIcon" class="palette-icon"></div>
+          <div>
+            <div id="inspectorCategory" class="inspector-category">Block Settings</div>
+            <div id="inspectorTitle" class="inspector-title">Configuration</div>
+          </div>
+        </div>
+        <button id="btnCloseInspector" class="toolbar-btn" title="Close inspector">✕</button>
+      </div>
+
+      <div id="inspectorContent" class="inspector-content">
+        <!-- Rendered dynamically based on selected node -->
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Bottom Drawer: Execution Log & Payload Trace -->
+  <footer id="traceDrawer" class="trace-drawer">
+    <div id="traceHeader" class="trace-header">
+      <div class="trace-header-left">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        <span>Execution Trace & Step-by-Step Payload Inspector</span>
+        <span id="traceCountBadge" class="trace-badge">0 steps</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span id="traceSummaryText" style="font-size: 11px; color: var(--text-muted);">Click 'Test Workflow' to simulate flow execution</span>
+        <button id="btnToggleTrace" class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;">Toggle</button>
+      </div>
+    </div>
+
+    <div class="trace-content">
+      <div id="traceList" class="trace-list">
+        <!-- Steps rendered here -->
+      </div>
+      <div id="traceDetail" class="trace-detail">
+        <div style="color: var(--text-muted); font-style: italic; padding: 20px 0;">
+          Select a step on the left to view incoming data, rule evaluations, and transformed output payload.
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal: Test Payload Editor -->
+  <div id="payloadModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span>Incoming Event Test Payload (JSON)</span>
+        <button id="btnClosePayloadModal" class="toolbar-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12px; color: var(--text-muted);">
+          This JSON object will be injected into the Trigger node when executing the workflow:
+        </p>
+        <textarea id="payloadTextarea" class="form-textarea" style="height: 220px;"></textarea>
+        <div id="payloadError" style="font-size: 11px; color: #ef4444; display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnResetDefaultPayload" class="btn btn-secondary">Reset Sample</button>
+        <button id="btnSavePayload" class="btn btn-primary">Save Payload</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Node Automator - Single File Visual Workflow Engine
+     * Browser In-Memory & LocalStorage State
+     */
+
+    // --- State & Data Model ---
+    const STATE = {
+      title: "Order Processing & VIP Routing Pipeline",
+      nodes: [],
+      wires: [], // { id, fromNode, fromPort, toNode, toPort }
+      selectedNodeId: null,
+      zoom: 1.0,
+      pan: { x: 40, y: 30 },
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      draggingWire: null, // { fromNode, fromPort, startX, startY }
+      testPayload: {
+        eventId: "evt_998124",
+        timestamp: new Date().toISOString(),
+        order: {
+          id: "ORD-58291",
+          total: 185.50,
+          currency: "USD",
+          itemsCount: 3,
+          channel: "web_checkout"
+        },
+        customer: {
+          name: "Sophia Martinez",
+          email: "sophia.m@example.com",
+          tier: "gold",
+          country: "US",
+          lifetimeOrders: 8
+        }
+      },
+      executionTrace: [] // Array of executed step snapshots
+    };
+
+    // Preset templates
+    const PRESETS = {
+      ecommerce: {
+        title: "Order Processing & VIP Routing Pipeline",
+        payload: {
+          eventId: "evt_998124",
+          timestamp: new Date().toISOString(),
+          order: {
+            id: "ORD-58291",
+            total: 185.50,
+            currency: "USD",
+            itemsCount: 3,
+            channel: "web_checkout"
+          },
+          customer: {
+            name: "Sophia Martinez",
+            email: "sophia.m@example.com",
+            tier: "gold",
+            country: "US",
+            lifetimeOrders: 8
+          }
+        },
+        nodes: [
+          {
+            id: "node_trigger_1",
+            type: "trigger",
+            subtype: "webhook",
+            title: "New Order Placed",
+            x: 60,
+            y: 120,
+            config: {
+              eventType: "ecommerce.order.created",
+              source: "Shopify Webhook"
+            }
+          },
+          {
+            id: "node_logic_1",
+            type: "logic",
+            subtype: "condition",
+            title: "VIP Order Rule",
+            x: 380,
+            y: 100,
+            config: {
+              conditionMode: "AND", // "AND" or "OR"
+              rules: [
+                { field: "order.total", op: "greater_than", value: "100" },
+                { field: "customer.tier", op: "equals", value: "gold" }
+              ]
+            }
+          },
+          {
+            id: "node_action_vip",
+            type: "action",
+            subtype: "enrich",
+            title: "Enrich: VIP Perks & Tag",
+            x: 720,
+            y: 40,
+            config: {
+              enrichField: "order.isVipPriority",
+              enrichValue: "true",
+              enrichNotes: "Applied express 1-day free shipping"
+            }
+          },
+          {
+            id: "node_action_email",
+            type: "action",
+            subtype: "email",
+            title: "Send VIP Concierge Email",
+            x: 1030,
+            y: 40,
+            config: {
+              recipient: "{{customer.email}}",
+              subject: "VIP Access: Your order {{order.id}} is expedited!",
+              template: "Hello {{customer.name}}, thank you for being a Gold VIP."
+            }
+          },
+          {
+            id: "node_action_std",
+            type: "action",
+            subtype: "webhook",
+            title: "Standard Order Webhook",
+            x: 720,
+            y: 260,
+            config: {
+              url: "https://warehouse.internal/api/orders",
+              method: "POST"
+            }
+          }
+        ],
+        wires: [
+          { id: "w1", fromNode: "node_trigger_1", fromPort: "out", toNode: "node_logic_1", toPort: "in" },
+          { id: "w2", fromNode: "node_logic_1", fromPort: "true", toNode: "node_action_vip", toPort: "in" },
+          { id: "w3", fromNode: "node_action_vip", fromPort: "out", toNode: "node_action_email", toPort: "in" },
+          { id: "w4", fromNode: "node_logic_1", fromPort: "false", toNode: "node_action_std", toPort: "in" }
+        ]
+      },
+      lead: {
+        title: "Enterprise Lead Router & Qualification",
+        payload: {
+          leadId: "lead_448",
+          lead: {
+            companyName: "Apex Cloud Technologies",
+            employees: 450,
+            annualBudget: 75000,
+            industry: "Fintech",
+            contact: {
+              email: "cto@apexcloud.io",
+              fullName: "Marcus Vance"
+            }
+          }
+        },
+        nodes: [
+          {
+            id: "node_lead_start",
+            type: "trigger",
+            subtype: "webhook",
+            title: "Demo Request Submitted",
+            x: 60,
+            y: 120,
+            config: { eventType: "form.demo_request" }
+          },
+          {
+            id: "node_lead_logic",
+            type: "logic",
+            subtype: "condition",
+            title: "Enterprise Criteria",
+            x: 380,
+            y: 100,
+            config: {
+              conditionMode: "OR",
+              rules: [
+                { field: "lead.annualBudget", op: "greater_than", value: "50000" },
+                { field: "lead.employees", op: "greater_or_equal", value: "200" }
+              ]
+            }
+          },
+          {
+            id: "node_lead_crm",
+            type: "action",
+            subtype: "webhook",
+            title: "Post to Salesforce High-Priority",
+            x: 740,
+            y: 40,
+            config: {
+              url: "https://api.salesforce.com/leads/v1/enterprise",
+              method: "POST"
+            }
+          },
+          {
+            id: "node_lead_nurture",
+            type: "action",
+            subtype: "log",
+            title: "Route to Self-Serve Nurture",
+            x: 740,
+            y: 240,
+            config: {
+              logLevel: "INFO",
+              message: "Assigned lead to self-serve onboarding sequence"
+            }
+          }
+        ],
+        wires: [
+          { id: "w_lead_1", fromNode: "node_lead_start", fromPort: "out", toNode: "node_lead_logic", toPort: "in" },
+          { id: "w_lead_2", fromNode: "node_lead_logic", fromPort: "true", toNode: "node_lead_crm", toPort: "in" },
+          { id: "w_lead_3", fromNode: "node_lead_logic", fromPort: "false", toNode: "node_lead_nurture", toPort: "in" }
+        ]
+      },
+      blank: {
+        title: "Untitled Automation",
+        payload: {
+          test: true,
+          value: 42
+        },
+        nodes: [
+          {
+            id: "node_blank_1",
+            type: "trigger",
+            subtype: "webhook",
+            title: "Custom Event Trigger",
+            x: 100,
+            y: 150,
+            config: { eventType: "custom.event" }
+          }
+        ],
+        wires: []
+      }
+    };
+
+    // DOM References
+    const canvasViewport = document.getElementById("canvasViewport");
+    const canvasLayer = document.getElementById("canvasLayer");
+    const nodesContainer = document.getElementById("nodesContainer");
+    const wiresGroup = document.getElementById("wiresGroup");
+    const ghostWire = document.getElementById("ghostWire");
+    const zoomLevelDisplay = document.getElementById("zoomLevelDisplay");
+    const workflowTitleInput = document.getElementById("workflowTitleInput");
+    const presetSelector = document.getElementById("presetSelector");
+    const inspectorDrawer = document.getElementById("inspectorDrawer");
+    const inspectorContent = document.getElementById("inspectorContent");
+    const inspectorTitle = document.getElementById("inspectorTitle");
+    const inspectorCategory = document.getElementById("inspectorCategory");
+    const inspectorTypeIcon = document.getElementById("inspectorTypeIcon");
+    const btnCloseInspector = document.getElementById("btnCloseInspector");
+    const btnRunWorkflow = document.getElementById("btnRunWorkflow");
+    const btnEditPayload = document.getElementById("btnEditPayload");
+    const payloadModal = document.getElementById("payloadModal");
+    const payloadTextarea = document.getElementById("payloadTextarea");
+    const payloadError = document.getElementById("payloadError");
+    const btnClosePayloadModal = document.getElementById("btnClosePayloadModal");
+    const btnSavePayload = document.getElementById("btnSavePayload");
+    const btnResetDefaultPayload = document.getElementById("btnResetDefaultPayload");
+    const traceDrawer = document.getElementById("traceDrawer");
+    const traceHeader = document.getElementById("traceHeader");
+    const btnToggleTrace = document.getElementById("btnToggleTrace");
+    const traceList = document.getElementById("traceList");
+    const traceDetail = document.getElementById("traceDetail");
+    const traceCountBadge = document.getElementById("traceCountBadge");
+    const traceSummaryText = document.getElementById("traceSummaryText");
+    const statusPill = document.getElementById("statusPill");
+    const statusText = document.getElementById("statusText");
+
+    // --- Helper Utilities ---
+
+    function generateId(prefix = "node") {
+      return `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Resolves nested properties in object e.g. "order.customer.tier"
+    function getNestedValue(obj, path) {
+      if (!obj || !path) return undefined;
+      const parts = path.trim().split(".");
+      let curr = obj;
+      for (const p of parts) {
+        if (curr === null || curr === undefined) return undefined;
+        curr = curr[p];
+      }
+      return curr;
+    }
+
+    function setNestedValue(obj, path, val) {
+      if (!obj || !path) return;
+      const parts = path.trim().split(".");
+      let curr = obj;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const p = parts[i];
+        if (!curr[p] || typeof curr[p] !== "object") {
+          curr[p] = {};
+        }
+        curr = curr[p];
+      }
+      curr[parts[parts.length - 1]] = val;
+    }
+
+    // Evaluate single condition
+    function evaluateRule(rule, data) {
+      const actualRaw = getNestedValue(data, rule.field);
+      const targetStr = rule.value !== undefined ? String(rule.value).trim() : "";
+      
+      let actualNum = parseFloat(actualRaw);
+      let targetNum = parseFloat(targetStr);
+      let isNumericComparison = !isNaN(actualNum) && !isNaN(targetNum) && actualRaw !== "" && targetStr !== "";
+
+      let passed = false;
+      const op = rule.op;
+
+      switch (op) {
+        case "greater_than":
+          passed = isNumericComparison ? actualNum > targetNum : String(actualRaw) > targetStr;
+          break;
+        case "greater_or_equal":
+          passed = isNumericComparison ? actualNum >= targetNum : String(actualRaw) >= targetStr;
+          break;
+        case "less_than":
+          passed = isNumericComparison ? actualNum < targetNum : String(actualRaw) < targetStr;
+          break;
+        case "less_or_equal":
+          passed = isNumericComparison ? actualNum <= targetNum : String(actualRaw) <= targetStr;
+          break;
+        case "equals":
+          if (isNumericComparison) {
+            passed = actualNum === targetNum;
+          } else if (typeof actualRaw === "boolean") {
+            passed = actualRaw === (targetStr.toLowerCase() === "true");
+          } else {
+            passed = String(actualRaw ?? "").toLowerCase() === targetStr.toLowerCase();
+          }
+          break;
+        case "not_equals":
+          if (isNumericComparison) {
+            passed = actualNum !== targetNum;
+          } else if (typeof actualRaw === "boolean") {
+            passed = actualRaw !== (targetStr.toLowerCase() === "true");
+          } else {
+            passed = String(actualRaw ?? "").toLowerCase() !== targetStr.toLowerCase();
+          }
+          break;
+        case "contains":
+          passed = String(actualRaw ?? "").toLowerCase().includes(targetStr.toLowerCase());
+          break;
+        case "not_contains":
+          passed = !String(actualRaw ?? "").toLowerCase().includes(targetStr.toLowerCase());
+          break;
+        case "is_empty":
+          passed = actualRaw === undefined || actualRaw === null || actualRaw === "";
+          break;
+        case "is_not_empty":
+          passed = actualRaw !== undefined && actualRaw !== null && actualRaw !== "";
+          break;
+        default:
+          passed = false;
+      }
+
+      return {
+        field: rule.field,
+        op: rule.op,
+        expected: rule.value,
+        actual: actualRaw,
+        passed: !!passed
+      };
+    }
+
+    // --- Canvas View Transform (Pan & Zoom) ---
+
+    function updateCanvasTransform() {
+      canvasLayer.style.transform = `translate(${STATE.pan.x}px, ${STATE.pan.y}px) scale(${STATE.zoom})`;
+      zoomLevelDisplay.textContent = `${Math.round(STATE.zoom * 100)}%`;
+    }
+
+    function setZoom(newZoom, centerX = window.innerWidth / 2, centerY = window.innerHeight / 2) {
+      const clamped = Math.min(Math.max(newZoom, 0.4), 2.2);
+      if (clamped === STATE.zoom) return;
+
+      // Zoom towards mouse or center
+      const factor = clamped / STATE.zoom;
+      STATE.pan.x = centerX - (centerX - STATE.pan.x) * factor;
+      STATE.pan.y = centerY - (centerY - STATE.pan.y) * factor;
+      STATE.zoom = clamped;
+      updateCanvasTransform();
+    }
+
+    // --- Render Nodes & Connections ---
+
+    function getNode(id) {
+      return STATE.nodes.find(n => n.id === id);
+    }
+
+    function renderAll() {
+      renderNodes();
+      renderWires();
+    }
+
+    function renderNodes() {
+      nodesContainer.innerHTML = "";
+      STATE.nodes.forEach(node => {
+        const el = document.createElement("div");
+        el.className = `flow-node ${node.type} ${node.id === STATE.selectedNodeId ? "selected" : ""}`;
+        el.id = node.id;
+        el.style.left = `${node.x}px`;
+        el.style.top = `${node.y}px`;
+
+        // Inner HTML
+        let bodyHtml = "";
+        if (node.type === "trigger") {
+          bodyHtml = `
+            <div class="node-summary-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+              ${node.config.eventType || "Any Event"}
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted);">Emits initial event payload</div>
+          `;
+        } else if (node.type === "logic") {
+          const mode = node.config.conditionMode || "AND";
+          const ruleLines = (node.config.rules || []).map(r => {
+            const opSymbol = {
+              greater_than: ">",
+              greater_or_equal: ">=",
+              less_than: "<",
+              less_or_equal: "<=",
+              equals: "==",
+              not_equals: "!=",
+              contains: "contains",
+              not_contains: "!contains",
+              is_empty: "is empty",
+              is_not_empty: "is not empty"
+            }[r.op] || r.op;
+            return `<div><code>${escapeHtml(r.field)}</code> <strong>${opSymbol}</strong> <code>${escapeHtml(r.value || "")}</code></div>`;
+          }).join("");
+
+          bodyHtml = `
+            <div>
+              <span class="node-rule-tag">${mode} MODE</span>
+              <span style="font-size: 11px; color: var(--text-muted);">${(node.config.rules || []).length} rule(s)</span>
+            </div>
+            <div class="node-rule-preview">
+              ${ruleLines || "<span style='color:#94a3b8'>No rules set</span>"}
+            </div>
+            <div class="port-label true">TRUE</div>
+            <div class="port-label false">FALSE</div>
+          `;
+        } else if (node.type === "action") {
+          let summary = "";
+          if (node.subtype === "webhook") {
+            summary = `Webhook: ${node.config.method || "POST"} ${(node.config.url || "").replace(/^https?:\/\//, "") || "URL"}`;
+          } else if (node.subtype === "email") {
+            summary = `Email: ${node.config.recipient || "User"}`;
+          } else if (node.subtype === "enrich") {
+            summary = `Set: ${node.config.enrichField || "key"} = ${node.config.enrichValue || "value"}`;
+          } else {
+            summary = `Log: ${node.config.logLevel || "INFO"}`;
+          }
+
+          bodyHtml = `
+            <div class="node-summary-badge" title="${escapeHtml(summary)}">
+              ${escapeHtml(summary)}
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted);">Processes & passes payload</div>
+          `;
+        }
+
+        // Ports HTML
+        let portsHtml = "";
+        if (node.type === "trigger") {
+          // Output only
+          portsHtml = `<div class="port port-out" data-port="out" title="Connect flow out"></div>`;
+        } else if (node.type === "logic") {
+          // In, and True/False outs
+          portsHtml = `
+            <div class="port port-in" data-port="in" title="Flow Input"></div>
+            <div class="port port-out-true" data-port="true" title="Branch when TRUE"></div>
+            <div class="port port-out-false" data-port="false" title="Branch when FALSE"></div>
+          `;
+        } else {
+          // Action has in and out
+          portsHtml = `
+            <div class="port port-in" data-port="in" title="Flow Input"></div>
+            <div class="port port-out" data-port="out" title="Flow Output"></div>
+          `;
+        }
+
+        // Node structure
+        el.innerHTML = `
+          <div class="node-header">
+            <div class="node-title-group">
+              <div class="node-type-icon">
+                ${getNodeIcon(node.type, node.subtype)}
+              </div>
+              <span class="node-title" title="${escapeHtml(node.title)}">${escapeHtml(node.title)}</span>
+            </div>
+            <div class="node-header-actions">
+              <button class="node-delete-btn" data-delete-id="${node.id}" title="Delete block">✕</button>
+            </div>
+          </div>
+          <div class="node-body">
+            ${bodyHtml}
+            <div id="status_${node.id}" class="node-exec-status" style="display:none;"></div>
+          </div>
+          ${portsHtml}
+        `;
+
+        // Node card click & drag handlers
+        setupNodeInteractivity(el, node);
+        nodesContainer.appendChild(el);
+      });
+    }
+
+    function getNodeIcon(type, subtype) {
+      if (type === "trigger") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`;
+      }
+      if (type === "logic") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>`;
+      }
+      if (subtype === "email") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>`;
+      }
+      if (subtype === "enrich") {
+        return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`;
+      }
+      return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str).replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    // --- Port Coordinate Calculations ---
+
+    function getPortCoordinates(nodeId, portName) {
+      const node = getNode(nodeId);
+      if (!node) return { x: 0, y: 0 };
+      const nodeW = 260;
+      
+      let x = node.x;
+      let y = node.y;
+
+      if (portName === "in") {
+        x += 0;
+        // Vertically middle of card
+        const nodeEl = document.getElementById(nodeId);
+        const height = nodeEl ? nodeEl.offsetHeight : 110;
+        y += height / 2;
+      } else if (portName === "out") {
+        x += nodeW;
+        const nodeEl = document.getElementById(nodeId);
+        const height = nodeEl ? nodeEl.offsetHeight : 110;
+        y += height / 2;
+      } else if (portName === "true") {
+        x += nodeW;
+        y += 42; // True port offset
+      } else if (portName === "false") {
+        x += nodeW;
+        const nodeEl = document.getElementById(nodeId);
+        const height = nodeEl ? nodeEl.offsetHeight : 140;
+        y += (height - 22); // False port offset
+      }
+
+      return { x, y };
+    }
+
+    function createBezierPath(x1, y1, x2, y2) {
+      const dx = Math.max(Math.abs(x2 - x1) * 0.5, 40);
+      return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    }
+
+    function renderWires() {
+      wiresGroup.innerHTML = "";
+      STATE.wires.forEach(wire => {
+        const fromCoord = getPortCoordinates(wire.fromNode, wire.fromPort);
+        const toCoord = getPortCoordinates(wire.toNode, wire.toPort);
+
+        const d = createBezierPath(fromCoord.x, fromCoord.y, toCoord.x, toCoord.y);
+
+        let strokeColor = "var(--wire-default)";
+        let marker = "url(#arrowhead)";
+        if (wire.fromPort === "true") {
+          strokeColor = "var(--wire-true)";
+          marker = "url(#arrowhead-true)";
+        } else if (wire.fromPort === "false") {
+          strokeColor = "var(--wire-false)";
+          marker = "url(#arrowhead-false)";
+        }
+
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "wire-group");
+        g.dataset.wireId = wire.id;
+
+        // Visual path
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("id", `wire_${wire.id}`);
+        path.setAttribute("d", d);
+        path.setAttribute("class", "connection-path");
+        path.setAttribute("stroke", strokeColor);
+        path.setAttribute("marker-end", marker);
+
+        // Invisible wider hitbox for easy clicking/deleting
+        const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        hitbox.setAttribute("d", d);
+        hitbox.setAttribute("class", "connection-hitbox");
+        hitbox.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (confirm("Disconnect this connection wire?")) {
+            deleteWire(wire.id);
+          }
+        });
+
+        g.appendChild(path);
+        g.appendChild(hitbox);
+        wiresGroup.appendChild(g);
+      });
+    }
+
+    function deleteWire(wireId) {
+      STATE.wires = STATE.wires.filter(w => w.id !== wireId);
+      renderWires();
+    }
+
+    function deleteNode(nodeId) {
+      // Remove wires connected to this node
+      STATE.wires = STATE.wires.filter(w => w.fromNode !== nodeId && w.toNode !== nodeId);
+      // Remove node
+      STATE.nodes = STATE.nodes.filter(n => n.id !== nodeId);
+      if (STATE.selectedNodeId === nodeId) {
+        selectNode(null);
+      }
+      renderAll();
+    }
+
+    // --- Interactive Dragging & Wire Connection Handlers ---
+
+    function setupNodeInteractivity(el, node) {
+      // Header dragging for node position
+      const header = el.querySelector(".node-header");
+      let isDraggingNode = false;
+      let dragStartX, dragStartY;
+      let initialNodeX, initialNodeY;
+
+      header.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".node-delete-btn")) return;
+        e.stopPropagation();
+
+        isDraggingNode = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        initialNodeX = node.x;
+        initialNodeY = node.y;
+
+        selectNode(node.id);
+
+        const onMouseMove = (moveEvt) => {
+          if (!isDraggingNode) return;
+          const dx = (moveEvt.clientX - dragStartX) / STATE.zoom;
+          const dy = (moveEvt.clientY - dragStartY) / STATE.zoom;
+          node.x = Math.round(initialNodeX + dx);
+          node.y = Math.round(initialNodeY + dy);
+          el.style.left = `${node.x}px`;
+          el.style.top = `${node.y}px`;
+          renderWires();
+        };
+
+        const onMouseUp = () => {
+          isDraggingNode = false;
+          window.removeEventListener("mousemove", onMouseMove);
+          window.removeEventListener("mouseup", onMouseUp);
+        };
+
+        window.addEventListener("mousemove", onMouseMove);
+        window.addEventListener("mouseup", onMouseUp);
+      });
+
+      // Card selection click
+      el.addEventListener("click", (e) => {
+        if (e.target.closest(".port") || e.target.closest(".node-delete-btn")) return;
+        selectNode(node.id);
+      });
+
+      // Delete button
+      const delBtn = el.querySelector(".node-delete-btn");
+      if (delBtn) {
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteNode(node.id);
+        });
+      }
+
+      // Output Ports wire drag origin
+      const outPorts = el.querySelectorAll(".port-out, .port-out-true, .port-out-false");
+      outPorts.forEach(portEl => {
+        portEl.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          const portType = portEl.dataset.port;
+          startDraggingWire(node.id, portType, e);
+        });
+      });
+
+      // Input Port drop target
+      const inPort = el.querySelector(".port-in");
+      if (inPort) {
+        inPort.addEventListener("mouseup", (e) => {
+          e.stopPropagation();
+          if (STATE.draggingWire) {
+            finishDraggingWire(node.id, "in");
+          }
+        });
+      }
+    }
+
+    function startDraggingWire(nodeId, portName, e) {
+      const coord = getPortCoordinates(nodeId, portName);
+      STATE.draggingWire = {
+        fromNode: nodeId,
+        fromPort: portName,
+        startX: coord.x,
+        startY: coord.y
+      };
+
+      ghostWire.style.display = "block";
+      updateGhostWire(coord.x, coord.y);
+
+      const onMouseMove = (moveEvt) => {
+        if (!STATE.draggingWire) return;
+        // Transform screen coords to canvas coords
+        const rect = canvasViewport.getBoundingClientRect();
+        const mouseX = (moveEvt.clientX - rect.left - STATE.pan.x) / STATE.zoom;
+        const mouseY = (moveEvt.clientY - rect.top - STATE.pan.y) / STATE.zoom;
+
+        updateGhostWire(mouseX, mouseY);
+      };
+
+      const onMouseUp = (upEvt) => {
+        // If mouse up wasn't caught by an input port, cancel wire
+        cancelDraggingWire();
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    }
+
+    function updateGhostWire(targetX, targetY) {
+      if (!STATE.draggingWire) return;
+      const d = createBezierPath(STATE.draggingWire.startX, STATE.draggingWire.startY, targetX, targetY);
+      ghostWire.setAttribute("d", d);
+    }
+
+    function finishDraggingWire(targetNodeId, targetPort) {
+      if (!STATE.draggingWire) return;
+
+      const fromNodeId = STATE.draggingWire.fromNode;
+      const fromPort = STATE.draggingWire.fromPort;
+
+      // Prevent self connection
+      if (fromNodeId === targetNodeId) {
+        cancelDraggingWire();
+        return;
+      }
+
+      // Check if connection already exists
+      const exists = STATE.wires.some(w =>
+        w.fromNode === fromNodeId &&
+        w.fromPort === fromPort &&
+        w.toNode === targetNodeId &&
+        w.toPort === targetPort
+      );
+
+      if (!exists) {
+        STATE.wires.push({
+          id: generateId("wire"),
+          fromNode: fromNodeId,
+          fromPort: fromPort,
+          toNode: targetNodeId,
+          toPort: targetPort
+        });
+        renderWires();
+      }
+
+      cancelDraggingWire();
+    }
+
+    function cancelDraggingWire() {
+      STATE.draggingWire = null;
+      ghostWire.style.display = "none";
+    }
+
+    // --- Drag & Drop from Left Palette onto Canvas ---
+
+    document.querySelectorAll(".palette-card").forEach(card => {
+      card.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("text/plain", JSON.stringify({
+          type: card.dataset.type,
+          subtype: card.dataset.subtype,
+          name: card.querySelector(".palette-name").textContent
+        }));
+      });
+    });
+
+    canvasViewport.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    });
+
+    canvasViewport.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const raw = e.dataTransfer.getData("text/plain");
+      if (!raw) return;
+
+      try {
+        const item = JSON.parse(raw);
+        const rect = canvasViewport.getBoundingClientRect();
+        const dropX = Math.round((e.clientX - rect.left - STATE.pan.x) / STATE.zoom - 100);
+        const dropY = Math.round((e.clientY - rect.top - STATE.pan.y) / STATE.zoom - 30);
+
+        let config = {};
+        if (item.type === "trigger") {
+          config = { eventType: "custom.event" };
+        } else if (item.type === "logic") {
+          config = {
+            conditionMode: "AND",
+            rules: [
+              { field: "order.total", op: "greater_than", value: "100" }
+            ]
+          };
+        } else if (item.type === "action") {
+          if (item.subtype === "webhook") {
+            config = { url: "https://api.example.com/endpoint", method: "POST" };
+          } else if (item.subtype === "email") {
+            config = { recipient: "user@example.com", subject: "Notification Alert" };
+          } else if (item.subtype === "enrich") {
+            config = { enrichField: "order.status", enrichValue: "verified" };
+          } else {
+            config = { logLevel: "INFO", message: "Processed item" };
+          }
+        }
+
+        const newNode = {
+          id: generateId(`node_${item.type}`),
+          type: item.type,
+          subtype: item.subtype,
+          title: item.name,
+          x: dropX,
+          y: dropY,
+          config
+        };
+
+        STATE.nodes.push(newNode);
+        renderAll();
+        selectNode(newNode.id);
+      } catch (err) {
+        console.error("Drop error", err);
+      }
+    });
+
+    // --- Canvas Panning & Zoom Event Listeners ---
+
+    canvasViewport.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".flow-node") || e.target.closest(".canvas-toolbar") || e.target.closest(".port")) return;
+      STATE.isPanning = true;
+      STATE.panStart = { x: e.clientX - STATE.pan.x, y: e.clientY - STATE.pan.y };
+      canvasViewport.classList.add("panning-active");
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!STATE.isPanning) return;
+      STATE.pan.x = e.clientX - STATE.panStart.x;
+      STATE.pan.y = e.clientY - STATE.panStart.y;
+      updateCanvasTransform();
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (STATE.isPanning) {
+        STATE.isPanning = false;
+        canvasViewport.classList.remove("panning-active");
+      }
+    });
+
+    canvasViewport.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+      setZoom(STATE.zoom * zoomFactor, e.clientX, e.clientY);
+    }, { passive: false });
+
+    document.getElementById("btnZoomIn").addEventListener("click", () => setZoom(STATE.zoom * 1.15));
+    document.getElementById("btnZoomOut").addEventListener("click", () => setZoom(STATE.zoom * 0.85));
+    document.getElementById("btnZoomFit").addEventListener("click", () => {
+      STATE.zoom = 1.0;
+      STATE.pan = { x: 50, y: 40 };
+      updateCanvasTransform();
+    });
+
+    // --- Right Inspector Configuration Panel ---
+
+    function selectNode(nodeId) {
+      STATE.selectedNodeId = nodeId;
+
+      // Update node styles
+      document.querySelectorAll(".flow-node").forEach(n => {
+        n.classList.toggle("selected", n.id === nodeId);
+      });
+
+      if (!nodeId) {
+        inspectorDrawer.classList.add("collapsed");
+        return;
+      }
+
+      const node = getNode(nodeId);
+      if (!node) {
+        inspectorDrawer.classList.add("collapsed");
+        return;
+      }
+
+      inspectorDrawer.classList.remove("collapsed");
+      renderInspector(node);
+    }
+
+    function renderInspector(node) {
+      inspectorTitle.textContent = node.title;
+      inspectorCategory.textContent = `${node.type.toUpperCase()} CONFIGURATION`;
+      inspectorTypeIcon.innerHTML = getNodeIcon(node.type, node.subtype);
+      inspectorTypeIcon.className = `palette-icon ${node.type}`;
+
+      let formHtml = `
+        <div class="form-group">
+          <label class="form-label">Block Title</label>
+          <input type="text" id="cfgTitle" class="form-input" value="${escapeHtml(node.title)}">
+        </div>
+      `;
+
+      if (node.type === "trigger") {
+        formHtml += `
+          <div class="form-group">
+            <label class="form-label">Event Type Identifier</label>
+            <input type="text" id="cfgEventType" class="form-input" value="${escapeHtml(node.config.eventType || "")}" placeholder="e.g. order.created">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Source System</label>
+            <input type="text" id="cfgSource" class="form-input" value="${escapeHtml(node.config.source || "")}" placeholder="e.g. Webhook API">
+          </div>
+          <div style="margin-top: 10px; padding: 10px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; font-size: 11px; color: #0369a1;">
+            ℹ️ This block triggers the flow when a new JSON payload arrives. You can customize the sample event in the top <strong>Test Payload</strong> editor.
+          </div>
+        `;
+      } else if (node.type === "logic") {
+        const mode = node.config.conditionMode || "AND";
+        const rules = node.config.rules || [];
+
+        let rulesRowsHtml = rules.map((r, idx) => `
+          <div class="rule-row" data-rule-idx="${idx}">
+            <div class="rule-row-header">
+              <span>Rule #${idx + 1}</span>
+              ${rules.length > 1 ? `<button class="rule-row-remove" data-del-rule="${idx}">Remove</button>` : ""}
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="font-size: 10px;">Variable Path</label>
+              <input type="text" class="form-input rule-field" value="${escapeHtml(r.field)}" placeholder="e.g. order.total">
+            </div>
+            <div class="rule-fields-grid">
+              <div>
+                <label class="form-label" style="font-size: 10px;">Operator</label>
+                <select class="form-select rule-op">
+                  <option value="greater_than" ${r.op === "greater_than" ? "selected" : ""}>greater_than (&gt;)</option>
+                  <option value="greater_or_equal" ${r.op === "greater_or_equal" ? "selected" : ""}>greater_or_equal (&gt;=)</option>
+                  <option value="less_than" ${r.op === "less_than" ? "selected" : ""}>less_than (&lt;)</option>
+                  <option value="less_or_equal" ${r.op === "less_or_equal" ? "selected" : ""}>less_or_equal (&lt;=)</option>
+                  <option value="equals" ${r.op === "equals" ? "selected" : ""}>equals (==)</option>
+                  <option value="not_equals" ${r.op === "not_equals" ? "selected" : ""}>not_equals (!=)</option>
+                  <option value="contains" ${r.op === "contains" ? "selected" : ""}>contains</option>
+                  <option value="not_contains" ${r.op === "not_contains" ? "selected" : ""}>not contains</option>
+                  <option value="is_empty" ${r.op === "is_empty" ? "selected" : ""}>is empty</option>
+                  <option value="is_not_empty" ${r.op === "is_not_empty" ? "selected" : ""}>is not empty</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label" style="font-size: 10px;">Value</label>
+                <input type="text" class="form-input rule-val" value="${escapeHtml(r.value || "")}" placeholder="Value">
+              </div>
+            </div>
+          </div>
+        `).join("");
+
+        formHtml += `
+          <div class="form-group">
+            <label class="form-label">
+              <span>Logical Operator</span>
+              <span class="helper">Evaluation Mode</span>
+            </label>
+            <div class="segmented-control">
+              <button type="button" class="segment-btn ${mode === "AND" ? "active" : ""}" data-mode="AND">AND (All rules pass)</button>
+              <button type="button" class="segment-btn ${mode === "OR" ? "active" : ""}" data-mode="OR">OR (Any rule passes)</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="form-label">
+              <span>Conditional Rules</span>
+              <button id="btnAddRule" class="btn btn-sm btn-secondary" style="padding: 2px 7px; font-size: 10px;">+ Add Rule</button>
+            </div>
+            <div class="rules-list">
+              ${rulesRowsHtml}
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <div style="flex: 1; padding: 8px; border-radius: 6px; background: var(--true-bg); border: 1px solid var(--true-color); font-size: 11px;">
+              <strong style="color: #059669;">● TRUE branch:</strong><br>Flow continues through green handle.
+            </div>
+            <div style="flex: 1; padding: 8px; border-radius: 6px; background: var(--false-bg); border: 1px solid var(--false-color); font-size: 11px;">
+              <strong style="color: #dc2626;">● FALSE branch:</strong><br>Flow continues through red handle.
+            </div>
+          </div>
+        `;
+      } else if (node.type === "action") {
+        if (node.subtype === "webhook") {
+          formHtml += `
+            <div class="form-group">
+              <label class="form-label">HTTP Method</label>
+              <select id="cfgMethod" class="form-select">
+                <option value="POST" ${node.config.method === "POST" ? "selected" : ""}>POST</option>
+                <option value="GET" ${node.config.method === "GET" ? "selected" : ""}>GET</option>
+                <option value="PUT" ${node.config.method === "PUT" ? "selected" : ""}>PUT</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target Webhook URL</label>
+              <input type="text" id="cfgUrl" class="form-input" value="${escapeHtml(node.config.url || "")}" placeholder="https://api.crm.com/v1/orders">
+            </div>
+          `;
+        } else if (node.subtype === "email") {
+          formHtml += `
+            <div class="form-group">
+              <label class="form-label">Recipient Email</label>
+              <input type="text" id="cfgRecipient" class="form-input" value="${escapeHtml(node.config.recipient || "")}" placeholder="{{customer.email}}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Subject</label>
+              <input type="text" id="cfgSubject" class="form-input" value="${escapeHtml(node.config.subject || "")}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Message Template</label>
+              <textarea id="cfgTemplate" class="form-textarea" placeholder="Support {{var}} substitution">${escapeHtml(node.config.template || "")}</textarea>
+            </div>
+          `;
+        } else if (node.subtype === "enrich") {
+          formHtml += `
+            <div class="form-group">
+              <label class="form-label">Enrich Variable Path</label>
+              <input type="text" id="cfgEnrichField" class="form-input" value="${escapeHtml(node.config.enrichField || "")}" placeholder="e.g. order.priorityStatus">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Value to Set / Calculate</label>
+              <input type="text" id="cfgEnrichValue" class="form-input" value="${escapeHtml(node.config.enrichValue || "")}" placeholder="e.g. true or high">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Annotation Notes</label>
+              <input type="text" id="cfgEnrichNotes" class="form-input" value="${escapeHtml(node.config.enrichNotes || "")}" placeholder="Reason for enrichment">
+            </div>
+          `;
+        } else {
+          // Log
+          formHtml += `
+            <div class="form-group">
+              <label class="form-label">Log Level</label>
+              <select id="cfgLogLevel" class="form-select">
+                <option value="INFO" ${node.config.logLevel === "INFO" ? "selected" : ""}>INFO</option>
+                <option value="WARN" ${node.config.logLevel === "WARN" ? "selected" : ""}>WARN</option>
+                <option value="DEBUG" ${node.config.logLevel === "DEBUG" ? "selected" : ""}>DEBUG</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Log Message</label>
+              <input type="text" id="cfgLogMsg" class="form-input" value="${escapeHtml(node.config.message || "")}">
+            </div>
+          `;
+        }
+      }
+
+      inspectorContent.innerHTML = formHtml;
+      attachInspectorListeners(node);
+    }
+
+    function attachInspectorListeners(node) {
+      // Title
+      const titleInput = document.getElementById("cfgTitle");
+      if (titleInput) {
+        titleInput.addEventListener("input", (e) => {
+          node.title = e.target.value;
+          renderNodes();
+        });
+      }
+
+      // Logic Block Listeners
+      if (node.type === "logic") {
+        // AND / OR Mode
+        inspectorContent.querySelectorAll(".segment-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            node.config.conditionMode = btn.dataset.mode;
+            renderInspector(node);
+            renderNodes();
+          });
+        });
+
+        // Add Rule
+        const btnAddRule = document.getElementById("btnAddRule");
+        if (btnAddRule) {
+          btnAddRule.addEventListener("click", () => {
+            if (!node.config.rules) node.config.rules = [];
+            node.config.rules.push({ field: "order.total", op: "greater_than", value: "100" });
+            renderInspector(node);
+            renderNodes();
+          });
+        }
+
+        // Rule row fields change & remove
+        inspectorContent.querySelectorAll(".rule-row").forEach(row => {
+          const idx = parseInt(row.dataset.ruleIdx, 10);
+          const fieldInput = row.querySelector(".rule-field");
+          const opSelect = row.querySelector(".rule-op");
+          const valInput = row.querySelector(".rule-val");
+          const delBtn = row.querySelector(".rule-row-remove");
+
+          if (fieldInput) {
+            fieldInput.addEventListener("input", () => {
+              node.config.rules[idx].field = fieldInput.value;
+              renderNodes();
+            });
+          }
+          if (opSelect) {
+            opSelect.addEventListener("change", () => {
+              node.config.rules[idx].op = opSelect.value;
+              renderNodes();
+            });
+          }
+          if (valInput) {
+            valInput.addEventListener("input", () => {
+              node.config.rules[idx].value = valInput.value;
+              renderNodes();
+            });
+          }
+          if (delBtn) {
+            delBtn.addEventListener("click", () => {
+              node.config.rules.splice(idx, 1);
+              renderInspector(node);
+              renderNodes();
+            });
+          }
+        });
+      }
+
+      // Action & Trigger specifics
+      const cfgEventType = document.getElementById("cfgEventType");
+      if (cfgEventType) {
+        cfgEventType.addEventListener("input", (e) => {
+          node.config.eventType = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgSource = document.getElementById("cfgSource");
+      if (cfgSource) {
+        cfgSource.addEventListener("input", (e) => {
+          node.config.source = e.target.value;
+        });
+      }
+      const cfgUrl = document.getElementById("cfgUrl");
+      if (cfgUrl) {
+        cfgUrl.addEventListener("input", (e) => {
+          node.config.url = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgMethod = document.getElementById("cfgMethod");
+      if (cfgMethod) {
+        cfgMethod.addEventListener("change", (e) => {
+          node.config.method = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgRecipient = document.getElementById("cfgRecipient");
+      if (cfgRecipient) {
+        cfgRecipient.addEventListener("input", (e) => {
+          node.config.recipient = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgSubject = document.getElementById("cfgSubject");
+      if (cfgSubject) {
+        cfgSubject.addEventListener("input", (e) => {
+          node.config.subject = e.target.value;
+        });
+      }
+      const cfgTemplate = document.getElementById("cfgTemplate");
+      if (cfgTemplate) {
+        cfgTemplate.addEventListener("input", (e) => {
+          node.config.template = e.target.value;
+        });
+      }
+      const cfgEnrichField = document.getElementById("cfgEnrichField");
+      if (cfgEnrichField) {
+        cfgEnrichField.addEventListener("input", (e) => {
+          node.config.enrichField = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgEnrichValue = document.getElementById("cfgEnrichValue");
+      if (cfgEnrichValue) {
+        cfgEnrichValue.addEventListener("input", (e) => {
+          node.config.enrichValue = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgEnrichNotes = document.getElementById("cfgEnrichNotes");
+      if (cfgEnrichNotes) {
+        cfgEnrichNotes.addEventListener("input", (e) => {
+          node.config.enrichNotes = e.target.value;
+        });
+      }
+      const cfgLogLevel = document.getElementById("cfgLogLevel");
+      if (cfgLogLevel) {
+        cfgLogLevel.addEventListener("change", (e) => {
+          node.config.logLevel = e.target.value;
+          renderNodes();
+        });
+      }
+      const cfgLogMsg = document.getElementById("cfgLogMsg");
+      if (cfgLogMsg) {
+        cfgLogMsg.addEventListener("input", (e) => {
+          node.config.message = e.target.value;
+          renderNodes();
+        });
+      }
+    }
+
+    btnCloseInspector.addEventListener("click", () => {
+      selectNode(null);
+    });
+
+    // --- Workflow Execution Simulator Engine ---
+
+    async function runWorkflow() {
+      // Find trigger node
+      const triggerNode = STATE.nodes.find(n => n.type === "trigger");
+      if (!triggerNode) {
+        alert("Workflow has no Trigger block. Add a Trigger block to start.");
+        return;
+      }
+
+      // Reset visual indicators
+      document.querySelectorAll(".flow-node").forEach(n => {
+        n.classList.remove("executing", "executed-success", "executed-false");
+        const statusBadge = n.querySelector(".node-exec-status");
+        if (statusBadge) {
+          statusBadge.style.display = "none";
+          statusBadge.className = "node-exec-status";
+        }
+      });
+      document.querySelectorAll(".connection-path").forEach(p => p.classList.remove("active-pulse"));
+
+      statusPill.className = "status-pill running";
+      statusText.textContent = "Executing...";
+      btnRunWorkflow.classList.add("running");
+      btnRunWorkflow.disabled = true;
+
+      // Expand trace drawer
+      traceDrawer.classList.remove("collapsed");
+
+      // Deep clone initial test payload
+      let currentPayload = JSON.parse(JSON.stringify(STATE.testPayload));
+      STATE.executionTrace = [];
+      renderTrace();
+
+      // Queue of execution steps: { nodeId, incomingWireId }
+      let currentNodeId = triggerNode.id;
+      let incomingWireId = null;
+
+      const visited = new Set();
+      const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+      while (currentNodeId) {
+        const node = getNode(currentNodeId);
+        if (!node) break;
+
+        if (visited.has(currentNodeId)) {
+          console.warn("Loop detected or already processed node:", currentNodeId);
+          break;
+        }
+        visited.add(currentNodeId);
+
+        // Highlight active wire
+        if (incomingWireId) {
+          const wireEl = document.getElementById(`wire_${incomingWireId}`);
+          if (wireEl) wireEl.classList.add("active-pulse");
+        }
+
+        // Highlight node
+        const nodeEl = document.getElementById(currentNodeId);
+        if (nodeEl) {
+          nodeEl.classList.add("executing");
+          const statusBadge = nodeEl.querySelector(".node-exec-status");
+          if (statusBadge) {
+            statusBadge.style.display = "inline-flex";
+            statusBadge.className = "node-exec-status running";
+            statusBadge.textContent = "Running";
+          }
+        }
+
+        await delay(650);
+
+        // Execute node logic
+        let snapshot = {
+          stepId: generateId("step"),
+          nodeId: node.id,
+          nodeTitle: node.title,
+          nodeType: node.type,
+          nodeSubtype: node.subtype,
+          timestamp: new Date().toLocaleTimeString(),
+          inputPayload: JSON.parse(JSON.stringify(currentPayload)),
+          status: "done",
+          details: {}
+        };
+
+        let nextNodeId = null;
+        let nextPort = "out";
+
+        if (node.type === "trigger") {
+          snapshot.details = {
+            message: `Event '${node.config.eventType || "trigger"}' dispatched into pipeline.`,
+            outputPayload: JSON.parse(JSON.stringify(currentPayload))
+          };
+          if (nodeEl) {
+            const badge = nodeEl.querySelector(".node-exec-status");
+            badge.className = "node-exec-status done";
+            badge.textContent = "✓ Dispatched";
+            nodeEl.classList.add("executed-success");
+          }
+          nextPort = "out";
+        } else if (node.type === "logic") {
+          // Evaluate rules
+          const mode = node.config.conditionMode || "AND";
+          const rules = node.config.rules || [];
+          const ruleResults = rules.map(r => evaluateRule(r, currentPayload));
+
+          let overallPassed = false;
+          if (mode === "AND") {
+            overallPassed = ruleResults.length > 0 && ruleResults.every(r => r.passed);
+          } else {
+            overallPassed = ruleResults.some(r => r.passed);
+          }
+
+          snapshot.status = overallPassed ? "pass" : "fail";
+          snapshot.details = {
+            mode,
+            rulesEvaluated: ruleResults,
+            result: overallPassed ? "TRUE" : "FALSE",
+            branchTaken: overallPassed ? "TRUE port (green)" : "FALSE port (red)",
+            outputPayload: JSON.parse(JSON.stringify(currentPayload))
+          };
+
+          if (nodeEl) {
+            const badge = nodeEl.querySelector(".node-exec-status");
+            if (overallPassed) {
+              badge.className = "node-exec-status true";
+              badge.textContent = "✓ TRUE";
+              nodeEl.classList.add("executed-success");
+            } else {
+              badge.className = "node-exec-status false";
+              badge.textContent = "⨉ FALSE";
+              nodeEl.classList.add("executed-false");
+            }
+          }
+
+          nextPort = overallPassed ? "true" : "false";
+        } else if (node.type === "action") {
+          // Process action
+          if (node.subtype === "enrich") {
+            const field = node.config.enrichField || "enrich.status";
+            let val = node.config.enrichValue;
+            if (val === "true") val = true;
+            else if (val === "false") val = false;
+            else if (!isNaN(Number(val)) && val.trim() !== "") val = Number(val);
+
+            setNestedValue(currentPayload, field, val);
+
+            snapshot.details = {
+              action: "Data Enrichment",
+              fieldMutated: field,
+              valueAssigned: val,
+              notes: node.config.enrichNotes || "Enrichment applied",
+              outputPayload: JSON.parse(JSON.stringify(currentPayload))
+            };
+          } else if (node.subtype === "email") {
+            // Templating variable replacement
+            let body = node.config.template || "";
+            body = body.replace(/\{\{([\w.]+)\}\}/g, (match, path) => {
+              const val = getNestedValue(currentPayload, path);
+              return val !== undefined ? val : match;
+            });
+            let to = node.config.recipient || "";
+            to = to.replace(/\{\{([\w.]+)\}\}/g, (match, path) => {
+              const val = getNestedValue(currentPayload, path);
+              return val !== undefined ? val : match;
+            });
+
+            snapshot.details = {
+              action: "Email Sent",
+              to,
+              subject: node.config.subject,
+              interpolatedBody: body,
+              outputPayload: JSON.parse(JSON.stringify(currentPayload))
+            };
+          } else if (node.subtype === "webhook") {
+            snapshot.details = {
+              action: "Webhook Dispatched",
+              method: node.config.method || "POST",
+              url: node.config.url || "https://api.crm.com",
+              httpStatus: 200,
+              responseMock: { ok: true, ackTimestamp: Date.now() },
+              outputPayload: JSON.parse(JSON.stringify(currentPayload))
+            };
+          } else {
+            // Log
+            snapshot.details = {
+              action: "Log Recorded",
+              level: node.config.logLevel || "INFO",
+              message: node.config.message || "Log executed",
+              outputPayload: JSON.parse(JSON.stringify(currentPayload))
+            };
+          }
+
+          if (nodeEl) {
+            const badge = nodeEl.querySelector(".node-exec-status");
+            badge.className = "node-exec-status done";
+            badge.textContent = "✓ Executed";
+            nodeEl.classList.add("executed-success");
+          }
+          nextPort = "out";
+        }
+
+        // Record trace snapshot
+        STATE.executionTrace.push(snapshot);
+        renderTrace();
+        selectTraceStep(snapshot.stepId);
+
+        if (nodeEl) nodeEl.classList.remove("executing");
+
+        // Find outgoing wire
+        const outgoingWire = STATE.wires.find(w => w.fromNode === node.id && w.fromPort === nextPort);
+        if (outgoingWire) {
+          incomingWireId = outgoingWire.id;
+          currentNodeId = outgoingWire.toNode;
+        } else {
+          currentNodeId = null;
+        }
+      }
+
+      await delay(400);
+
+      // Done simulation
+      statusPill.className = "status-pill success";
+      statusText.textContent = "Completed";
+      btnRunWorkflow.classList.remove("running");
+      btnRunWorkflow.disabled = false;
+    }
+
+    // --- Trace Drawer Rendering ---
+
+    function renderTrace() {
+      traceCountBadge.textContent = `${STATE.executionTrace.length} step(s)`;
+      traceSummaryText.textContent = STATE.executionTrace.length > 0 
+        ? `Last run completed with ${STATE.executionTrace.length} blocks processed.` 
+        : "Click 'Test Workflow' to simulate flow execution";
+
+      traceList.innerHTML = "";
+      STATE.executionTrace.forEach((step, idx) => {
+        const item = document.createElement("div");
+        item.className = "trace-item";
+        item.dataset.stepId = step.stepId;
+        
+        let statusBadge = `<span class="trace-item-status done">DONE</span>`;
+        if (step.status === "pass") statusBadge = `<span class="trace-item-status pass">TRUE</span>`;
+        if (step.status === "fail") statusBadge = `<span class="trace-item-status fail">FALSE</span>`;
+
+        item.innerHTML = `
+          <div class="trace-item-title">
+            <span style="color: var(--text-light); font-weight: 500;">#${idx + 1}</span>
+            <span>${escapeHtml(step.nodeTitle)}</span>
+          </div>
+          <div>${statusBadge}</div>
+        `;
+
+        item.addEventListener("click", () => selectTraceStep(step.stepId));
+        traceList.appendChild(item);
+      });
+    }
+
+    function selectTraceStep(stepId) {
+      document.querySelectorAll(".trace-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.stepId === stepId);
+      });
+
+      const step = STATE.executionTrace.find(s => s.stepId === stepId);
+      if (!step) return;
+
+      let detailHtml = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h4 style="font-size:13px; font-weight:700; color:#0f172a;">${escapeHtml(step.nodeTitle)} (${step.nodeType.toUpperCase()})</h4>
+          <span style="font-size:11px; color:var(--text-muted);">${step.timestamp}</span>
+        </div>
+      `;
+
+      if (step.nodeType === "logic") {
+        detailHtml += `
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:700; margin-bottom:6px; color:#475569;">
+              Evaluation: ${step.details.mode} Mode &rarr; <span style="color:${step.details.result === "TRUE" ? "#059669" : "#dc2626"}">${step.details.result}</span> (Path: ${step.details.branchTaken})
+            </div>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              ${(step.details.rulesEvaluated || []).map(r => `
+                <div style="font-size:11px; font-family:monospace; display:flex; align-items:center; justify-content:space-between; padding:3px 6px; background:white; border-radius:4px; border:1px solid #e2e8f0;">
+                  <span><code>${r.field}</code> (${JSON.stringify(r.actual)}) <strong>${r.op}</strong> <code>${JSON.stringify(r.expected)}</code></span>
+                  <span style="font-weight:700; color:${r.passed ? "#059669" : "#dc2626"}">${r.passed ? "PASS" : "FAIL"}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      } else if (step.nodeType === "action") {
+        detailHtml += `
+          <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:6px; padding:10px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:700; color:#115e59; margin-bottom:4px;">Action Output</div>
+            <pre style="margin:0; background:white; padding:6px; font-size:11px;">${JSON.stringify(step.details, null, 2)}</pre>
+          </div>
+        `;
+      }
+
+      detailHtml += `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">Input Payload:</div>
+            <pre>${JSON.stringify(step.inputPayload, null, 2)}</pre>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">Transformed Output Payload:</div>
+            <pre>${JSON.stringify(step.details.outputPayload || step.inputPayload, null, 2)}</pre>
+          </div>
+        </div>
+      `;
+
+      traceDetail.innerHTML = detailHtml;
+    }
+
+    btnToggleTrace.addEventListener("click", () => {
+      traceDrawer.classList.toggle("collapsed");
+    });
+    traceHeader.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      traceDrawer.classList.toggle("collapsed");
+    });
+
+    // --- Test Payload Modal ---
+
+    btnEditPayload.addEventListener("click", () => {
+      payloadTextarea.value = JSON.stringify(STATE.testPayload, null, 2);
+      payloadError.style.display = "none";
+      payloadModal.classList.add("open");
+    });
+
+    btnClosePayloadModal.addEventListener("click", () => {
+      payloadModal.classList.remove("open");
+    });
+
+    btnResetDefaultPayload.addEventListener("click", () => {
+      const activePreset = PRESETS[presetSelector.value] || PRESETS.ecommerce;
+      payloadTextarea.value = JSON.stringify(activePreset.payload, null, 2);
+    });
+
+    btnSavePayload.addEventListener("click", () => {
+      try {
+        const parsed = JSON.parse(payloadTextarea.value);
+        STATE.testPayload = parsed;
+        payloadModal.classList.remove("open");
+      } catch (err) {
+        payloadError.textContent = `Invalid JSON syntax: ${err.message}`;
+        payloadError.style.display = "block";
+      }
+    });
+
+    // --- Presets Loading ---
+
+    function loadPreset(key) {
+      const p = PRESETS[key] || PRESETS.ecommerce;
+      STATE.title = p.title;
+      workflowTitleInput.value = p.title;
+      STATE.testPayload = JSON.parse(JSON.stringify(p.payload));
+      STATE.nodes = JSON.parse(JSON.stringify(p.nodes));
+      STATE.wires = JSON.parse(JSON.stringify(p.wires));
+      STATE.executionTrace = [];
+      STATE.selectedNodeId = null;
+
+      statusPill.className = "status-pill";
+      statusText.textContent = "Ready";
+
+      renderAll();
+      renderTrace();
+      selectNode(null);
+    }
+
+    presetSelector.addEventListener("change", (e) => {
+      loadPreset(e.target.value);
+    });
+
+    workflowTitleInput.addEventListener("input", (e) => {
+      STATE.title = e.target.value;
+    });
+
+    btnRunWorkflow.addEventListener("click", () => {
+      runWorkflow();
+    });
+
+    // --- Keyboard Shortcuts & Initialization ---
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (payloadModal.classList.contains("open")) {
+          payloadModal.classList.remove("open");
+        } else if (STATE.selectedNodeId) {
+          selectNode(null);
+        }
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && STATE.selectedNodeId) {
+        // Only delete node if not actively typing in an input
+        if (!["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
+          deleteNode(STATE.selectedNodeId);
+        }
+      }
+    });
+
+    // Initial boot
+    loadPreset("ecommerce");
+    updateCanvasTransform();
+
+  </script>
+</body>
+</html>

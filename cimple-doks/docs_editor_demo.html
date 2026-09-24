@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paper — Minimal Document Editor</title>
+  <meta name="color-scheme" content="light" />
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --panel: rgba(255,255,255,.92);
+      --surface: #fff;
+      --line: #e7e7e3;
+      --line-strong: #d9d9d4;
+      --text: #20201d;
+      --muted: #77776f;
+      --soft: #f1f1ed;
+      --hover: #f5f5f2;
+      --accent: #2f6fed;
+      --accent-soft: #edf3ff;
+      --shadow: 0 10px 28px rgba(30,30,25,.07), 0 1px 2px rgba(30,30,25,.05);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      grid-template-rows: 56px minmax(0, 1fr);
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .brand {
+      width: 214px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #252521;
+      font-weight: 650;
+      letter-spacing: -.02em;
+    }
+
+    .brand-mark {
+      width: 27px;
+      height: 27px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #fff;
+      box-shadow: 0 1px 1px rgba(0,0,0,.02);
+      font-size: 13px;
+    }
+
+    .doc-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .title-input {
+      width: min(430px, 42vw);
+      border: 0;
+      outline: 0;
+      background: transparent;
+      font-size: 15px;
+      font-weight: 550;
+      letter-spacing: -.01em;
+      color: var(--text);
+      padding: 7px 8px;
+      border-radius: 8px;
+    }
+
+    .title-input:hover,
+    .title-input:focus {
+      background: var(--soft);
+    }
+
+    .save-state {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .icon-btn, .share-btn, .avatar {
+      height: 34px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .icon-btn {
+      width: 34px;
+      color: #60605a;
+    }
+
+    .icon-btn:hover {
+      background: var(--soft);
+      color: var(--text);
+    }
+
+    .share-btn {
+      padding: 0 12px;
+      background: #242421;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .share-btn:hover { background: #343430; }
+
+    .avatar {
+      width: 32px;
+      background: #ece9df;
+      color: #514f48;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 3px;
+    }
+
+    .sidebar {
+      grid-row: 2;
+      border-right: 1px solid var(--line);
+      background: rgba(251,251,249,.82);
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow: auto;
+    }
+
+    .sidebar-label {
+      margin: 0 9px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #9a9a92;
+    }
+
+    .nav {
+      display: grid;
+      gap: 3px;
+    }
+
+    .nav-item {
+      width: 100%;
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-align: left;
+      color: #6c6c65;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .nav-item:hover {
+      background: var(--hover);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: #efefeb;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .nav-item svg { flex: 0 0 auto; }
+
+    .doc-list {
+      display: grid;
+      gap: 2px;
+    }
+
+    .doc-row {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #67675f;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .doc-row:hover { background: var(--hover); color: var(--text); }
+    .doc-row.selected { background: #f0f0ec; color: var(--text); }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #bcbcb4;
+      flex: 0 0 auto;
+    }
+
+    .doc-row.selected .dot { background: var(--accent); }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 12px 10px;
+      border-top: 1px solid var(--line);
+      color: #8a8a81;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .workspace {
+      grid-row: 2;
+      min-width: 0;
+      position: relative;
+      overflow: auto;
+      background:
+        linear-gradient(180deg, #f8f8f6 0%, #f6f6f3 100%);
+    }
+
+    .workspace-head {
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid rgba(231,231,227,.72);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(247,247,245,.74);
+      backdrop-filter: blur(11px);
+    }
+
+    .breadcrumbs {
+      color: #8b8b83;
+      font-size: 11px;
+      letter-spacing: .01em;
+    }
+
+    .page-wrap {
+      padding: 30px 30px 80px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .page {
+      width: min(850px, calc(100vw - 340px));
+      min-height: 1030px;
+      background: var(--surface);
+      border: 1px solid #ecece8;
+      box-shadow: var(--shadow);
+      border-radius: 3px;
+      padding: 74px 82px 100px;
+    }
+
+    .eyebrow {
+      color: #8a8a82;
+      font-size: 11px;
+      margin-bottom: 20px;
+      letter-spacing: .04em;
+    }
+
+    .editor {
+      outline: none;
+      min-height: 800px;
+    }
+
+    .editor h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(37px, 4vw, 50px);
+      line-height: 1.06;
+      font-weight: 500;
+      letter-spacing: -.035em;
+      margin: 0 0 18px;
+      color: #181816;
+    }
+
+    .editor h2 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 25px;
+      line-height: 1.2;
+      font-weight: 500;
+      letter-spacing: -.025em;
+      margin: 34px 0 10px;
+    }
+
+    .editor p, .editor li {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 17px;
+      line-height: 1.72;
+      color: #373732;
+    }
+
+    .editor p { margin: 0 0 18px; }
+
+    .editor ul {
+      margin: 8px 0 22px;
+      padding-left: 27px;
+    }
+
+    .editor blockquote {
+      border-left: 3px solid #d8d8d2;
+      margin: 24px 0;
+      padding: 4px 0 4px 22px;
+      color: #67675f;
+    }
+
+    .editor hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 30px 0;
+    }
+
+    .callout {
+      margin: 24px 0;
+      padding: 15px 17px;
+      border: 1px solid var(--line);
+      background: #fafaf7;
+      border-radius: 9px;
+      color: #575750;
+      font-family: Inter, ui-sans-serif, sans-serif;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .callout strong {
+      color: #292925;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .toolbar {
+      position: fixed;
+      left: calc(250px + 50%);
+      transform: translateX(-50%);
+      bottom: 18px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 6px;
+      border: 1px solid #dfdfda;
+      border-radius: 12px;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 30px rgba(30,30,25,.10);
+    }
+
+    .tool-btn {
+      min-width: 32px;
+      height: 30px;
+      padding: 0 7px;
+      border-radius: 7px;
+      color: #5f5f58;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .tool-btn:hover {
+      background: var(--soft);
+      color: var(--text);
+    }
+
+    .tool-btn.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .divider {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+      margin: 0 3px;
+    }
+
+    .status {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      color: #999990;
+      font-size: 11px;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .slash-menu {
+      display: none;
+      position: fixed;
+      z-index: 40;
+      width: 260px;
+      border: 1px solid #dfdfda;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 18px 38px rgba(30,30,25,.13);
+      padding: 7px;
+    }
+
+    .slash-menu.show { display: block; }
+
+    .slash-item {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      text-align: left;
+      border-radius: 7px;
+      padding: 8px 9px;
+    }
+
+    .slash-item:hover { background: var(--soft); }
+
+    .slash-icon {
+      width: 26px;
+      height: 26px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      color: #696962;
+      font-size: 11px;
+      background: #fafaf8;
+    }
+
+    .slash-copy strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 650;
+      margin-bottom: 2px;
+    }
+
+    .slash-copy span {
+      display: block;
+      color: #999990;
+      font-size: 10px;
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 0 minmax(0, 1fr); }
+      .sidebar { display: none; }
+      .brand { width: auto; }
+      .toolbar { left: 50%; }
+      .page { width: min(850px, calc(100vw - 32px)); padding-left: 48px; padding-right: 48px; }
+      .title-input { width: min(330px, 40vw); }
+    }
+
+    @media (max-width: 650px) {
+      .topbar { padding: 0 10px; gap: 8px; }
+      .brand span:last-child, .save-state, .icon-btn:nth-child(-n+2) { display: none; }
+      .doc-meta { gap: 4px; }
+      .title-input { width: min(230px, 52vw); }
+      .share-btn { display: none; }
+      .page-wrap { padding: 14px 8px 80px; }
+      .page { min-height: calc(100vh - 85px); width: 100%; padding: 46px 26px 90px; }
+      .editor h1 { font-size: 36px; }
+      .editor p, .editor li { font-size: 16px; }
+      .status { right: 10px; bottom: 62px; }
+      .toolbar { bottom: 10px; max-width: calc(100vw - 20px); overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">P</div>
+        <span>Paper</span>
+      </div>
+
+      <div class="doc-meta">
+        <input id="titleInput" class="title-input" value="Untitled document" aria-label="Document title" />
+        <span id="saveState" class="save-state">Saved locally</span>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-btn" title="Search" aria-label="Search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.2 4.2"/></svg>
+        </button>
+        <button class="icon-btn" title="Comments" aria-label="Comments">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4.5 5.5h15v10h-8.2L7 19v-3.5H4.5z"/></svg>
+        </button>
+        <button class="share-btn">Share</button>
+        <div class="avatar" title="Local workspace">JR</div>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div>
+        <p class="sidebar-label">Workspace</p>
+        <nav class="nav">
+          <button class="nav-item active">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 7.5h6M9 11h6M9 14.5h4"/></svg>
+            My documents
+          </button>
+          <button class="nav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.6 5.3L20 9.1l-4 4 1 5.7-5-2.7-5 2.7 1-5.7-4-4 5.4-.8z"/></svg>
+            Favorites
+          </button>
+          <button class="nav-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4.5 6.5h15v12h-15z"/><path d="M7.5 6.5V4h9v2.5"/></svg>
+            Templates
+          </button>
+        </nav>
+      </div>
+
+      <div>
+        <p class="sidebar-label">Recent</p>
+        <div class="doc-list">
+          <button class="doc-row selected"><span class="dot"></span><span>Untitled document</span></button>
+          <button class="doc-row"><span class="dot"></span><span>Product notes</span></button>
+          <button class="doc-row"><span class="dot"></span><span>Reading list</span></button>
+          <button class="doc-row"><span class="dot"></span><span>Launch checklist</span></button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        Local prototype<br />
+        Your changes stay in this browser.
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <div class="workspace-head">
+        <div class="breadcrumbs">My documents&nbsp;&nbsp; / &nbsp;&nbsp;Untitled document</div>
+      </div>
+
+      <div class="page-wrap">
+        <article class="page">
+          <div class="eyebrow">DOCUMENT · PRIVATE</div>
+
+          <div id="editor" class="editor" contenteditable="true" spellcheck="true">
+            <h1>Write something worth keeping.</h1>
+            <p>A quiet place for ideas, notes, plans, and everything in between.</p>
+
+            <div class="callout">
+              <strong>Try the editor</strong>
+              Type <b>/</b> at the start of an empty line to open a tiny block menu. Everything you edit is saved automatically in your browser.
+            </div>
+
+            <h2>A simple canvas</h2>
+            <p>Keep the interface out of the way. The page is the product: generous margins, familiar typography, and just enough controls to make writing feel effortless.</p>
+
+            <ul>
+              <li>Use the toolbar for bold, italic, headings, and lists.</li>
+              <li>Select text to experiment with native browser editing.</li>
+              <li>Refresh the page — your latest draft should still be here.</li>
+            </ul>
+
+            <blockquote>Good tools disappear into the work.</blockquote>
+
+            <hr />
+
+            <p>Start replacing this copy with your own content.</p>
+          </div>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <div id="slashMenu" class="slash-menu">
+    <button class="slash-item" data-command="h1">
+      <span class="slash-icon">H</span>
+      <span class="slash-copy"><strong>Heading 1</strong><span>Large page heading</span></span>
+    </button>
+    <button class="slash-item" data-command="h2">
+      <span class="slash-icon">H2</span>
+      <span class="slash-copy"><strong>Heading 2</strong><span>Section heading</span></span>
+    </button>
+    <button class="slash-item" data-command="p">
+      <span class="slash-icon">¶</span>
+      <span class="slash-copy"><strong>Text</strong><span>Plain paragraph</span></span>
+    </button>
+    <button class="slash-item" data-command="ul">
+      <span class="slash-icon">•</span>
+      <span class="slash-copy"><strong>Bulleted list</strong><span>Turn a line into a list</span></span>
+    </button>
+    <button class="slash-item" data-command="quote">
+      <span class="slash-icon">“</span>
+      <span class="slash-copy"><strong>Quote</strong><span>Emphasize a passage</span></span>
+    </button>
+  </div>
+
+  <div class="toolbar" aria-label="Formatting toolbar">
+    <button class="tool-btn" data-cmd="bold" title="Bold"><strong>B</strong></button>
+    <button class="tool-btn" data-cmd="italic" title="Italic"><em>I</em></button>
+    <button class="tool-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+    <div class="divider"></div>
+    <button class="tool-btn" data-block="p">Text</button>
+    <button class="tool-btn" data-block="h2">H2</button>
+    <button class="tool-btn" data-block="blockquote">Quote</button>
+    <div class="divider"></div>
+    <button class="tool-btn" data-cmd="insertUnorderedList">• List</button>
+    <button class="tool-btn" data-cmd="insertHorizontalRule">—</button>
+    <button class="tool-btn" data-cmd="removeFormat">Clear</button>
+  </div>
+
+  <div class="status">Autosave enabled</div>
+
+  <script>
+    const STORAGE_KEY = "paper-editor-demo-v1";
+    const editor = document.getElementById("editor");
+    const titleInput = document.getElementById("titleInput");
+    const saveState = document.getElementById("saveState");
+    const slashMenu = document.getElementById("slashMenu");
+
+    let saveTimer;
+    let savedSelection = null;
+
+    const defaultState = {
+      title: titleInput.value,
+      html: editor.innerHTML
+    };
+
+    function saveStateToStorage() {
+      clearTimeout(saveTimer);
+      saveState.textContent = "Saving…";
+      saveTimer = setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          title: titleInput.value,
+          html: editor.innerHTML,
+          updatedAt: Date.now()
+        }));
+        saveState.textContent = "Saved locally";
+      }, 180);
+    }
+
+    function restoreState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (typeof state.title === "string") titleInput.value = state.title;
+        if (typeof state.html === "string" && state.html.trim()) editor.innerHTML = state.html;
+      } catch (_) {
+        // Ignore malformed local state and keep the defaults.
+      }
+    }
+
+    function exec(command, value = null) {
+      document.execCommand(command, false, value);
+      editor.focus();
+      saveStateToStorage();
+    }
+
+    function closeSlashMenu() {
+      slashMenu.classList.remove("show");
+      savedSelection = null;
+    }
+
+    function showSlashMenu() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      savedSelection = sel.getRangeAt(0).cloneRange();
+
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      slashMenu.style.left = Math.min(window.innerWidth - 275, Math.max(12, rect.left)) + "px";
+      slashMenu.style.top = Math.min(window.innerHeight - 320, Math.max(12, rect.bottom + 8)) + "px";
+      slashMenu.classList.add("show");
+    }
+
+    function currentBlock() {
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      let node = sel.anchorNode;
+      if (node && node.nodeType === 3) node = node.parentElement;
+      return node?.closest?.("p, h1, h2, blockquote, li") || null;
+    }
+
+    function applySlashCommand(command) {
+      if (!savedSelection) return;
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedSelection);
+
+      const block = currentBlock();
+      if (block) {
+        const text = block.textContent.replace(/^\/\s*/, "");
+        if (command === "h1" || command === "h2" || command === "p") {
+          const newBlock = document.createElement(command);
+          newBlock.textContent = text || "Untitled";
+          block.replaceWith(newBlock);
+        } else if (command === "ul") {
+          const ul = document.createElement("ul");
+          const li = document.createElement("li");
+          li.textContent = text || "List item";
+          ul.appendChild(li);
+          block.replaceWith(ul);
+        } else if (command === "quote") {
+          const quote = document.createElement("blockquote");
+          quote.textContent = text || "Quote";
+          block.replaceWith(quote);
+        }
+      }
+
+      closeSlashMenu();
+      editor.focus();
+      saveStateToStorage();
+    }
+
+    // Toolbar actions
+    document.querySelectorAll(".tool-btn[data-cmd]").forEach(btn => {
+      btn.addEventListener("mousedown", e => e.preventDefault());
+      btn.addEventListener("click", () => exec(btn.dataset.cmd));
+    });
+
+    document.querySelectorAll(".tool-btn[data-block]").forEach(btn => {
+      btn.addEventListener("mousedown", e => e.preventDefault());
+      btn.addEventListener("click", () => exec("formatBlock", btn.dataset.block));
+    });
+
+    editor.addEventListener("input", () => {
+      saveStateToStorage();
+
+      // Open slash menu when the current block is exactly "/"
+      const block = currentBlock();
+      if (block && block.textContent.trim() === "/") {
+        showSlashMenu();
+      } else {
+        closeSlashMenu();
+      }
+    });
+
+    editor.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSlashMenu();
+
+      // Lightweight markdown-ish shortcuts.
+      if (e.key === " " && !e.shiftKey) {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) return;
+        const block = currentBlock();
+        if (!block) return;
+        const text = block.textContent;
+        if (text === "#") {
+          e.preventDefault();
+          block.outerHTML = "<h1><br></h1>";
+          placeCaretAtEnd(editor.querySelector("h1"));
+          saveStateToStorage();
+        } else if (text === "##") {
+          e.preventDefault();
+          block.outerHTML = "<h2><br></h2>";
+          placeCaretAtEnd(editor.querySelector("h2"));
+          saveStateToStorage();
+        } else if (text === "-") {
+          e.preventDefault();
+          block.outerHTML = "<ul><li><br></li></ul>";
+          placeCaretAtEnd(editor.querySelector("li"));
+          saveStateToStorage();
+        }
+      }
+
+      // On typing slash into an empty line, the input handler shows the menu.
+    });
+
+    document.addEventListener("mousedown", (e) => {
+      if (!slashMenu.contains(e.target) && !editor.contains(e.target)) closeSlashMenu();
+    });
+
+    slashMenu.querySelectorAll(".slash-item").forEach(btn => {
+      btn.addEventListener("mousedown", e => e.preventDefault());
+      btn.addEventListener("click", () => applySlashCommand(btn.dataset.command));
+    });
+
+    titleInput.addEventListener("input", () => {
+      document.querySelector(".breadcrumbs").textContent = "My documents  /  " + (titleInput.value || "Untitled document");
+      document.querySelector(".doc-row.selected span:last-child").textContent = titleInput.value || "Untitled document";
+      saveStateToStorage();
+    });
+
+    function placeCaretAtEnd(el) {
+      if (!el) return;
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      editor.focus();
+    }
+
+    restoreState();
+    document.querySelector(".breadcrumbs").textContent = "My documents  /  " + (titleInput.value || "Untitled document");
+    document.querySelector(".doc-row.selected span:last-child").textContent = titleInput.value || "Untitled document";
+  </script>
+</body>
+</html>
