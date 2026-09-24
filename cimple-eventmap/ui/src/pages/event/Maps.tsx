@@ -34,7 +34,13 @@ import {
     Calendar, 
     ExternalLink,
     Crosshair,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Folder,
+    FolderPlus,
+    FolderOpen,
+    FolderInput,
+    ChevronRight,
+    ChevronDown
 } from 'lucide-react';
 import { eventsApi, type Event } from '../../lib/eventsApi';
 import { eventTypesApi, type EventType } from '../../lib/eventTypesApi';
@@ -43,6 +49,13 @@ import { getWsToken } from '../../lib/api';
 import { Header } from '../../components/Header';
 import { BASE_PATH } from '../../lib/base';
 import { useNavigate } from 'react-router';
+
+export interface FeatureGroup {
+    id: string;
+    name: string;
+    collapsed?: boolean;
+    visible?: boolean;
+}
 
 // Fix for default Leaflet marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -199,7 +212,28 @@ export const Maps: React.FC = () => {
     const [searchEventsText, setSearchEventsText] = useState('');
     const [selectedEventTypeId, setSelectedEventTypeId] = useState<number | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-    const [searchLayersText, setSearchLayersText] = useState('');
+    const [searchFeaturesText, setSearchFeaturesText] = useState('');
+
+    // Feature Groups (Folders) State
+    const [groups, setGroups] = useState<FeatureGroup[]>(() => {
+        try {
+            const saved = localStorage.getItem('cimple_eventmap_feature_groups');
+            if (saved) return JSON.parse(saved);
+        } catch (_) {}
+        return [];
+    });
+    const [folderModalOpen, setFolderModalOpen] = useState(false);
+    const [folderModalMode, setFolderModalMode] = useState<'create' | 'rename'>('create');
+    const [folderModalTargetId, setFolderModalTargetId] = useState<string | null>(null);
+    const [folderInputName, setFolderInputName] = useState('');
+    const [moveMenuFeatureId, setMoveMenuFeatureId] = useState<number | null>(null);
+
+    // Persist groups
+    useEffect(() => {
+        try {
+            localStorage.setItem('cimple_eventmap_feature_groups', JSON.stringify(groups));
+        } catch (_) {}
+    }, [groups]);
 
     // Drawing Temp State
     const [tempPoints, setTempPoints] = useState<[number, number][]>([]);
@@ -213,6 +247,7 @@ export const Maps: React.FC = () => {
         notes: '',
         color: '#4f46e5',
         icon: 'fa-location-dot',
+        groupId: '',
     });
 
     const [labelModalOpen, setLabelModalOpen] = useState(false);
@@ -220,6 +255,7 @@ export const Maps: React.FC = () => {
         text: '',
         color: '#1e293b',
         bgColor: '#ffffff',
+        groupId: '',
     });
 
     const [shapeSaveModalOpen, setShapeSaveModalOpen] = useState(false);
@@ -231,6 +267,7 @@ export const Maps: React.FC = () => {
         name: '',
         description: '',
         color: '#3b82f6',
+        groupId: '',
     });
 
     const [editingFeature, setEditingFeature] = useState<Feature | null>(null);
@@ -238,12 +275,13 @@ export const Maps: React.FC = () => {
         name: '',
         description: '',
         color: '#3b82f6',
+        groupId: '',
     });
 
     const wsRef = useRef<WebSocket | null>(null);
     const mapRef = useRef<L.Map | null>(null);
 
-    // Initial load
+    // Initial load & window event listeners
     useEffect(() => {
         loadData();
         connectWebSocket();
@@ -254,15 +292,23 @@ export const Maps: React.FC = () => {
                 setLabelModalOpen(false);
                 setShapeSaveModalOpen(false);
                 setEditingFeature(null);
+                setFolderModalOpen(false);
+                setMoveMenuFeatureId(null);
                 setTempPoints([]);
                 setActiveMode('select');
             }
         };
+        const handleClickOutside = () => {
+            setMoveMenuFeatureId(null);
+        };
+
         window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('click', handleClickOutside);
 
         return () => {
             if (wsRef.current) wsRef.current.close();
             window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('click', handleClickOutside);
         };
     }, []);
 
@@ -365,6 +411,7 @@ export const Maps: React.FC = () => {
         const data = {
             exportedAt: new Date().toISOString(),
             features,
+            featureGroups: groups,
             events,
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -387,6 +434,19 @@ export const Maps: React.FC = () => {
                 for (const f of data.features) {
                     await featuresApi.create(f);
                 }
+            }
+            if (Array.isArray(data.featureGroups)) {
+                setGroups((prev) => {
+                    const existingIds = new Set(prev.map((g) => g.id));
+                    const merged = [...prev];
+                    for (const g of data.featureGroups) {
+                        if (g && g.id && !existingIds.has(g.id)) {
+                            merged.push(g);
+                            existingIds.add(g.id);
+                        }
+                    }
+                    return merged;
+                });
             }
             loadData();
             alert('Import completed successfully!');
@@ -420,6 +480,7 @@ export const Maps: React.FC = () => {
                 notes: '',
                 color: '#4f46e5',
                 icon: 'fa-location-dot',
+                groupId: '',
             });
             setMarkerModalOpen(true);
             return;
@@ -431,6 +492,7 @@ export const Maps: React.FC = () => {
                 text: 'New Label',
                 color: '#1e293b',
                 bgColor: '#ffffff',
+                groupId: '',
             });
             setLabelModalOpen(true);
             return;
@@ -456,7 +518,7 @@ export const Maps: React.FC = () => {
             } else {
                 const curved = sphericalPoints(tempPoints[0], point, 32);
                 setPendingShape({ type: 'line', geometry: curved });
-                setShapeForm({ name: 'Directional Arrow', description: 'Curved Arrow', color: '#6366f1' });
+                setShapeForm({ name: 'Directional Arrow', description: 'Curved Arrow', color: '#6366f1', groupId: '' });
                 setShapeSaveModalOpen(true);
                 setTempPoints([]);
             }
@@ -476,7 +538,7 @@ export const Maps: React.FC = () => {
                     [p2[0], p1[1]],
                 ];
                 setPendingShape({ type: 'area', geometry: rectPoints });
-                setShapeForm({ name: 'Rectangle Area', description: 'Custom area shape', color: '#10b981' });
+                setShapeForm({ name: 'Rectangle Area', description: 'Custom area shape', color: '#10b981', groupId: '' });
                 setShapeSaveModalOpen(true);
                 setTempPoints([]);
             }
@@ -501,7 +563,8 @@ export const Maps: React.FC = () => {
                 setShapeForm({ 
                     name: `Circle (${formatDistance(radius)})`, 
                     description: `Circle area with radius ${formatDistance(radius)}`, 
-                    color: '#8b5cf6' 
+                    color: '#8b5cf6',
+                    groupId: '',
                 });
                 setShapeSaveModalOpen(true);
                 setTempPoints([]);
@@ -519,7 +582,7 @@ export const Maps: React.FC = () => {
     const finishLine = () => {
         if (tempPoints.length < 2) return;
         setPendingShape({ type: 'line', geometry: tempPoints });
-        setShapeForm({ name: 'Line Path', description: 'Custom polyline path', color: '#3b82f6' });
+        setShapeForm({ name: 'Line Path', description: 'Custom polyline path', color: '#3b82f6', groupId: '' });
         setShapeSaveModalOpen(true);
         setTempPoints([]);
     };
@@ -528,7 +591,7 @@ export const Maps: React.FC = () => {
     const finishPolygon = () => {
         if (tempPoints.length < 3) return;
         setPendingShape({ type: 'area', geometry: tempPoints });
-        setShapeForm({ name: 'Area Polygon', description: 'Custom boundary area', color: '#059669' });
+        setShapeForm({ name: 'Area Polygon', description: 'Custom boundary area', color: '#059669', groupId: '' });
         setShapeSaveModalOpen(true);
         setTempPoints([]);
     };
@@ -537,14 +600,17 @@ export const Maps: React.FC = () => {
     const handleSaveMarker = async () => {
         if (!pendingCoords || !markerForm.name.trim()) return;
         try {
-            const desc = JSON.stringify({
+            const descObj: any = {
                 notes: markerForm.notes,
                 icon: markerForm.icon,
                 type: 'marker',
-            });
+            };
+            if (markerForm.groupId) {
+                descObj.groupId = markerForm.groupId;
+            }
             const created = await featuresApi.create({
                 name: markerForm.name,
-                description: desc,
+                description: JSON.stringify(descObj),
                 color: markerForm.color,
                 feature_type: 'point',
                 geometry: pendingCoords,
@@ -563,14 +629,17 @@ export const Maps: React.FC = () => {
     const handleSaveLabel = async () => {
         if (!pendingCoords || !labelForm.text.trim()) return;
         try {
-            const desc = JSON.stringify({
+            const descObj: any = {
                 text: labelForm.text,
                 bgColor: labelForm.bgColor,
                 type: 'label',
-            });
+            };
+            if (labelForm.groupId) {
+                descObj.groupId = labelForm.groupId;
+            }
             const created = await featuresApi.create({
                 name: labelForm.text,
-                description: desc,
+                description: JSON.stringify(descObj),
                 color: labelForm.color,
                 feature_type: 'point',
                 geometry: pendingCoords,
@@ -589,9 +658,16 @@ export const Maps: React.FC = () => {
     const handleSaveShape = async () => {
         if (!pendingShape || !shapeForm.name.trim()) return;
         try {
+            const descObj: any = {
+                notes: shapeForm.description,
+                type: pendingShape.type,
+            };
+            if (shapeForm.groupId) {
+                descObj.groupId = shapeForm.groupId;
+            }
             const created = await featuresApi.create({
                 name: shapeForm.name,
-                description: shapeForm.description,
+                description: JSON.stringify(descObj),
                 color: shapeForm.color,
                 feature_type: pendingShape.type,
                 geometry: pendingShape.geometry,
@@ -610,9 +686,33 @@ export const Maps: React.FC = () => {
     const handleSaveEdit = async () => {
         if (!editingFeature) return;
         try {
+            const meta = getFeatureMeta(editingFeature);
+            let descObj: any = {};
+            if (editingFeature.description && editingFeature.description.startsWith('{')) {
+                try {
+                    descObj = JSON.parse(editingFeature.description);
+                } catch (_) {
+                    descObj = {};
+                }
+            }
+            descObj.notes = editForm.description;
+            descObj.icon = meta.icon;
+            if (meta.isLabel) {
+                descObj.type = 'label';
+                descObj.text = editForm.name;
+                descObj.bgColor = meta.labelBg;
+            } else if (editingFeature.feature_type === 'point') {
+                descObj.type = 'marker';
+            }
+            if (editForm.groupId) {
+                descObj.groupId = editForm.groupId;
+            } else {
+                delete descObj.groupId;
+            }
+
             const updated = await featuresApi.update(editingFeature.id, {
                 name: editForm.name,
-                description: editForm.description,
+                description: JSON.stringify(descObj),
                 color: editForm.color,
             });
             setFeatures((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
@@ -636,6 +736,135 @@ export const Maps: React.FC = () => {
         }
     };
 
+    // Folder (FeatureGroup) management functions
+    const openCreateFolderModal = () => {
+        setFolderModalMode('create');
+        setFolderModalTargetId(null);
+        setFolderInputName('');
+        setFolderModalOpen(true);
+    };
+
+    const openRenameFolderModal = (group: FeatureGroup) => {
+        setFolderModalMode('rename');
+        setFolderModalTargetId(group.id);
+        setFolderInputName(group.name);
+        setFolderModalOpen(true);
+    };
+
+    const handleSaveFolderModal = () => {
+        const trimmed = folderInputName.trim();
+        if (!trimmed) return;
+        if (folderModalMode === 'create') {
+            const newGroup: FeatureGroup = {
+                id: `fg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                name: trimmed,
+                collapsed: false,
+                visible: true,
+            };
+            setGroups((prev) => [...prev, newGroup]);
+        } else if (folderModalMode === 'rename' && folderModalTargetId) {
+            setGroups((prev) =>
+                prev.map((g) => (g.id === folderModalTargetId ? { ...g, name: trimmed } : g))
+            );
+        }
+        setFolderModalOpen(false);
+    };
+
+    const handleDeleteFolder = async (groupId: string) => {
+        const targetGroup = groups.find((g) => g.id === groupId);
+        if (!confirm(`Delete folder "${targetGroup?.name || 'Folder'}"? Features in this folder will become ungrouped.`)) {
+            return;
+        }
+
+        setGroups((prev) => prev.filter((g) => g.id !== groupId));
+
+        // In background, clear groupId from features belonging to this folder
+        const affected = features.filter((f) => getFeatureMeta(f).groupId === groupId);
+        for (const feat of affected) {
+            try {
+                let descObj: any = {};
+                if (feat.description && feat.description.startsWith('{')) {
+                    try {
+                        descObj = JSON.parse(feat.description);
+                    } catch (_) {
+                        descObj = { notes: feat.description };
+                    }
+                } else {
+                    descObj = { notes: feat.description || '' };
+                }
+                delete descObj.groupId;
+                const updated = await featuresApi.update(feat.id, {
+                    name: feat.name,
+                    description: JSON.stringify(descObj),
+                    color: feat.color,
+                });
+                setFeatures((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+            } catch (e) {
+                console.error('Failed to ungroup feature during folder deletion:', e);
+            }
+        }
+    };
+
+    const handleToggleFolderCollapse = (groupId: string) => {
+        setGroups((prev) =>
+            prev.map((g) => (g.id === groupId ? { ...g, collapsed: !g.collapsed } : g))
+        );
+    };
+
+    const handleToggleFolderVisibility = (groupId: string) => {
+        setGroups((prev) =>
+            prev.map((g) => (g.id === groupId ? { ...g, visible: g.visible === false ? true : false } : g))
+        );
+    };
+
+    const handleMoveFeature = async (featureId: number, targetGroupId: string | null) => {
+        const feat = features.find((f) => f.id === featureId);
+        if (!feat) return;
+        try {
+            let descObj: any = {};
+            if (feat.description && feat.description.startsWith('{')) {
+                try {
+                    descObj = JSON.parse(feat.description);
+                } catch (_) {
+                    descObj = { notes: feat.description };
+                }
+            } else {
+                descObj = { notes: feat.description || '' };
+            }
+
+            if (targetGroupId) {
+                descObj.groupId = targetGroupId;
+            } else {
+                delete descObj.groupId;
+            }
+
+            const updated = await featuresApi.update(feat.id, {
+                name: feat.name,
+                description: JSON.stringify(descObj),
+                color: feat.color,
+            });
+            setFeatures((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+        } catch (e) {
+            console.error('Failed to move feature to folder:', e);
+            alert('Could not move feature.');
+        }
+    };
+
+    const zoomToFeature = (feat: Feature) => {
+        if (feat.geometry) {
+            if (feat.feature_type === 'point' && Array.isArray(feat.geometry)) {
+                setMapCenter(feat.geometry as [number, number]);
+                setMapZoom(16);
+            } else if (Array.isArray(feat.geometry) && feat.geometry.length > 0) {
+                const first = feat.geometry[0];
+                if (Array.isArray(first)) {
+                    setMapCenter(first as [number, number]);
+                    setMapZoom(15);
+                }
+            }
+        }
+    };
+
     // Total measured distance for ruler
     const totalRulerDistance = useMemo(() => {
         if (rulerPoints.length < 2) return 0;
@@ -649,26 +878,39 @@ export const Maps: React.FC = () => {
         return total;
     }, [rulerPoints]);
 
-    // Parse feature metadata (icon, label, notes)
+    // Parse feature metadata (icon, label, notes, groupId)
     const getFeatureMeta = (feature: Feature) => {
         let icon = 'fa-location-dot';
         let notes = feature.description || '';
         let isLabel = false;
         let labelBg = '#ffffff';
+        let groupId: string | undefined = undefined;
 
         if (feature.description && feature.description.startsWith('{')) {
             try {
                 const parsed = JSON.parse(feature.description);
                 if (parsed.icon) icon = parsed.icon;
-                if (parsed.notes) notes = parsed.notes;
+                if (parsed.notes !== undefined) notes = parsed.notes;
+                if (parsed.groupId) groupId = parsed.groupId;
                 if (parsed.type === 'label') {
                     isLabel = true;
                     if (parsed.bgColor) labelBg = parsed.bgColor;
                 }
             } catch (_) {}
         }
-        return { icon, notes, isLabel, labelBg };
+        return { icon, notes, isLabel, labelBg, groupId };
     };
+
+    // Check if feature should be rendered on the Leaflet map
+    const isFeatureVisibleOnMap = useCallback((feat: Feature) => {
+        if (hiddenFeatures.has(feat.id)) return false;
+        const meta = getFeatureMeta(feat);
+        if (meta.groupId) {
+            const parentGroup = groups.find((g) => g.id === meta.groupId);
+            if (parentGroup && parentGroup.visible === false) return false;
+        }
+        return true;
+    }, [hiddenFeatures, groups]);
 
     // Filtered events
     const filteredEvents = useMemo(() => {
@@ -683,12 +925,170 @@ export const Maps: React.FC = () => {
 
     // Filtered features
     const filteredFeatures = useMemo(() => {
-        if (!searchLayersText.trim()) return features;
+        if (!searchFeaturesText.trim()) return features;
+        const lower = searchFeaturesText.toLowerCase();
         return features.filter((f) => 
-            f.name.toLowerCase().includes(searchLayersText.toLowerCase()) ||
-            (f.description && f.description.toLowerCase().includes(searchLayersText.toLowerCase()))
+            f.name.toLowerCase().includes(lower) ||
+            (f.description && f.description.toLowerCase().includes(lower))
         );
-    }, [features, searchLayersText]);
+    }, [features, searchFeaturesText]);
+
+    // Partition features into grouped folders and ungrouped root
+    const { groupedFeatures, ungroupedFeatures } = useMemo(() => {
+        const grouped = new Map<string, Feature[]>();
+        groups.forEach((g) => grouped.set(g.id, []));
+        const ungrouped: Feature[] = [];
+
+        filteredFeatures.forEach((feat) => {
+            const meta = getFeatureMeta(feat);
+            if (meta.groupId && grouped.has(meta.groupId)) {
+                grouped.get(meta.groupId)!.push(feat);
+            } else {
+                ungrouped.push(feat);
+            }
+        });
+
+        return { groupedFeatures: grouped, ungroupedFeatures: ungrouped };
+    }, [filteredFeatures, groups]);
+
+    // Helper to render an individual feature row in the tree
+    const renderFeatureItem = (feat: Feature, isParentFolderHidden: boolean = false) => {
+        const meta = getFeatureMeta(feat);
+        const isDirectlyHidden = hiddenFeatures.has(feat.id);
+        const isHidden = isDirectlyHidden || isParentFolderHidden;
+
+        return (
+            <div
+                key={feat.id}
+                onClick={() => {
+                    zoomToFeature(feat);
+                    setEditingFeature(feat);
+                    setEditForm({
+                        name: feat.name,
+                        description: meta.notes || '',
+                        color: feat.color || '#3b82f6',
+                        groupId: meta.groupId || '',
+                    });
+                }}
+                className={`p-1.5 rounded-lg border flex items-center justify-between text-left cursor-pointer transition-all ${
+                    isHidden
+                        ? 'opacity-50 bg-gray-50 border-gray-100'
+                        : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/30'
+                }`}
+            >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div 
+                        className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 text-white shadow-2xs"
+                        style={{ backgroundColor: feat.color || '#4f46e5' }}
+                    >
+                        {feat.feature_type === 'point' ? (
+                            <i className={`fa ${meta.icon} text-[11px]`}></i>
+                        ) : feat.feature_type === 'line' ? (
+                            <Route className="w-3 h-3" />
+                        ) : (
+                            <Hexagon className="w-3 h-3" />
+                        )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className={`text-xs font-semibold text-gray-900 truncate ${isHidden ? 'line-through' : ''}`}>
+                            {feat.name}
+                        </div>
+                        <div className="text-[10px] text-gray-400 capitalize">
+                            {feat.feature_type}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {/* Move to Folder Quick Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setMoveMenuFeatureId(moveMenuFeatureId === feat.id ? null : feat.id);
+                            }}
+                            className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50"
+                            title="Move to folder..."
+                        >
+                            <FolderInput className="w-3.5 h-3.5" />
+                        </button>
+
+                        {moveMenuFeatureId === feat.id && (
+                            <div 
+                                className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50 animate-in fade-in"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="px-2.5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                                    Move to folder
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        handleMoveFeature(feat.id, null);
+                                        setMoveMenuFeatureId(null);
+                                    }}
+                                    className={`w-full px-2.5 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-indigo-50 hover:text-indigo-600 ${
+                                        !meta.groupId ? 'font-bold text-indigo-600 bg-indigo-50/50' : 'text-gray-700'
+                                    }`}
+                                >
+                                    <span className="text-gray-400 font-mono text-[11px]">/</span>
+                                    <span className="truncate">None (Ungrouped)</span>
+                                </button>
+                                {groups.map((g) => (
+                                    <button
+                                        key={g.id}
+                                        onClick={() => {
+                                            handleMoveFeature(feat.id, g.id);
+                                            setMoveMenuFeatureId(null);
+                                        }}
+                                        className={`w-full px-2.5 py-1.5 text-left text-xs flex items-center gap-2 hover:bg-indigo-50 hover:text-indigo-600 ${
+                                            meta.groupId === g.id ? 'font-bold text-indigo-600 bg-indigo-50/50' : 'text-gray-700'
+                                        }`}
+                                    >
+                                        <Folder className="w-3 h-3 text-amber-500 shrink-0" />
+                                        <span className="truncate">{g.name}</span>
+                                    </button>
+                                ))}
+                                <div className="border-t border-gray-100 mt-1 pt-1">
+                                    <button
+                                        onClick={() => {
+                                            setMoveMenuFeatureId(null);
+                                            openCreateFolderModal();
+                                        }}
+                                        className="w-full px-2.5 py-1 text-left text-[11px] text-indigo-600 hover:bg-indigo-50 flex items-center gap-1.5 font-medium"
+                                    >
+                                        <FolderPlus className="w-3 h-3" />
+                                        <span>New Folder...</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            setHiddenFeatures((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(feat.id)) next.delete(feat.id);
+                                else next.add(feat.id);
+                                return next;
+                            });
+                        }}
+                        className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                        title={isDirectlyHidden ? 'Show feature' : 'Hide feature'}
+                    >
+                        {isDirectlyHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    </button>
+                    <button
+                        onClick={() => handleDeleteFeature(feat.id)}
+                        className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        title="Delete feature"
+                    >
+                        <Trash2 className="w-3 h-3" />
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50">
@@ -858,22 +1258,30 @@ export const Maps: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Map Tree / Layers List */}
+                        {/* Features Tree List */}
                         <div className="flex-1 flex flex-col overflow-hidden">
                             <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between bg-white">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-gray-800">Map Layers</span>
+                                    <span className="text-xs font-bold text-gray-800">Features</span>
                                     <span className="text-[10px] font-semibold bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded-full">
                                         {features.length}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <button
+                                        onClick={openCreateFolderModal}
+                                        className="flex items-center gap-1 px-1.5 py-1 rounded text-xs font-medium text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 transition-colors"
+                                        title="Create new folder"
+                                    >
+                                        <FolderPlus className="w-3.5 h-3.5 text-amber-500" />
+                                        <span className="text-[11px]">Folder</span>
+                                    </button>
+                                    <button
                                         onClick={() => {
                                             setActiveMode('marker');
                                             setTempPoints([]);
                                         }}
-                                        className="p-1 rounded text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"
+                                        className="p-1 rounded text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-200"
                                         title="Quick drop marker"
                                     >
                                         <Plus className="w-3.5 h-3.5" />
@@ -881,119 +1289,117 @@ export const Maps: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Search Layers */}
-                            <div className="p-2 border-b border-gray-100">
+                            {/* Search Features */}
+                            <div className="p-2 border-b border-gray-100 bg-white">
                                 <div className="relative">
                                     <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
                                     <input
                                         type="text"
-                                        value={searchLayersText}
-                                        onChange={(e) => setSearchLayersText(e.target.value)}
-                                        placeholder="Filter layers..."
+                                        value={searchFeaturesText}
+                                        onChange={(e) => setSearchFeaturesText(e.target.value)}
+                                        placeholder="Search features..."
                                         className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                 </div>
                             </div>
 
-                            {/* Layers items list */}
-                            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                                {filteredFeatures.length === 0 ? (
+                            {/* Feature Tree Items List */}
+                            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                {filteredFeatures.length === 0 && groups.length === 0 ? (
                                     <div className="py-8 text-center text-gray-400 text-xs px-4">
                                         <Crosshair className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                                        <p>No map objects yet.</p>
+                                        <p>No map features yet.</p>
                                         <p className="text-[11px] text-gray-400 mt-1">
                                             Select a tool above to drop a marker or draw a path on the map.
                                         </p>
                                     </div>
                                 ) : (
-                                    filteredFeatures.map((feat) => {
-                                        const meta = getFeatureMeta(feat);
-                                        const isHidden = hiddenFeatures.has(feat.id);
+                                    <>
+                                        {/* Folders */}
+                                        {groups.map((group) => {
+                                            const isFolderHidden = group.visible === false;
+                                            const isCollapsed = !!group.collapsed;
+                                            const groupFeats = groupedFeatures.get(group.id) || [];
 
-                                        return (
-                                            <div
-                                                key={feat.id}
-                                                onClick={() => {
-                                                    // Zoom to feature
-                                                    if (feat.geometry) {
-                                                        if (feat.feature_type === 'point' && Array.isArray(feat.geometry)) {
-                                                            setMapCenter(feat.geometry as [number, number]);
-                                                            setMapZoom(16);
-                                                        } else if (Array.isArray(feat.geometry) && feat.geometry.length > 0) {
-                                                            const first = feat.geometry[0];
-                                                            if (Array.isArray(first)) {
-                                                                setMapCenter(first as [number, number]);
-                                                                setMapZoom(15);
-                                                            }
-                                                        }
-                                                    }
-                                                    // Open edit modal
-                                                    setEditingFeature(feat);
-                                                    setEditForm({
-                                                        name: feat.name,
-                                                        description: feat.description || '',
-                                                        color: feat.color || '#3b82f6',
-                                                    });
-                                                }}
-                                                className={`p-2 rounded-lg border flex items-center justify-between text-left cursor-pointer transition-all ${
-                                                    isHidden
-                                                        ? 'opacity-50 bg-gray-50 border-gray-100'
-                                                        : 'bg-white border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/30'
-                                                }`}
-                                            >
-                                                <div className="flex items-center gap-2.5 min-w-0">
+                                            return (
+                                                <div key={group.id} className="rounded-xl border border-gray-200 bg-gray-50/40 overflow-hidden">
+                                                    {/* Folder Header Row */}
                                                     <div 
-                                                        className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-white shadow-2xs"
-                                                        style={{ backgroundColor: feat.color || '#4f46e5' }}
+                                                        className={`px-2.5 py-1.5 flex items-center justify-between text-xs font-medium cursor-pointer select-none transition-colors ${
+                                                            isFolderHidden ? 'opacity-60 bg-gray-100 text-gray-400' : 'hover:bg-gray-100 text-gray-800'
+                                                        }`}
+                                                        onClick={() => handleToggleFolderCollapse(group.id)}
                                                     >
-                                                        {feat.feature_type === 'point' ? (
-                                                            <i className={`fa ${meta.icon} text-xs`}></i>
-                                                        ) : feat.feature_type === 'line' ? (
-                                                            <Route className="w-3.5 h-3.5" />
-                                                        ) : (
-                                                            <Hexagon className="w-3.5 h-3.5" />
-                                                        )}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <div className={`text-xs font-semibold text-gray-900 truncate ${isHidden ? 'line-through' : ''}`}>
-                                                            {feat.name}
+                                                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                            <span className="text-gray-400 hover:text-gray-600">
+                                                                {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                            </span>
+                                                            <span className="text-amber-500">
+                                                                {isCollapsed ? <Folder className="w-3.5 h-3.5" /> : <FolderOpen className="w-3.5 h-3.5" />}
+                                                            </span>
+                                                            <span className="truncate text-xs font-bold text-gray-800">
+                                                                {group.name}
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-400 font-semibold ml-0.5 px-1.5 py-0.2 bg-gray-100 rounded-full">
+                                                                {groupFeats.length}
+                                                            </span>
                                                         </div>
-                                                        <div className="text-[10px] text-gray-400 capitalize">
-                                                            {feat.feature_type}
-                                                        </div>
-                                                    </div>
-                                                </div>
 
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setHiddenFeatures((prev) => {
-                                                                const next = new Set(prev);
-                                                                if (next.has(feat.id)) next.delete(feat.id);
-                                                                else next.add(feat.id);
-                                                                return next;
-                                                            });
-                                                        }}
-                                                        className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                                                        title={isHidden ? 'Show feature' : 'Hide feature'}
-                                                    >
-                                                        {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDeleteFeature(feat.id);
-                                                        }}
-                                                        className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                                        title="Delete feature"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
+                                                        {/* Folder Actions */}
+                                                        <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                            <button
+                                                                onClick={() => handleToggleFolderVisibility(group.id)}
+                                                                className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200/60"
+                                                                title={isFolderHidden ? "Show folder features on map" : "Hide folder features on map"}
+                                                            >
+                                                                {isFolderHidden ? <EyeOff className="w-3 h-3 text-gray-400" /> : <Eye className="w-3 h-3 text-gray-600" />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => openRenameFolderModal(group)}
+                                                                className="p-1 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                                                title="Rename folder"
+                                                            >
+                                                                <Edit3 className="w-3 h-3" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteFolder(group.id)}
+                                                                className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                                                title="Delete folder (ungroups features)"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Folder Items */}
+                                                    {!isCollapsed && (
+                                                        <div className="p-1.5 space-y-1 bg-white border-t border-gray-100">
+                                                            {groupFeats.length === 0 ? (
+                                                                <div className="py-2 px-2 text-[11px] text-gray-400 italic text-center">
+                                                                    Folder is empty
+                                                                </div>
+                                                            ) : (
+                                                                groupFeats.map((feat) => renderFeatureItem(feat, isFolderHidden))
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
+                                            );
+                                        })}
+
+                                        {/* Ungrouped features section */}
+                                        {ungroupedFeatures.length > 0 && (
+                                            <div className="space-y-1">
+                                                {groups.length > 0 && (
+                                                    <div className="px-2 pt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center justify-between">
+                                                        <span>Ungrouped Features</span>
+                                                        <span>({ungroupedFeatures.length})</span>
+                                                    </div>
+                                                )}
+                                                {ungroupedFeatures.map((feat) => renderFeatureItem(feat, false))}
                                             </div>
-                                        );
-                                    })
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -1022,7 +1428,7 @@ export const Maps: React.FC = () => {
 
                         {/* Render Saved Features */}
                         {features.map((feat) => {
-                            if (hiddenFeatures.has(feat.id) || !feat.geometry) return null;
+                            if (!isFeatureVisibleOnMap(feat) || !feat.geometry) return null;
                             const meta = getFeatureMeta(feat);
 
                             if (feat.feature_type === 'point' && isValidPoint(feat.geometry)) {
@@ -1582,6 +1988,21 @@ export const Maps: React.FC = () => {
                                 </div>
                             </div>
                             <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Group / Folder</label>
+                                <select
+                                    value={markerForm.groupId}
+                                    onChange={(e) => setMarkerForm({ ...markerForm, groupId: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="">None (Ungrouped)</option>
+                                    {groups.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            📁 {g.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
                                 <label className="block text-xs font-semibold text-gray-700 mb-1">Marker Color</label>
                                 <div className="flex items-center gap-3">
                                     <input
@@ -1647,6 +2068,21 @@ export const Maps: React.FC = () => {
                                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                     placeholder="e.g. Area Entrance, Zone A"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Group / Folder</label>
+                                <select
+                                    value={labelForm.groupId}
+                                    onChange={(e) => setLabelForm({ ...labelForm, groupId: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="">None (Ungrouped)</option>
+                                    {groups.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            📁 {g.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -1717,6 +2153,21 @@ export const Maps: React.FC = () => {
                                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                                     placeholder="Feature title"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Group / Folder</label>
+                                <select
+                                    value={shapeForm.groupId}
+                                    onChange={(e) => setShapeForm({ ...shapeForm, groupId: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="">None (Ungrouped)</option>
+                                    {groups.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            📁 {g.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
@@ -1795,6 +2246,21 @@ export const Maps: React.FC = () => {
                                 />
                             </div>
                             <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Group / Folder</label>
+                                <select
+                                    value={editForm.groupId}
+                                    onChange={(e) => setEditForm({ ...editForm, groupId: e.target.value })}
+                                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="">None (Ungrouped)</option>
+                                    {groups.map((g) => (
+                                        <option key={g.id} value={g.id}>
+                                            📁 {g.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
                                 <label className="block text-xs font-semibold text-gray-700 mb-1">Description / Notes</label>
                                 <textarea
                                     value={editForm.description}
@@ -1843,6 +2309,60 @@ export const Maps: React.FC = () => {
                                     Save Changes
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* In-Place Modal: Create / Rename Folder */}
+            {folderModalOpen && (
+                <div 
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in"
+                    onClick={(e) => { if (e.target === e.currentTarget) setFolderModalOpen(false); }}
+                >
+                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 max-w-xs w-full overflow-hidden animate-in zoom-in-95 duration-150">
+                        <div className="p-3.5 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="font-bold text-xs text-gray-900 flex items-center gap-2">
+                                <Folder className="w-4 h-4 text-amber-500" />
+                                <span>{folderModalMode === 'create' ? 'Create Feature Folder' : 'Rename Folder'}</span>
+                            </h3>
+                            <button
+                                onClick={() => setFolderModalOpen(false)}
+                                className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                        <div className="p-3.5 space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Folder Name *</label>
+                                <input
+                                    type="text"
+                                    autoFocus
+                                    value={folderInputName}
+                                    onChange={(e) => setFolderInputName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveFolderModal();
+                                    }}
+                                    className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="e.g. Zones, Security, Routes..."
+                                />
+                            </div>
+                        </div>
+                        <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2">
+                            <button
+                                onClick={() => setFolderModalOpen(false)}
+                                className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 rounded-lg"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveFolderModal}
+                                className="px-4 py-1.5 text-xs font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-xs flex items-center gap-1.5"
+                            >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>{folderModalMode === 'create' ? 'Create' : 'Save'}</span>
+                            </button>
                         </div>
                     </div>
                 </div>
