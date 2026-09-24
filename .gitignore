@@ -1,3 +1,5 @@
 package.spk.zip
 .env.potato
 tsconfig.tsbuildinfo
+
+.pdata/

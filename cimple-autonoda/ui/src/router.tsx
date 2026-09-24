@@ -1,23 +1,19 @@
 import { createBrowserRouter, Outlet } from "react-router";
-import React, { Suspense } from 'react'
+import { Suspense } from 'react';
 import "./index.css";
 import Home from "./Home/Home";
 import { BASE_PATH } from "./lib/base";
 
-const AuthorPage = React.lazy(() => import("./Author/Author"));
-
-
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="text-lg">Loading...</div>
+  <div className="flex items-center justify-center min-h-screen bg-slate-50 text-slate-500 text-xs">
+    <div>Loading Autonoda...</div>
   </div>
 );
 
-
 const RootLayout = () => (
-    <Suspense fallback={<LoadingFallback />}>
-        <Outlet />
-    </Suspense>
+  <Suspense fallback={<LoadingFallback />}>
+    <Outlet />
+  </Suspense>
 );
 
 const router = createBrowserRouter([
@@ -30,12 +26,18 @@ const router = createBrowserRouter([
         path: BASE_PATH,
         element: <Home />,
       },
+    ],
+  },
+  // Fallback for root / dev
+  {
+    path: "/",
+    element: <RootLayout />,
+    children: [
       {
-        path: `${BASE_PATH}:author`,
-        element: <AuthorPage />,
+        index: true,
+        element: <Home />,
       },
     ],
-
   },
 ]);
 

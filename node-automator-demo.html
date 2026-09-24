@@ -227,54 +227,89 @@
       overflow: hidden;
     }
 
-    /* Left Palette / Library */
+    /* Left Palette / Library with Grouped Buttons */
     .palette-bar {
-      width: 200px;
-      background: white;
+      width: 250px;
+      background: #fcfdfe;
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
       z-index: 20;
       padding: 12px;
-      gap: 16px;
+      gap: 14px;
       overflow-y: auto;
     }
 
-    .palette-section-title {
+    .palette-group {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      border-left-width: 4px;
+    }
+    .palette-group.group-trigger { border-left-color: var(--trigger-color); }
+    .palette-group.group-logic { border-left-color: var(--logic-color); }
+    .palette-group.group-action { border-left-color: var(--action-color); }
+
+    .palette-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .palette-group-title {
       font-size: 11px;
       font-weight: 700;
+      color: #1e293b;
+      letter-spacing: 0.02em;
+    }
+
+    .palette-group-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 10px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-light);
-      margin-bottom: 8px;
+    }
+    .group-trigger .palette-group-badge { background: #e0f2fe; color: #0369a1; }
+    .group-logic .palette-group-badge { background: #ede9fe; color: #6d28d9; }
+    .group-action .palette-group-badge { background: #ccfbf1; color: #115e59; }
+
+    .palette-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
 
     .palette-card {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 10px;
+      gap: 8px;
+      padding: 6px 8px;
       background: #ffffff;
       border: 1px solid var(--border-color);
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: grab;
       transition: all 0.15s ease;
-      box-shadow: var(--shadow-sm);
-      margin-bottom: 6px;
     }
     .palette-card:hover {
       border-color: #cbd5e1;
-      box-shadow: var(--shadow-md);
+      background: #f8fafc;
       transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
     }
     .palette-card:active {
       cursor: grabbing;
     }
 
     .palette-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -301,7 +336,7 @@
       min-width: 0;
     }
     .palette-name {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-main);
       white-space: nowrap;
@@ -323,8 +358,7 @@
       position: relative;
       overflow: hidden;
       background-color: #f8fafc;
-      background-image: 
-        radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+      background-image: radial-gradient(circle, #cbd5e1 1.2px, transparent 1.2px);
       background-size: 20px 20px;
       cursor: default;
     }
@@ -354,8 +388,8 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: 6000px;
-      height: 6000px;
+      width: 8000px;
+      height: 8000px;
       pointer-events: none;
       z-index: 5;
     }
@@ -368,15 +402,15 @@
     }
     .connection-path:hover {
       stroke-width: 4px;
-      stroke: #3b82f6;
+      stroke: #2563eb !important;
     }
     .connection-path.active-pulse {
-      stroke-dasharray: 8 4;
+      stroke-dasharray: 8 5;
       animation: dash 0.6s linear infinite;
     }
     @keyframes dash {
       to {
-        stroke-dashoffset: -12;
+        stroke-dashoffset: -13;
       }
     }
 
@@ -425,7 +459,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 9px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid #f1f5f9;
       border-top-left-radius: 9px;
       border-top-right-radius: 9px;
@@ -461,22 +495,13 @@
       font-weight: 700;
       flex-shrink: 0;
     }
-    .flow-node.trigger .node-type-icon {
-      background: #0284c7;
-      color: white;
-    }
-    .flow-node.logic .node-type-icon {
-      background: #7c3aed;
-      color: white;
-    }
-    .flow-node.action .node-type-icon {
-      background: #0d9488;
-      color: white;
-    }
+    .flow-node.trigger .node-type-icon { background: #0284c7; color: white; }
+    .flow-node.logic .node-type-icon { background: #7c3aed; color: white; }
+    .flow-node.action .node-type-icon { background: #0d9488; color: white; }
 
     .node-title {
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 12px;
+      font-weight: 700;
       color: #1e293b;
       white-space: nowrap;
       overflow: hidden;
@@ -535,7 +560,7 @@
 
     .node-rule-preview {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11px;
+      font-size: 10px;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 5px;
@@ -570,24 +595,40 @@
       margin-top: 6px;
       float: right;
     }
-    .node-exec-status.running {
-      background: #fef3c7;
-      color: #b45309;
+    .node-exec-status.running { background: #fef3c7; color: #b45309; }
+    .node-exec-status.true { background: #d1fae5; color: #065f46; }
+    .node-exec-status.false { background: #fee2e2; color: #991b1b; }
+    .node-exec-status.done { background: #e0f2fe; color: #0369a1; }
+
+    /* Logic Vertical Branch Footer */
+    .logic-branch-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
     }
-    .node-exec-status.true {
-      background: #d1fae5;
-      color: #065f46;
+    .logic-branch-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    .node-exec-status.false {
-      background: #fee2e2;
-      color: #991b1b;
+    .logic-branch-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-    .node-exec-status.done {
-      background: #e0f2fe;
-      color: #0369a1;
+    .logic-branch-title.true { color: #059669; }
+    .logic-branch-title.false { color: #dc2626; }
+    .logic-branch-sub {
+      font-size: 9px;
+      color: #94a3b8;
     }
 
-    /* Connection Ports (Handles) */
+    /* VERTICAL CONNECTION PORTS */
     .port {
       width: 12px;
       height: 12px;
@@ -597,80 +638,67 @@
       position: absolute;
       cursor: crosshair;
       z-index: 15;
-      transition: transform 0.15s, border-color 0.15s, background-color 0.15s;
+      transition: transform 0.15s, border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
     }
     .port:hover {
       transform: scale(1.4);
       border-color: #2563eb;
       background: #2563eb;
-    }
-    .port.connecting {
-      transform: scale(1.4);
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
     }
 
-    /* Port positions */
+    /* Top Input Port (Vertical Flow) */
     .port-in {
-      left: -7px;
-      top: 50%;
-      transform: translateY(-50%);
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
     }
     .port-in:hover {
-      transform: translateY(-50%) scale(1.4);
+      transform: translateX(-50%) scale(1.4);
     }
 
+    /* Bottom Output Port (Vertical Flow) */
     .port-out {
-      right: -7px;
-      top: 50%;
-      transform: translateY(-50%);
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
     }
     .port-out:hover {
-      transform: translateY(-50%) scale(1.4);
+      transform: translateX(-50%) scale(1.4);
     }
 
-    /* Logic block multiple out ports */
+    /* Logic block multiple bottom out ports */
     .port-out-true {
-      right: -7px;
-      top: 36px;
+      bottom: -6px;
+      left: 25%;
+      transform: translateX(-50%);
       border-color: var(--true-color);
     }
     .port-out-true:hover {
-      border-color: var(--true-color);
+      transform: translateX(-50%) scale(1.4);
       background: var(--true-color);
+      border-color: var(--true-color);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25);
     }
+
     .port-out-false {
-      right: -7px;
-      bottom: 16px;
+      bottom: -6px;
+      left: 75%;
+      transform: translateX(-50%);
       border-color: var(--false-color);
     }
     .port-out-false:hover {
-      border-color: var(--false-color);
+      transform: translateX(-50%) scale(1.4);
       background: var(--false-color);
-    }
-
-    .port-label {
-      position: absolute;
-      right: 12px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      pointer-events: none;
-    }
-    .port-label.true {
-      top: 34px;
-      color: #059669;
-    }
-    .port-label.false {
-      bottom: 14px;
-      color: #dc2626;
+      border-color: var(--false-color);
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25);
     }
 
     /* Canvas Controls Toolbar */
     .canvas-toolbar {
       position: absolute;
       bottom: 20px;
-      left: 220px;
+      left: 270px;
       display: flex;
       align-items: center;
       background: white;
@@ -1029,19 +1057,6 @@
       background: #f8fafc;
     }
 
-    /* Quick helper badges & pill indicators */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-    }
-    .badge-blue { background: #dbeafe; color: #1e40af; }
-    .badge-purple { background: #ede9fe; color: #6d28d9; }
-    .badge-teal { background: #ccfbf1; color: #115e59; }
-
     /* SVG wire connector ghost */
     .ghost-wire {
       stroke: #3b82f6;
@@ -1093,80 +1108,111 @@
     </div>
   </header>
 
-  <!-- Workspace: Palette + Canvas + Inspector -->
+  <!-- Workspace: Grouped Palette + Vertical Canvas + Inspector -->
   <main class="workspace">
     
-    <!-- Left Blocks Palette -->
+    <!-- Left Blocks Palette with distinct categories and margins -->
     <aside class="palette-bar">
-      <div>
-        <div class="palette-section-title">Block Types</div>
-        
-        <!-- 1. Trigger Block -->
-        <div class="palette-card trigger" draggable="true" data-type="trigger" data-subtype="webhook">
-          <div class="palette-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          </div>
-          <div class="palette-info">
-            <div class="palette-name">Trigger (Event)</div>
-            <div class="palette-desc">JSON payload origin</div>
-          </div>
+      
+      <!-- Group 1: Triggers -->
+      <div class="palette-group group-trigger">
+        <div class="palette-group-header">
+          <span class="palette-group-title">1. Triggers</span>
+          <span class="palette-group-badge">Event Start</span>
         </div>
+        <div class="palette-items-list">
+          <div class="palette-card trigger" draggable="true" data-type="trigger" data-subtype="webhook">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">Webhook Ingest</div>
+              <div class="palette-desc">JSON payload origin</div>
+            </div>
+          </div>
 
-        <!-- 2. Logic Block -->
-        <div class="palette-card logic" draggable="true" data-type="logic" data-subtype="condition">
-          <div class="palette-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
-          </div>
-          <div class="palette-info">
-            <div class="palette-name">Logic Block</div>
-            <div class="palette-desc">AND/OR rules (T/F)</div>
-          </div>
-        </div>
-
-        <!-- 3. Action Blocks -->
-        <div class="palette-card action" draggable="true" data-type="action" data-subtype="webhook">
-          <div class="palette-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-          </div>
-          <div class="palette-info">
-            <div class="palette-name">Webhook Action</div>
-            <div class="palette-desc">HTTP POST / GET API</div>
-          </div>
-        </div>
-
-        <div class="palette-card action" draggable="true" data-type="action" data-subtype="email">
-          <div class="palette-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
-          </div>
-          <div class="palette-info">
-            <div class="palette-name">Send Email</div>
-            <div class="palette-desc">Alert or confirmation</div>
-          </div>
-        </div>
-
-        <div class="palette-card action" draggable="true" data-type="action" data-subtype="enrich">
-          <div class="palette-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-          </div>
-          <div class="palette-info">
-            <div class="palette-name">Enrich / Transform</div>
-            <div class="palette-desc">Append / mutate data</div>
-          </div>
-        </div>
-
-        <div class="palette-card action" draggable="true" data-type="action" data-subtype="log">
-          <div class="palette-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-          </div>
-          <div class="palette-info">
-            <div class="palette-name">Log / Audit</div>
-            <div class="palette-desc">Console & trace note</div>
+          <div class="palette-card trigger" draggable="true" data-type="trigger" data-subtype="schedule">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">Cron / Schedule</div>
+              <div class="palette-desc">Timed recurring event</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div style="margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-light); line-height: 1.4;">
-        💡 <strong>Tip:</strong> Drag blocks onto canvas. Connect ports by dragging from circle to circle. Click any block to configure rules & actions.
+      <!-- Group 2: Logic & Routing -->
+      <div class="palette-group group-logic">
+        <div class="palette-group-header">
+          <span class="palette-group-title">2. Logic & Routing</span>
+          <span class="palette-group-badge">Branching</span>
+        </div>
+        <div class="palette-items-list">
+          <div class="palette-card logic" draggable="true" data-type="logic" data-subtype="condition">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">Logic Rules Block</div>
+              <div class="palette-desc">AND/OR rules (True/False)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Group 3: Actions & Tasks -->
+      <div class="palette-group group-action">
+        <div class="palette-group-header">
+          <span class="palette-group-title">3. Actions & Tasks</span>
+          <span class="palette-group-badge">Operations</span>
+        </div>
+        <div class="palette-items-list">
+          <div class="palette-card action" draggable="true" data-type="action" data-subtype="webhook">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">HTTP Webhook API</div>
+              <div class="palette-desc">POST / GET external API</div>
+            </div>
+          </div>
+
+          <div class="palette-card action" draggable="true" data-type="action" data-subtype="email">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">Send Email Alert</div>
+              <div class="palette-desc">Dynamic template alert</div>
+            </div>
+          </div>
+
+          <div class="palette-card action" draggable="true" data-type="action" data-subtype="enrich">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">Enrich / Mutate Data</div>
+              <div class="palette-desc">Append or mutate fields</div>
+            </div>
+          </div>
+
+          <div class="palette-card action" draggable="true" data-type="action" data-subtype="log">
+            <div class="palette-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            </div>
+            <div class="palette-info">
+              <div class="palette-name">Audit Log & Trace</div>
+              <div class="palette-desc">Debug checkpoint note</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border-color); font-size: 11px; color: var(--text-light); line-height: 1.4;">
+        ⬇️ <strong>Vertical Flow:</strong> Events flow downwards. Connect bottom handles to top input handles of blocks below.
       </div>
     </aside>
 
@@ -1176,13 +1222,13 @@
         <!-- SVG Connections Layer -->
         <svg id="connectionsSvg" class="connections-svg">
           <defs>
-            <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <marker id="arrowhead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
             </marker>
-            <marker id="arrowhead-true" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <marker id="arrowhead-true" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
             </marker>
-            <marker id="arrowhead-false" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <marker id="arrowhead-false" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
               <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
             </marker>
           </defs>
@@ -1273,7 +1319,7 @@
   <script>
     /**
      * Node Automator - Single File Visual Workflow Engine
-     * Browser In-Memory & LocalStorage State
+     * Vertical Flow & Grouped Palette Architecture
      */
 
     // --- State & Data Model ---
@@ -1283,7 +1329,7 @@
       wires: [], // { id, fromNode, fromPort, toNode, toPort }
       selectedNodeId: null,
       zoom: 1.0,
-      pan: { x: 40, y: 30 },
+      pan: { x: 80, y: 30 },
       isPanning: false,
       panStart: { x: 0, y: 0 },
       draggingWire: null, // { fromNode, fromPort, startX, startY }
@@ -1308,7 +1354,7 @@
       executionTrace: [] // Array of executed step snapshots
     };
 
-    // Preset templates
+    // Vertical Flow Preset templates
     const PRESETS = {
       ecommerce: {
         title: "Order Processing & VIP Routing Pipeline",
@@ -1336,8 +1382,8 @@
             type: "trigger",
             subtype: "webhook",
             title: "New Order Placed",
-            x: 60,
-            y: 120,
+            x: 340,
+            y: 40,
             config: {
               eventType: "ecommerce.order.created",
               source: "Shopify Webhook"
@@ -1348,10 +1394,10 @@
             type: "logic",
             subtype: "condition",
             title: "VIP Order Rule",
-            x: 380,
-            y: 100,
+            x: 340,
+            y: 220,
             config: {
-              conditionMode: "AND", // "AND" or "OR"
+              conditionMode: "AND",
               rules: [
                 { field: "order.total", op: "greater_than", value: "100" },
                 { field: "customer.tier", op: "equals", value: "gold" }
@@ -1363,8 +1409,8 @@
             type: "action",
             subtype: "enrich",
             title: "Enrich: VIP Perks & Tag",
-            x: 720,
-            y: 40,
+            x: 180,
+            y: 440,
             config: {
               enrichField: "order.isVipPriority",
               enrichValue: "true",
@@ -1376,8 +1422,8 @@
             type: "action",
             subtype: "email",
             title: "Send VIP Concierge Email",
-            x: 1030,
-            y: 40,
+            x: 180,
+            y: 640,
             config: {
               recipient: "{{customer.email}}",
               subject: "VIP Access: Your order {{order.id}} is expedited!",
@@ -1389,8 +1435,8 @@
             type: "action",
             subtype: "webhook",
             title: "Standard Order Webhook",
-            x: 720,
-            y: 260,
+            x: 500,
+            y: 440,
             config: {
               url: "https://warehouse.internal/api/orders",
               method: "POST"
@@ -1425,8 +1471,8 @@
             type: "trigger",
             subtype: "webhook",
             title: "Demo Request Submitted",
-            x: 60,
-            y: 120,
+            x: 340,
+            y: 40,
             config: { eventType: "form.demo_request" }
           },
           {
@@ -1434,8 +1480,8 @@
             type: "logic",
             subtype: "condition",
             title: "Enterprise Criteria",
-            x: 380,
-            y: 100,
+            x: 340,
+            y: 220,
             config: {
               conditionMode: "OR",
               rules: [
@@ -1449,8 +1495,8 @@
             type: "action",
             subtype: "webhook",
             title: "Post to Salesforce High-Priority",
-            x: 740,
-            y: 40,
+            x: 180,
+            y: 440,
             config: {
               url: "https://api.salesforce.com/leads/v1/enterprise",
               method: "POST"
@@ -1461,8 +1507,8 @@
             type: "action",
             subtype: "log",
             title: "Route to Self-Serve Nurture",
-            x: 740,
-            y: 240,
+            x: 500,
+            y: 440,
             config: {
               logLevel: "INFO",
               message: "Assigned lead to self-serve onboarding sequence"
@@ -1487,8 +1533,8 @@
             type: "trigger",
             subtype: "webhook",
             title: "Custom Event Trigger",
-            x: 100,
-            y: 150,
+            x: 300,
+            y: 80,
             config: { eventType: "custom.event" }
           }
         ],
@@ -1640,7 +1686,6 @@
       const clamped = Math.min(Math.max(newZoom, 0.4), 2.2);
       if (clamped === STATE.zoom) return;
 
-      // Zoom towards mouse or center
       const factor = clamped / STATE.zoom;
       STATE.pan.x = centerX - (centerX - STATE.pan.x) * factor;
       STATE.pan.y = centerY - (centerY - STATE.pan.y) * factor;
@@ -1676,7 +1721,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
               ${node.config.eventType || "Any Event"}
             </div>
-            <div style="font-size: 11px; color: var(--text-muted);">Emits initial event payload</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Emits incoming payload downwards</div>
           `;
         } else if (node.type === "logic") {
           const mode = node.config.conditionMode || "AND";
@@ -1704,8 +1749,16 @@
             <div class="node-rule-preview">
               ${ruleLines || "<span style='color:#94a3b8'>No rules set</span>"}
             </div>
-            <div class="port-label true">TRUE</div>
-            <div class="port-label false">FALSE</div>
+            <div class="logic-branch-bar">
+              <div class="logic-branch-col">
+                <span class="logic-branch-title true">TRUE</span>
+                <span class="logic-branch-sub">If passed</span>
+              </div>
+              <div class="logic-branch-col">
+                <span class="logic-branch-title false">FALSE</span>
+                <span class="logic-branch-sub">If failed</span>
+              </div>
+            </div>
           `;
         } else if (node.type === "action") {
           let summary = "";
@@ -1723,27 +1776,27 @@
             <div class="node-summary-badge" title="${escapeHtml(summary)}">
               ${escapeHtml(summary)}
             </div>
-            <div style="font-size: 11px; color: var(--text-muted);">Processes & passes payload</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Processes & passes payload down</div>
           `;
         }
 
-        // Ports HTML
+        // VERTICAL Ports HTML
         let portsHtml = "";
         if (node.type === "trigger") {
-          // Output only
-          portsHtml = `<div class="port port-out" data-port="out" title="Connect flow out"></div>`;
+          // Bottom Output only
+          portsHtml = `<div class="port port-out" data-port="out" title="Connect flow out (downwards)"></div>`;
         } else if (node.type === "logic") {
-          // In, and True/False outs
+          // Top Input, and Two Bottom Branch Outputs (True & False)
           portsHtml = `
-            <div class="port port-in" data-port="in" title="Flow Input"></div>
+            <div class="port port-in" data-port="in" title="Flow Input (from above)"></div>
             <div class="port port-out-true" data-port="true" title="Branch when TRUE"></div>
             <div class="port port-out-false" data-port="false" title="Branch when FALSE"></div>
           `;
         } else {
-          // Action has in and out
+          // Action has Top Input and Bottom Output
           portsHtml = `
-            <div class="port port-in" data-port="in" title="Flow Input"></div>
-            <div class="port port-out" data-port="out" title="Flow Output"></div>
+            <div class="port port-in" data-port="in" title="Flow Input (from above)"></div>
+            <div class="port port-out" data-port="out" title="Flow Output (downwards)"></div>
           `;
         }
 
@@ -1796,43 +1849,35 @@
       }[m]));
     }
 
-    // --- Port Coordinate Calculations ---
+    // --- Vertical Port Coordinate Calculations ---
 
     function getPortCoordinates(nodeId, portName) {
       const node = getNode(nodeId);
       if (!node) return { x: 0, y: 0 };
       const nodeW = 260;
-      
-      let x = node.x;
-      let y = node.y;
+      const nodeEl = document.getElementById(nodeId);
+      const height = nodeEl ? nodeEl.offsetHeight : 120;
 
       if (portName === "in") {
-        x += 0;
-        // Vertically middle of card
-        const nodeEl = document.getElementById(nodeId);
-        const height = nodeEl ? nodeEl.offsetHeight : 110;
-        y += height / 2;
-      } else if (portName === "out") {
-        x += nodeW;
-        const nodeEl = document.getElementById(nodeId);
-        const height = nodeEl ? nodeEl.offsetHeight : 110;
-        y += height / 2;
-      } else if (portName === "true") {
-        x += nodeW;
-        y += 42; // True port offset
-      } else if (portName === "false") {
-        x += nodeW;
-        const nodeEl = document.getElementById(nodeId);
-        const height = nodeEl ? nodeEl.offsetHeight : 140;
-        y += (height - 22); // False port offset
+        // Top Center
+        return { x: node.x + nodeW / 2, y: node.y };
       }
-
-      return { x, y };
+      if (portName === "out") {
+        // Bottom Center
+        return { x: node.x + nodeW / 2, y: node.y + height };
+      }
+      if (portName === "true") {
+        // Bottom Left (25%)
+        return { x: node.x + nodeW * 0.25, y: node.y + height };
+      }
+      // false: Bottom Right (75%)
+      return { x: node.x + nodeW * 0.75, y: node.y + height };
     }
 
+    // Vertical Bezier Path generator
     function createBezierPath(x1, y1, x2, y2) {
-      const dx = Math.max(Math.abs(x2 - x1) * 0.5, 40);
-      return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+      const dy = Math.max(Math.abs(y2 - y1) * 0.55, 45);
+      return `M ${x1} ${y1} C ${x1} ${y1 + dy}, ${x2} ${y2 - dy}, ${x2} ${y2}`;
     }
 
     function renderWires() {
@@ -1888,9 +1933,7 @@
     }
 
     function deleteNode(nodeId) {
-      // Remove wires connected to this node
       STATE.wires = STATE.wires.filter(w => w.fromNode !== nodeId && w.toNode !== nodeId);
-      // Remove node
       STATE.nodes = STATE.nodes.filter(n => n.id !== nodeId);
       if (STATE.selectedNodeId === nodeId) {
         selectNode(null);
@@ -1901,7 +1944,6 @@
     // --- Interactive Dragging & Wire Connection Handlers ---
 
     function setupNodeInteractivity(el, node) {
-      // Header dragging for node position
       const header = el.querySelector(".node-header");
       let isDraggingNode = false;
       let dragStartX, dragStartY;
@@ -1991,7 +2033,6 @@
 
       const onMouseMove = (moveEvt) => {
         if (!STATE.draggingWire) return;
-        // Transform screen coords to canvas coords
         const rect = canvasViewport.getBoundingClientRect();
         const mouseX = (moveEvt.clientX - rect.left - STATE.pan.x) / STATE.zoom;
         const mouseY = (moveEvt.clientY - rect.top - STATE.pan.y) / STATE.zoom;
@@ -1999,8 +2040,7 @@
         updateGhostWire(mouseX, mouseY);
       };
 
-      const onMouseUp = (upEvt) => {
-        // If mouse up wasn't caught by an input port, cancel wire
+      const onMouseUp = () => {
         cancelDraggingWire();
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
@@ -2022,13 +2062,11 @@
       const fromNodeId = STATE.draggingWire.fromNode;
       const fromPort = STATE.draggingWire.fromPort;
 
-      // Prevent self connection
       if (fromNodeId === targetNodeId) {
         cancelDraggingWire();
         return;
       }
 
-      // Check if connection already exists
       const exists = STATE.wires.some(w =>
         w.fromNode === fromNodeId &&
         w.fromPort === fromPort &&
@@ -2156,7 +2194,7 @@
     document.getElementById("btnZoomOut").addEventListener("click", () => setZoom(STATE.zoom * 0.85));
     document.getElementById("btnZoomFit").addEventListener("click", () => {
       STATE.zoom = 1.0;
-      STATE.pan = { x: 50, y: 40 };
+      STATE.pan = { x: 80, y: 30 };
       updateCanvasTransform();
     });
 
@@ -2165,7 +2203,6 @@
     function selectNode(nodeId) {
       STATE.selectedNodeId = nodeId;
 
-      // Update node styles
       document.querySelectorAll(".flow-node").forEach(n => {
         n.classList.toggle("selected", n.id === nodeId);
       });
@@ -2274,10 +2311,10 @@
 
           <div style="display: flex; gap: 8px; margin-top: 4px;">
             <div style="flex: 1; padding: 8px; border-radius: 6px; background: var(--true-bg); border: 1px solid var(--true-color); font-size: 11px;">
-              <strong style="color: #059669;">● TRUE branch:</strong><br>Flow continues through green handle.
+              <strong style="color: #059669;">● TRUE port (left):</strong><br>Flow continues through green handle.
             </div>
             <div style="flex: 1; padding: 8px; border-radius: 6px; background: var(--false-bg); border: 1px solid var(--false-color); font-size: 11px;">
-              <strong style="color: #dc2626;">● FALSE branch:</strong><br>Flow continues through red handle.
+              <strong style="color: #dc2626;">● FALSE port (right):</strong><br>Flow continues through red handle.
             </div>
           </div>
         `;
@@ -2328,7 +2365,6 @@
             </div>
           `;
         } else {
-          // Log
           formHtml += `
             <div class="form-group">
               <label class="form-label">Log Level</label>
@@ -2351,7 +2387,6 @@
     }
 
     function attachInspectorListeners(node) {
-      // Title
       const titleInput = document.getElementById("cfgTitle");
       if (titleInput) {
         titleInput.addEventListener("input", (e) => {
@@ -2360,9 +2395,7 @@
         });
       }
 
-      // Logic Block Listeners
       if (node.type === "logic") {
-        // AND / OR Mode
         inspectorContent.querySelectorAll(".segment-btn").forEach(btn => {
           btn.addEventListener("click", () => {
             node.config.conditionMode = btn.dataset.mode;
@@ -2371,7 +2404,6 @@
           });
         });
 
-        // Add Rule
         const btnAddRule = document.getElementById("btnAddRule");
         if (btnAddRule) {
           btnAddRule.addEventListener("click", () => {
@@ -2382,7 +2414,6 @@
           });
         }
 
-        // Rule row fields change & remove
         inspectorContent.querySelectorAll(".rule-row").forEach(row => {
           const idx = parseInt(row.dataset.ruleIdx, 10);
           const fieldInput = row.querySelector(".rule-field");
@@ -2418,7 +2449,6 @@
         });
       }
 
-      // Action & Trigger specifics
       const cfgEventType = document.getElementById("cfgEventType");
       if (cfgEventType) {
         cfgEventType.addEventListener("input", (e) => {
@@ -2508,14 +2538,12 @@
     // --- Workflow Execution Simulator Engine ---
 
     async function runWorkflow() {
-      // Find trigger node
       const triggerNode = STATE.nodes.find(n => n.type === "trigger");
       if (!triggerNode) {
         alert("Workflow has no Trigger block. Add a Trigger block to start.");
         return;
       }
 
-      // Reset visual indicators
       document.querySelectorAll(".flow-node").forEach(n => {
         n.classList.remove("executing", "executed-success", "executed-false");
         const statusBadge = n.querySelector(".node-exec-status");
@@ -2531,15 +2559,12 @@
       btnRunWorkflow.classList.add("running");
       btnRunWorkflow.disabled = true;
 
-      // Expand trace drawer
       traceDrawer.classList.remove("collapsed");
 
-      // Deep clone initial test payload
       let currentPayload = JSON.parse(JSON.stringify(STATE.testPayload));
       STATE.executionTrace = [];
       renderTrace();
 
-      // Queue of execution steps: { nodeId, incomingWireId }
       let currentNodeId = triggerNode.id;
       let incomingWireId = null;
 
@@ -2556,13 +2581,11 @@
         }
         visited.add(currentNodeId);
 
-        // Highlight active wire
         if (incomingWireId) {
           const wireEl = document.getElementById(`wire_${incomingWireId}`);
           if (wireEl) wireEl.classList.add("active-pulse");
         }
 
-        // Highlight node
         const nodeEl = document.getElementById(currentNodeId);
         if (nodeEl) {
           nodeEl.classList.add("executing");
@@ -2576,7 +2599,6 @@
 
         await delay(650);
 
-        // Execute node logic
         let snapshot = {
           stepId: generateId("step"),
           nodeId: node.id,
@@ -2594,7 +2616,7 @@
 
         if (node.type === "trigger") {
           snapshot.details = {
-            message: `Event '${node.config.eventType || "trigger"}' dispatched into pipeline.`,
+            message: `Event '${node.config.eventType || "trigger"}' dispatched downwards into pipeline.`,
             outputPayload: JSON.parse(JSON.stringify(currentPayload))
           };
           if (nodeEl) {
@@ -2605,7 +2627,6 @@
           }
           nextPort = "out";
         } else if (node.type === "logic") {
-          // Evaluate rules
           const mode = node.config.conditionMode || "AND";
           const rules = node.config.rules || [];
           const ruleResults = rules.map(r => evaluateRule(r, currentPayload));
@@ -2622,7 +2643,7 @@
             mode,
             rulesEvaluated: ruleResults,
             result: overallPassed ? "TRUE" : "FALSE",
-            branchTaken: overallPassed ? "TRUE port (green)" : "FALSE port (red)",
+            branchTaken: overallPassed ? "TRUE port (left/green)" : "FALSE port (right/red)",
             outputPayload: JSON.parse(JSON.stringify(currentPayload))
           };
 
@@ -2641,7 +2662,6 @@
 
           nextPort = overallPassed ? "true" : "false";
         } else if (node.type === "action") {
-          // Process action
           if (node.subtype === "enrich") {
             const field = node.config.enrichField || "enrich.status";
             let val = node.config.enrichValue;
@@ -2659,7 +2679,6 @@
               outputPayload: JSON.parse(JSON.stringify(currentPayload))
             };
           } else if (node.subtype === "email") {
-            // Templating variable replacement
             let body = node.config.template || "";
             body = body.replace(/\{\{([\w.]+)\}\}/g, (match, path) => {
               const val = getNestedValue(currentPayload, path);
@@ -2688,7 +2707,6 @@
               outputPayload: JSON.parse(JSON.stringify(currentPayload))
             };
           } else {
-            // Log
             snapshot.details = {
               action: "Log Recorded",
               level: node.config.logLevel || "INFO",
@@ -2706,14 +2724,12 @@
           nextPort = "out";
         }
 
-        // Record trace snapshot
         STATE.executionTrace.push(snapshot);
         renderTrace();
         selectTraceStep(snapshot.stepId);
 
         if (nodeEl) nodeEl.classList.remove("executing");
 
-        // Find outgoing wire
         const outgoingWire = STATE.wires.find(w => w.fromNode === node.id && w.fromPort === nextPort);
         if (outgoingWire) {
           incomingWireId = outgoingWire.id;
@@ -2725,7 +2741,6 @@
 
       await delay(400);
 
-      // Done simulation
       statusPill.className = "status-pill success";
       statusText.textContent = "Completed";
       btnRunWorkflow.classList.remove("running");
@@ -2898,7 +2913,6 @@
         }
       }
       if ((e.key === "Delete" || e.key === "Backspace") && STATE.selectedNodeId) {
-        // Only delete node if not actively typing in an input
         if (!["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
           deleteNode(STATE.selectedNodeId);
         }

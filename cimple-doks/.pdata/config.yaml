@@ -1,0 +1,22 @@
+name: PotatoVerse Dev
+port: 7777
+hosts:
+    - name: '*.localhost'
+master_secret: potatosec_b56ade3d7535950707d83cad65ff0a91489f0169953f351bb80415c7896e365f
+debug_mode: true
+working_dir: /home/bigbird/zhome/code/blue-monads/potato-apps/cimple-doks/.pdata
+socket_file: /home/bigbird/zhome/code/blue-monads/potato-apps/cimple-doks/.pdata/potatoverse.sock
+mailer:
+    type: stdio
+repos:
+    - url: https://github.com/blue-monads/store/raw/refs/heads/master
+      type: harvester-v1
+      slug: Official
+      name: Official Potato Field
+    - url: https://github.com/blue-monads/store-thirdparty/raw/refs/heads/master
+      type: harvester-v1
+      slug: ThirdParty
+      name: Third Party Potato Field
+    - type: dev
+      slug: Dev
+      name: Development Packages

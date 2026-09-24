@@ -1,0 +1,43 @@
+[
+  {
+    "table_name": "Documents",
+    "data": [
+      {
+        "id": 1,
+        "parent_id": null,
+        "title": "Welcome to Cimple Doks",
+        "icon": "📖",
+        "position": 1,
+        "is_starred": 1,
+        "content": "<h1>Write something worth keeping.</h1><p>A quiet place for ideas, notes, plans, and everything in between.</p><div class=\"callout\"><strong>Try the editor</strong>Type <b>/</b> at the start of an empty line to open a tiny block menu. Everything you edit is saved automatically.</div><h2>A simple canvas</h2><p>Keep the interface out of the way. The page is the product: generous margins, familiar typography, and just enough controls to make writing feel effortless.</p><ul><li>Use the sidebar to create nested subdocuments in a tree hierarchy.</li><li>Use the toolbar for bold, italic, headings, and lists.</li><li>Type markdown shortcuts like <code># </code>, <code>- </code>, or <code>&gt; </code> for quick formatting.</li></ul><blockquote>Good tools disappear into the work.</blockquote><hr><p>Start organizing your thoughts into nested documents.</p>"
+      },
+      {
+        "id": 2,
+        "parent_id": 1,
+        "title": "Getting Started & Shortcuts",
+        "icon": "⚡",
+        "position": 1,
+        "is_starred": 0,
+        "content": "<h1>Shortcuts & Tips</h1><p>Cimple Doks is built to be fast and keyboard-friendly.</p><h2>Markdown Shortcuts</h2><ul><li><code># </code> at the start of a line creates a <b>Heading 1</b></li><li><code>## </code> creates a <b>Heading 2</b></li><li><code>### </code> creates a <b>Heading 3</b></li><li><code>- </code> or <code>* </code> creates a <b>Bullet list</b></li><li><code>1. </code> creates a <b>Numbered list</b></li><li><code>&gt; </code> creates a <b>Blockquote</b></li><li><code>--- </code> creates a <b>Divider</b></li></ul><h2>Slash Commands</h2><p>Type <code>/</code> on any blank line to summon the block insertion menu.</p>"
+      },
+      {
+        "id": 3,
+        "parent_id": null,
+        "title": "Product Notes",
+        "icon": "💡",
+        "position": 2,
+        "is_starred": 0,
+        "content": "<h1>Product Notes</h1><p>High-level thoughts, feature brainstorms, and architecture considerations.</p><div class=\"callout\"><strong>Nested Hierarchy</strong>Click the <b>+</b> icon next to this document in the sidebar to add subpages!</div>"
+      },
+      {
+        "id": 4,
+        "parent_id": 3,
+        "title": "Architecture Ideas",
+        "icon": "🏗️",
+        "position": 1,
+        "is_starred": 0,
+        "content": "<h1>Architecture</h1><p>Simplicity, speed, and privacy first.</p><ul><li>Zero telemetry and zero external tracking.</li><li>Local Potatoverse SQLite persistence.</li><li>Recursive tree document structure.</li></ul>"
+      }
+    ]
+  }
+]

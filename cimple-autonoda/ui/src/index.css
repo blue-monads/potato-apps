@@ -1,1 +1,95 @@
 @import "tailwindcss";
+
+:root {
+  --wire-default: #94a3b8;
+  --wire-active: #3b82f6;
+  --wire-true: #10b981;
+  --wire-false: #ef4444;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+/* Canvas dot grid */
+.canvas-bg-grid {
+  background-color: #f8fafc;
+  background-image: radial-gradient(circle, #cbd5e1 1.2px, transparent 1.2px);
+  background-size: 20px 20px;
+}
+
+/* SVG Connection Wire Styles */
+.connection-wire {
+  stroke-width: 2.5px;
+  fill: none;
+  transition: stroke 0.2s, stroke-width 0.2s;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.connection-wire:hover {
+  stroke-width: 4px;
+  stroke: #2563eb !important;
+}
+
+.connection-wire-active {
+  stroke-dasharray: 8 5;
+  animation: wire-dash 0.65s linear infinite;
+}
+
+@keyframes wire-dash {
+  to {
+    stroke-dashoffset: -13;
+  }
+}
+
+.ghost-wire {
+  stroke: #3b82f6;
+  stroke-width: 2.5px;
+  stroke-dasharray: 5 4;
+  fill: none;
+  pointer-events: none;
+}
+
+/* Ports */
+.port-handle {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #64748b;
+  position: absolute;
+  cursor: crosshair;
+  z-index: 20;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.port-handle:hover {
+  transform: scale(1.4);
+  border-color: #2563eb;
+  background-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+}
+
+.port-handle.true-port {
+  border-color: #10b981;
+}
+
+.port-handle.true-port:hover {
+  background-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25);
+}
+
+.port-handle.false-port {
+  border-color: #ef4444;
+}
+
+.port-handle.false-port:hover {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25);
+}

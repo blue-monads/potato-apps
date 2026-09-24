@@ -1,23 +1,19 @@
 import { createBrowserRouter, Outlet } from "react-router";
-import React, { Suspense } from 'react'
+import { Suspense } from "react";
 import "./index.css";
-import Home from "./Home/Home";
+import { App } from "./App";
 import { BASE_PATH } from "./lib/base";
 
-const AuthorPage = React.lazy(() => import("./Author/Author"));
-
-
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="text-lg">Loading...</div>
+  <div className="flex items-center justify-center min-h-screen bg-[#f7f7f5]">
+    <div className="text-sm text-[#77776f]">Loading Cimple Doks…</div>
   </div>
 );
 
-
 const RootLayout = () => (
-    <Suspense fallback={<LoadingFallback />}>
-        <Outlet />
-    </Suspense>
+  <Suspense fallback={<LoadingFallback />}>
+    <Outlet />
+  </Suspense>
 );
 
 const router = createBrowserRouter([
@@ -27,15 +23,13 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        path: BASE_PATH,
-        element: <Home />,
+        element: <App />,
       },
       {
-        path: `${BASE_PATH}:author`,
-        element: <AuthorPage />,
+        path: ":docId",
+        element: <App />,
       },
     ],
-
   },
 ]);
 

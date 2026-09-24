@@ -1,0 +1,25 @@
+[
+  {
+    "table": "Workflows",
+    "rows": [
+      {
+        "id": 1,
+        "name": "E-Commerce VIP & Fraud Router",
+        "description": "Evaluates customer tier and order total to route high-value VIP orders through priority concierge and fulfillment.",
+        "status": "active",
+        "sample_payload_json": "{\n  \"eventId\": \"evt_998124\",\n  \"timestamp\": \"2026-09-25T04:45:00Z\",\n  \"order\": {\n    \"id\": \"ORD-58291\",\n    \"total\": 185.50,\n    \"currency\": \"USD\",\n    \"itemsCount\": 3,\n    \"channel\": \"web_checkout\"\n  },\n  \"customer\": {\n    \"name\": \"Sophia Martinez\",\n    \"email\": \"sophia.m@example.com\",\n    \"tier\": \"gold\",\n    \"country\": \"US\",\n    \"lifetimeOrders\": 8\n  }\n}",
+        "nodes_json": "[{\"id\":\"node_trigger_1\",\"type\":\"trigger\",\"subtype\":\"webhook\",\"title\":\"New Order Placed\",\"x\":340,\"y\":40,\"config\":{\"eventType\":\"ecommerce.order.created\",\"source\":\"Shopify Webhook\"}},{\"id\":\"node_logic_1\",\"type\":\"logic\",\"subtype\":\"condition\",\"title\":\"VIP Order Rule\",\"x\":340,\"y\":220,\"config\":{\"conditionMode\":\"AND\",\"rules\":[{\"field\":\"order.total\",\"op\":\"greater_than\",\"value\":\"100\"},{\"field\":\"customer.tier\",\"op\":\"equals\",\"value\":\"gold\"}]}},{\"id\":\"node_action_vip\",\"type\":\"action\",\"subtype\":\"enrich\",\"title\":\"Enrich: VIP Perks & Tag\",\"x\":180,\"y\":440,\"config\":{\"enrichField\":\"order.isVipPriority\",\"enrichValue\":\"true\",\"enrichNotes\":\"Applied express 1-day free shipping\"}},{\"id\":\"node_action_email\",\"type\":\"action\",\"subtype\":\"email\",\"title\":\"Send VIP Concierge Email\",\"x\":180,\"y\":640,\"config\":{\"recipient\":\"{{customer.email}}\",\"subject\":\"VIP Priority: Order {{order.id}} Confirmed!\",\"template\":\"Hello {{customer.name}}, thank you for being a Gold VIP member! Your order {{order.id}} has been expedited.\"}},{\"id\":\"node_action_std\",\"type\":\"action\",\"subtype\":\"webhook\",\"title\":\"Standard Fulfillment Webhook\",\"x\":500,\"y\":440,\"config\":{\"url\":\"https://warehouse.internal/api/orders\",\"method\":\"POST\"}}]",
+        "wires_json": "[{\"id\":\"w1\",\"fromNode\":\"node_trigger_1\",\"fromPort\":\"out\",\"toNode\":\"node_logic_1\",\"toPort\":\"in\"},{\"id\":\"w2\",\"fromNode\":\"node_logic_1\",\"fromPort\":\"true\",\"toNode\":\"node_action_vip\",\"toPort\":\"in\"},{\"id\":\"w3\",\"fromNode\":\"node_action_vip\",\"fromPort\":\"out\",\"toNode\":\"node_action_email\",\"toPort\":\"in\"},{\"id\":\"w4\",\"fromNode\":\"node_logic_1\",\"fromPort\":\"false\",\"toNode\":\"node_action_std\",\"toPort\":\"in\"}]"
+      },
+      {
+        "id": 2,
+        "name": "Enterprise Lead Qualification",
+        "description": "Routes inbound website contact requests based on company size and budget to Salesforce enterprise queue or self-serve nurture.",
+        "status": "active",
+        "sample_payload_json": "{\n  \"leadId\": \"lead_448\",\n  \"lead\": {\n    \"companyName\": \"Apex Cloud Technologies\",\n    \"employees\": 450,\n    \"annualBudget\": 75000,\n    \"industry\": \"Fintech\",\n    \"contact\": {\n      \"email\": \"cto@apexcloud.io\",\n      \"fullName\": \"Marcus Vance\"\n    }\n  }\n}",
+        "nodes_json": "[{\"id\":\"node_lead_start\",\"type\":\"trigger\",\"subtype\":\"webhook\",\"title\":\"Demo Request Submitted\",\"x\":340,\"y\":40,\"config\":{\"eventType\":\"form.demo_request\"}},{\"id\":\"node_lead_logic\",\"type\":\"logic\",\"subtype\":\"condition\",\"title\":\"Enterprise Criteria\",\"x\":340,\"y\":220,\"config\":{\"conditionMode\":\"OR\",\"rules\":[{\"field\":\"lead.annualBudget\",\"op\":\"greater_than\",\"value\":\"50000\"},{\"field\":\"lead.employees\",\"op\":\"greater_or_equal\",\"value\":\"200\"}]}},{\"id\":\"node_lead_crm\",\"type\":\"action\",\"subtype\":\"webhook\",\"title\":\"Salesforce Enterprise Queue\",\"x\":180,\"y\":440,\"config\":{\"url\":\"https://api.salesforce.com/leads/v1/enterprise\",\"method\":\"POST\"}},{\"id\":\"node_lead_nurture\",\"type\":\"action\",\"subtype\":\"log\",\"title\":\"Self-Serve Nurture Campaign\",\"x\":500,\"y\":440,\"config\":{\"logLevel\":\"INFO\",\"message\":\"Routing lead to self-serve onboarding sequence\"}}]",
+        "wires_json": "[{\"id\":\"w_lead_1\",\"fromNode\":\"node_lead_start\",\"fromPort\":\"out\",\"toNode\":\"node_lead_logic\",\"toPort\":\"in\"},{\"id\":\"w_lead_2\",\"fromNode\":\"node_lead_logic\",\"fromPort\":\"true\",\"toNode\":\"node_lead_crm\",\"toPort\":\"in\"},{\"id\":\"w_lead_3\",\"fromNode\":\"node_lead_logic\",\"fromPort\":\"false\",\"toNode\":\"node_lead_nurture\",\"toPort\":\"in\"}]"
+      }
+    ]
+  }
+]
