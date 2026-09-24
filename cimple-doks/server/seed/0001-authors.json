@@ -1,0 +1,27 @@
+[
+  {
+    "table_name": "Authors",
+    "data": [
+      {
+        "slug": "fyodor-dostoevsky",
+        "name": "Fyodor Dostoevsky",
+        "quotes": "[\"The mystery of human existence lies not in just staying alive, but in finding something to live for.\", \"Beauty will save the world.\", \"To live without Hope is to Cease to live.\"]"
+      },
+      {
+        "slug": "leo-tolstoy",
+        "name": "Leo Tolstoy",
+        "quotes": "[\"Everyone thinks of changing the world, but no one thinks of changing himself.\", \"The two most powerful warriors are patience and time.\", \"If you want to be happy, be.\"]"
+      },
+      {
+        "slug": "anton-chekhov",
+        "name": "Anton Chekhov",
+        "quotes": "[\"Knowledge is of no value unless you put it into practice.\", \"The world is, of course, nothing but our conception of it.\", \"Medicine is my lawful wife, and literature is my mistress.\"]"
+      },
+      {
+        "slug": "aleksandr-pushkin",
+        "name": "Aleksandr Pushkin",
+        "quotes": "[\"Better a bitter truth than a pleasant delusion.\", \"The illusion which exalts us is dearer to us than ten thousand truths.\", \"Ecstasy is a glass full of tea and a piece of sugar in the mouth.\"]"
+      }
+    ]
+  }
+]

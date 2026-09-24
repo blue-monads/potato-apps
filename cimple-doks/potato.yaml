@@ -1,0 +1,50 @@
+name: cimple-doks
+info: cimple-doks
+slug: cimple-doks
+tags:
+  - "potato-executor:luaz"
+  - "potato-db:sqlite"
+  - "fun"
+format_version: '0.0.2'
+author_name: Bornjre
+author_email: bornjre@gmail.com
+author_site: https://github.com/bornjre
+license: MIT
+version: '0.0.2'
+
+special_pages:
+  init_page: init.html
+  update_page: update_1.html
+
+spaces:
+  - namespace: cimple-doks
+    executor_type: luaz
+    server_file: server.lua
+    is_default: true
+    route_options:
+      serve_folder: public
+      force_html_extension: false
+      force_index_html_file: true
+      on_not_found_file: index.html
+
+capabilities:
+  - name: xMigrator
+    options:
+      folder: migration
+  - name: xStaticSeeder
+    options:
+      folder: seed
+
+
+developer:
+  server_url: http://localhost:7777
+  token_env: SIMPLE_DEV_TOKEN
+  package_id: 11
+  output_zip_file: package.spk.zip
+  include_files:
+    - 'ui/dist/**/*,public'
+    - 'server/server.lua,server.lua'
+    - 'meta/init.html,public/init.html'
+    - 'server/migration/**/*.sql,migration'
+    - 'server/seed/**/*.json,seed'
+  build_command: 'cd ui && { [ -d node_modules ] || bun install; } && bun run build'
