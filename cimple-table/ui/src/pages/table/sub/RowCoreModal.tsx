@@ -11,8 +11,8 @@ import {
 } from "../../../lib/refCache";
 import RefPickerModal from "./RefPickerModal";
 import {
-    parseFileValue,
-    serializeFileValue,
+    parseFilesValue,
+    serializeFilesValue,
     formatFileSize,
     getFileIconClass,
     openSpaceFilePicker,
@@ -325,23 +325,33 @@ const ImageFieldInput = ({
     const [dragActive, setDragActive] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const file = parseFileValue(value);
+    const files = parseFilesValue(value);
 
-    const handleSelectFile = (sf: SpaceFile) => {
+    const addFiles = (newFiles: SpaceFile[]) => {
         setErrorMsg(null);
-        setShowUrlInput(false);
-        onChange(serializeFileValue(sf));
+        const updated = [...files, ...newFiles];
+        onChange(serializeFilesValue(updated));
     };
 
-    const handleFileUpload = async (uploadedFile: File) => {
-        if (!uploadedFile) return;
+    const removeFile = (index: number) => {
+        const updated = files.filter((_, i) => i !== index);
+        onChange(serializeFilesValue(updated));
+    };
+
+    const clearAll = () => {
+        onChange("");
+    };
+
+    const handleFileUpload = async (fileList: FileList | File[]) => {
+        const toUpload = Array.from(fileList);
+        if (toUpload.length === 0) return;
         setUploading(true);
         setErrorMsg(null);
         try {
-            const sf = await uploadSpaceFile(uploadedFile);
-            handleSelectFile(sf);
+            const uploaded = await Promise.all(toUpload.map(f => uploadSpaceFile(f)));
+            addFiles(uploaded);
         } catch (err: any) {
-            setErrorMsg(err?.message || "Failed to upload image");
+            setErrorMsg(err?.message || "Failed to upload image(s)");
         } finally {
             setUploading(false);
         }
@@ -351,102 +361,106 @@ const ImageFieldInput = ({
         e.preventDefault();
         setDragActive(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFileUpload(e.dataTransfer.files[0]);
+            handleFileUpload(e.dataTransfer.files);
         }
     };
 
     const handleUrlSubmit = () => {
         if (!urlText.trim()) return;
-        const parsed = parseFileValue(urlText.trim());
-        if (parsed) {
-            handleSelectFile(parsed);
-        } else {
-            onChange(urlText.trim());
+        const text = urlText.trim();
+        const rawUrls = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+        const added: SpaceFile[] = [];
+        for (const raw of rawUrls) {
+            const parsed = parseFilesValue(raw);
+            if (parsed.length > 0) {
+                added.push(...parsed);
+            }
         }
-        setShowUrlInput(false);
+        if (added.length > 0) {
+            addFiles(added);
+            setUrlText("");
+            setShowUrlInput(false);
+        }
     };
-
-    if (file && !showUrlInput) {
-        return (
-            <div className={`p-2.5 rounded-lg border bg-surface-50 transition-all ${
-                hasError ? 'border-coral-500' : 'border-surface-300'
-            }`}>
-                <div className="flex items-center gap-3">
-                    <div className="relative shrink-0 w-16 h-16 rounded border border-surface-200 bg-white overflow-hidden flex items-center justify-center">
-                        {file.url ? (
-                            <img
-                                src={file.url}
-                                alt={file.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const parent = target.parentElement;
-                                    if (parent) {
-                                        parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-lg"></i>';
-                                    }
-                                }}
-                            />
-                        ) : (
-                            <i className="fa-solid fa-image text-surface-400 text-lg" />
-                        )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <div className="font-medium text-xs text-surface-900 truncate" title={file.name}>
-                            {file.name}
-                        </div>
-                        {file.size > 0 && (
-                            <div className="text-[11px] text-surface-400 font-mono mt-0.5">
-                                {formatFileSize(file.size)}
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                            {file.url && (
-                                <a
-                                    href={file.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[11px] font-medium text-accent-600 hover:text-accent-700 hover:underline flex items-center gap-1"
-                                >
-                                    <i className="fa-solid fa-up-right-from-square text-[9px]" />
-                                    <span>Preview</span>
-                                </a>
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const opened = openSpaceFilePicker(handleSelectFile);
-                                    if (!opened) setShowUrlInput(true);
-                                }}
-                                className="text-[11px] font-medium text-surface-600 hover:text-surface-900 hover:underline cursor-pointer"
-                            >
-                                Change
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => onChange("")}
-                                className="text-[11px] font-medium text-coral-600 hover:text-coral-700 hover:underline cursor-pointer"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-2">
+            {files.length > 0 && (
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-surface-600 font-medium">
+                        <span>{files.length} image{files.length > 1 ? "s" : ""} attached</span>
+                        <button
+                            type="button"
+                            onClick={clearAll}
+                            className="text-coral-600 hover:text-coral-700 hover:underline cursor-pointer text-[11px]"
+                        >
+                            Clear all
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {files.map((file, idx) => (
+                            <div
+                                key={file.id + '-' + idx}
+                                className="group relative rounded-lg border border-surface-200 bg-white overflow-hidden aspect-square flex flex-col justify-between hover:border-surface-300 transition-all shadow-xs"
+                            >
+                                <div className="w-full h-full flex items-center justify-center bg-surface-50 overflow-hidden relative">
+                                    {file.url ? (
+                                        <img
+                                            src={file.url}
+                                            alt={file.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                target.style.display = 'none';
+                                                const parent = target.parentElement;
+                                                if (parent) {
+                                                    parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-lg"></i>';
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <i className="fa-solid fa-image text-surface-400 text-lg" />
+                                    )}
+                                </div>
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-1">
+                                    {file.url && (
+                                        <a
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-7 h-7 rounded-full bg-white/90 text-surface-800 hover:bg-white flex items-center justify-center text-xs shadow transition-transform hover:scale-105"
+                                            title="View Full Size"
+                                        >
+                                            <i className="fa-solid fa-up-right-from-square text-[10px]" />
+                                        </a>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFile(idx)}
+                                        className="w-7 h-7 rounded-full bg-rose-600 text-white hover:bg-rose-700 flex items-center justify-center text-xs shadow cursor-pointer transition-transform hover:scale-105"
+                                        title="Remove"
+                                    >
+                                        <i className="fa-solid fa-trash text-[10px]" />
+                                    </button>
+                                </div>
+                                <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-xs px-1.5 py-0.5 text-[10px] text-white truncate font-medium pointer-events-none">
+                                    {file.name}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div
                 onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
                 onDragLeave={() => setDragActive(false)}
                 onDrop={handleDrop}
-                className={`p-4 rounded-lg border-2 border-dashed transition-all text-center ${
+                className={`p-3.5 rounded-lg border-2 border-dashed transition-all text-center ${
                     dragActive
                         ? 'border-accent-500 bg-accent-50/30'
-                        : hasError
+                        : hasError && files.length === 0
                         ? 'border-coral-500 bg-coral-50/20'
                         : 'border-surface-300 bg-surface-50/50 hover:border-surface-400'
                 }`}
@@ -454,25 +468,25 @@ const ImageFieldInput = ({
                 {uploading ? (
                     <div className="flex flex-col items-center justify-center py-2 space-y-1">
                         <i className="fa-solid fa-circle-notch fa-spin text-accent-600 text-lg" />
-                        <span className="text-xs text-surface-600 font-medium">Uploading image...</span>
+                        <span className="text-xs text-surface-600 font-medium">Uploading image(s)...</span>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                        <div className="w-9 h-9 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center">
-                            <i className="fa-solid fa-image text-sm" />
+                    <div className="flex flex-col items-center justify-center space-y-1.5">
+                        <div className="w-8 h-8 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center">
+                            <i className="fa-solid fa-image text-xs" />
                         </div>
                         <div>
                             <p className="text-xs font-semibold text-surface-800">
-                                Drag & drop image here or
+                                {files.length > 0 ? "Add more images" : "Drag & drop image(s) here or"}
                             </p>
-                            <p className="text-[11px] text-surface-400">
-                                PNG, JPG, GIF, WebP or SVG
+                            <p className="text-[10px] text-surface-400">
+                                PNG, JPG, GIF, WebP or SVG (multiple supported)
                             </p>
                         </div>
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-2 pt-0.5">
                             <button
                                 type="button"
-                                onClick={() => openSpaceFilePicker(handleSelectFile)}
+                                onClick={() => openSpaceFilePicker((sf) => addFiles([sf]))}
                                 className="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-surface-50 text-surface-700 rounded border border-surface-300 shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                             >
                                 <i className="fa-solid fa-folder-open text-accent-600 text-[10px]" />
@@ -481,14 +495,16 @@ const ImageFieldInput = ({
 
                             <label className="px-2.5 py-1 text-xs font-semibold bg-accent-600 hover:bg-accent-700 text-white rounded shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors">
                                 <i className="fa-solid fa-cloud-arrow-up text-[10px]" />
-                                <span>Upload</span>
+                                <span>Upload Images</span>
                                 <input
                                     type="file"
                                     accept="image/*"
+                                    multiple
                                     className="hidden"
                                     onChange={(e) => {
-                                        if (e.target.files && e.target.files[0]) {
-                                            handleFileUpload(e.target.files[0]);
+                                        if (e.target.files && e.target.files.length > 0) {
+                                            handleFileUpload(e.target.files);
+                                            e.target.value = '';
                                         }
                                     }}
                                 />
@@ -510,11 +526,11 @@ const ImageFieldInput = ({
                     type="button"
                     onClick={() => {
                         setShowUrlInput(!showUrlInput);
-                        setUrlText(file?.url || value || "");
+                        setUrlText("");
                     }}
                     className="text-[11px] text-surface-500 hover:text-accent-600 hover:underline cursor-pointer"
                 >
-                    {showUrlInput ? "Hide URL input" : "or paste image URL"}
+                    {showUrlInput ? "Hide URL input" : "or paste image URL(s)"}
                 </button>
             </div>
 
@@ -524,7 +540,7 @@ const ImageFieldInput = ({
                         type="url"
                         value={urlText}
                         onChange={(e) => setUrlText(e.target.value)}
-                        placeholder="https://example.com/image.jpg"
+                        placeholder="https://example.com/image.jpg (or comma-separated)"
                         className="flex-1 bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs outline-none focus:border-accent-600 transition-colors"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -538,7 +554,7 @@ const ImageFieldInput = ({
                         onClick={handleUrlSubmit}
                         className="px-2.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-surface-700 rounded text-xs font-medium cursor-pointer transition-colors"
                     >
-                        Apply
+                        Add URL
                     </button>
                 </div>
             )}
@@ -561,23 +577,33 @@ const FileFieldInput = ({
     const [dragActive, setDragActive] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const file = parseFileValue(value);
+    const files = parseFilesValue(value);
 
-    const handleSelectFile = (sf: SpaceFile) => {
+    const addFiles = (newFiles: SpaceFile[]) => {
         setErrorMsg(null);
-        setShowUrlInput(false);
-        onChange(serializeFileValue(sf));
+        const updated = [...files, ...newFiles];
+        onChange(serializeFilesValue(updated));
     };
 
-    const handleFileUpload = async (uploadedFile: File) => {
-        if (!uploadedFile) return;
+    const removeFile = (index: number) => {
+        const updated = files.filter((_, i) => i !== index);
+        onChange(serializeFilesValue(updated));
+    };
+
+    const clearAll = () => {
+        onChange("");
+    };
+
+    const handleFileUpload = async (fileList: FileList | File[]) => {
+        const toUpload = Array.from(fileList);
+        if (toUpload.length === 0) return;
         setUploading(true);
         setErrorMsg(null);
         try {
-            const sf = await uploadSpaceFile(uploadedFile);
-            handleSelectFile(sf);
+            const uploaded = await Promise.all(toUpload.map(f => uploadSpaceFile(f)));
+            addFiles(uploaded);
         } catch (err: any) {
-            setErrorMsg(err?.message || "Failed to upload file");
+            setErrorMsg(err?.message || "Failed to upload file(s)");
         } finally {
             setUploading(false);
         }
@@ -587,90 +613,101 @@ const FileFieldInput = ({
         e.preventDefault();
         setDragActive(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFileUpload(e.dataTransfer.files[0]);
+            handleFileUpload(e.dataTransfer.files);
         }
     };
 
     const handleUrlSubmit = () => {
         if (!urlText.trim()) return;
-        const parsed = parseFileValue(urlText.trim());
-        if (parsed) {
-            handleSelectFile(parsed);
-        } else {
-            onChange(urlText.trim());
+        const text = urlText.trim();
+        const rawUrls = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+        const added: SpaceFile[] = [];
+        for (const raw of rawUrls) {
+            const parsed = parseFilesValue(raw);
+            if (parsed.length > 0) {
+                added.push(...parsed);
+            }
         }
-        setShowUrlInput(false);
+        if (added.length > 0) {
+            addFiles(added);
+            setUrlText("");
+            setShowUrlInput(false);
+        }
     };
-
-    if (file && !showUrlInput) {
-        const iconClass = getFileIconClass(file.mime || file.name);
-        const downloadUrl = file.download_url || file.url;
-
-        return (
-            <div className={`p-2.5 rounded-lg border bg-surface-50 transition-all ${
-                hasError ? 'border-coral-500' : 'border-surface-300'
-            }`}>
-                <div className="flex items-center gap-3">
-                    <div className="shrink-0 w-10 h-10 rounded border border-surface-200 bg-white flex items-center justify-center">
-                        <i className={`${iconClass} text-lg`} />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                        <div className="font-medium text-xs text-surface-900 truncate" title={file.name}>
-                            {file.name}
-                        </div>
-                        {file.size > 0 && (
-                            <div className="text-[11px] text-surface-400 font-mono mt-0.5">
-                                {formatFileSize(file.size)}
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-1.5">
-                            {downloadUrl && (
-                                <a
-                                    href={downloadUrl}
-                                    target="_blank"
-                                    download={file.name}
-                                    rel="noopener noreferrer"
-                                    className="text-[11px] font-medium text-accent-600 hover:text-accent-700 hover:underline flex items-center gap-1"
-                                >
-                                    <i className="fa-solid fa-download text-[9px]" />
-                                    <span>Download</span>
-                                </a>
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const opened = openSpaceFilePicker(handleSelectFile);
-                                    if (!opened) setShowUrlInput(true);
-                                }}
-                                className="text-[11px] font-medium text-surface-600 hover:text-surface-900 hover:underline cursor-pointer"
-                            >
-                                Change
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => onChange("")}
-                                className="text-[11px] font-medium text-coral-600 hover:text-coral-700 hover:underline cursor-pointer"
-                            >
-                                Remove
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-2">
+            {files.length > 0 && (
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-surface-600 font-medium">
+                        <span>{files.length} file{files.length > 1 ? "s" : ""} attached</span>
+                        <button
+                            type="button"
+                            onClick={clearAll}
+                            className="text-coral-600 hover:text-coral-700 hover:underline cursor-pointer text-[11px]"
+                        >
+                            Clear all
+                        </button>
+                    </div>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                        {files.map((file, idx) => {
+                            const iconClass = getFileIconClass(file.mime || file.name);
+                            const downloadUrl = file.download_url || file.url;
+                            return (
+                                <div
+                                    key={file.id + '-' + idx}
+                                    className="flex items-center gap-2.5 p-2 rounded-lg border border-surface-200 bg-white hover:border-surface-300 transition-all text-xs"
+                                >
+                                    <div className="shrink-0 w-8 h-8 rounded border border-surface-200 bg-surface-50 flex items-center justify-center">
+                                        <i className={`${iconClass} text-sm`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-medium text-surface-900 truncate" title={file.name}>
+                                            {file.name}
+                                        </div>
+                                        {file.size > 0 && (
+                                            <div className="text-[10px] text-surface-400 font-mono">
+                                                {formatFileSize(file.size)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        {downloadUrl && (
+                                            <a
+                                                href={downloadUrl}
+                                                target="_blank"
+                                                download={file.name}
+                                                rel="noopener noreferrer"
+                                                className="w-7 h-7 rounded hover:bg-surface-100 text-surface-600 hover:text-surface-900 flex items-center justify-center transition-colors"
+                                                title="Download"
+                                            >
+                                                <i className="fa-solid fa-download text-[11px]" />
+                                            </a>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeFile(idx)}
+                                            className="w-7 h-7 rounded hover:bg-coral-50 text-surface-400 hover:text-coral-600 flex items-center justify-center transition-colors cursor-pointer"
+                                            title="Remove"
+                                        >
+                                            <i className="fa-solid fa-trash text-[11px]" />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             <div
                 onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
                 onDragLeave={() => setDragActive(false)}
                 onDrop={handleDrop}
-                className={`p-4 rounded-lg border-2 border-dashed transition-all text-center ${
+                className={`p-3.5 rounded-lg border-2 border-dashed transition-all text-center ${
                     dragActive
                         ? 'border-accent-500 bg-accent-50/30'
-                        : hasError
+                        : hasError && files.length === 0
                         ? 'border-coral-500 bg-coral-50/20'
                         : 'border-surface-300 bg-surface-50/50 hover:border-surface-400'
                 }`}
@@ -678,25 +715,25 @@ const FileFieldInput = ({
                 {uploading ? (
                     <div className="flex flex-col items-center justify-center py-2 space-y-1">
                         <i className="fa-solid fa-circle-notch fa-spin text-accent-600 text-lg" />
-                        <span className="text-xs text-surface-600 font-medium">Uploading file...</span>
+                        <span className="text-xs text-surface-600 font-medium">Uploading file(s)...</span>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                        <div className="w-9 h-9 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center">
-                            <i className="fa-solid fa-paperclip text-sm" />
+                    <div className="flex flex-col items-center justify-center space-y-1.5">
+                        <div className="w-8 h-8 rounded-full bg-accent-50 text-accent-600 flex items-center justify-center">
+                            <i className="fa-solid fa-paperclip text-xs" />
                         </div>
                         <div>
                             <p className="text-xs font-semibold text-surface-800">
-                                Drag & drop any file here or
+                                {files.length > 0 ? "Add more files" : "Drag & drop file(s) here or"}
                             </p>
-                            <p className="text-[11px] text-surface-400">
-                                Documents, PDFs, archives, sheets, etc.
+                            <p className="text-[10px] text-surface-400">
+                                Documents, PDFs, archives, sheets, etc. (multiple supported)
                             </p>
                         </div>
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-2 pt-0.5">
                             <button
                                 type="button"
-                                onClick={() => openSpaceFilePicker(handleSelectFile)}
+                                onClick={() => openSpaceFilePicker((sf) => addFiles([sf]))}
                                 className="px-2.5 py-1 text-xs font-semibold bg-white hover:bg-surface-50 text-surface-700 rounded border border-surface-300 shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                             >
                                 <i className="fa-solid fa-folder-open text-accent-600 text-[10px]" />
@@ -705,13 +742,15 @@ const FileFieldInput = ({
 
                             <label className="px-2.5 py-1 text-xs font-semibold bg-accent-600 hover:bg-accent-700 text-white rounded shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors">
                                 <i className="fa-solid fa-cloud-arrow-up text-[10px]" />
-                                <span>Upload</span>
+                                <span>Upload Files</span>
                                 <input
                                     type="file"
+                                    multiple
                                     className="hidden"
                                     onChange={(e) => {
-                                        if (e.target.files && e.target.files[0]) {
-                                            handleFileUpload(e.target.files[0]);
+                                        if (e.target.files && e.target.files.length > 0) {
+                                            handleFileUpload(e.target.files);
+                                            e.target.value = '';
                                         }
                                     }}
                                 />
@@ -733,11 +772,11 @@ const FileFieldInput = ({
                     type="button"
                     onClick={() => {
                         setShowUrlInput(!showUrlInput);
-                        setUrlText(file?.url || value || "");
+                        setUrlText("");
                     }}
                     className="text-[11px] text-surface-500 hover:text-accent-600 hover:underline cursor-pointer"
                 >
-                    {showUrlInput ? "Hide URL/path input" : "or enter URL / path"}
+                    {showUrlInput ? "Hide URL/path input" : "or enter file URL(s) / path"}
                 </button>
             </div>
 
@@ -747,7 +786,7 @@ const FileFieldInput = ({
                         type="text"
                         value={urlText}
                         onChange={(e) => setUrlText(e.target.value)}
-                        placeholder="https://... or file path"
+                        placeholder="https://... or file path (or comma-separated)"
                         className="flex-1 bg-white border border-surface-300 rounded px-2.5 py-1.5 text-xs outline-none focus:border-accent-600 transition-colors"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
@@ -761,7 +800,7 @@ const FileFieldInput = ({
                         onClick={handleUrlSubmit}
                         className="px-2.5 py-1.5 bg-surface-100 hover:bg-surface-200 text-surface-700 rounded text-xs font-medium cursor-pointer transition-colors"
                     >
-                        Apply
+                        Add
                     </button>
                 </div>
             )}
@@ -1115,7 +1154,7 @@ const RowCoreModal = ({ table, row, onSave, onCancel, onDelete, submitLabel }: R
             const value = cellValues[column.slug] || "";
 
             if (column.required) {
-                if (!value.trim()) {
+                if (!value.trim() || value === "[]") {
                     errors[column.slug] = "This field is required";
                     hasErrors = true;
                     return;

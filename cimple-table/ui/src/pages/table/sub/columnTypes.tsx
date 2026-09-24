@@ -8,8 +8,9 @@ import {
     useRefResolution,
     useReverseRefResolution,
 } from "../../../lib/refCache";
-import { parseFileValue, formatFileSize, getFileIconClass, getFileDownloadUrl } from "../../../lib/spaceFile";
+import { parseFilesValue, formatFileSize, getFileIconClass, getFileDownloadUrl } from "../../../lib/spaceFile";
 import BarcodeModal from "./BarcodeModal";
+import ImagePreviewModal from "./ImagePreviewModal";
 
 const PILL_COLORS = [
     { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -234,74 +235,161 @@ const ReverseRefCellValue = ({ row, column }: { row?: DatatableRow; column: Data
 };
 
 const ImageCellValue = ({ value }: { value: string }) => {
-    const file = parseFileValue(value);
-    if (!file || !file.url) return <span className="text-surface-300">—</span>;
+    const files = parseFilesValue(value);
+    if (files.length === 0) return <span className="text-surface-300">—</span>;
+
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+    const openPreview = (idx: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setPreviewIndex(idx);
+    };
 
     return (
-        <div className="flex items-center gap-2 group/img max-w-full">
-            <a
-                href={file.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="relative shrink-0 w-7 h-7 rounded border border-surface-200 overflow-hidden bg-surface-50 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
-                title={`View ${file.name}`}
-            >
-                <img
-                    src={file.url}
-                    alt={file.name || 'image'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent) {
-                            parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-xs"></i>';
-                        }
-                    }}
+        <>
+            {files.length === 1 ? (
+                <div className="flex items-center gap-2 group/img max-w-full">
+                    <button
+                        type="button"
+                        onClick={(e) => openPreview(0, e)}
+                        className="relative shrink-0 w-7 h-7 rounded border border-surface-200 overflow-hidden bg-surface-50 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-xs hover:ring-2 hover:ring-accent-500/40"
+                        title={`Preview ${files[0].name}`}
+                    >
+                        <img
+                            src={files[0].url}
+                            alt={files[0].name || 'image'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                    parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-xs"></i>';
+                                }
+                            }}
+                        />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={(e) => openPreview(0, e)}
+                        title={files[0].name}
+                        className="truncate text-xs text-surface-700 hover:text-accent-600 hover:underline cursor-pointer text-left"
+                    >
+                        {files[0].name}
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center gap-1.5 overflow-hidden flex-wrap py-0.5">
+                    {files.slice(0, 3).map((file, idx) => (
+                        <button
+                            key={idx}
+                            type="button"
+                            onClick={(e) => openPreview(idx, e)}
+                            className="relative shrink-0 w-7 h-7 rounded border border-surface-200 overflow-hidden bg-surface-50 flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer shadow-2xs hover:scale-105 hover:ring-2 hover:ring-accent-500/40"
+                            title={`Preview ${file.name}`}
+                        >
+                            <img
+                                src={file.url}
+                                alt={file.name || 'image'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                        parent.innerHTML = '<i class="fa-solid fa-image text-surface-400 text-xs"></i>';
+                                    }
+                                }}
+                            />
+                        </button>
+                    ))}
+                    {files.length > 3 && (
+                        <button
+                            type="button"
+                            onClick={(e) => openPreview(3, e)}
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-100 hover:bg-surface-200 text-surface-600 border border-surface-200 shrink-0 cursor-pointer transition-colors"
+                            title={files.slice(3).map(f => f.name).join(', ')}
+                        >
+                            +{files.length - 3}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {previewIndex !== null && (
+                <ImagePreviewModal
+                    images={files}
+                    initialIndex={previewIndex}
+                    onClose={() => setPreviewIndex(null)}
                 />
-            </a>
-            <a
-                href={file.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                title={file.name}
-                className="truncate text-xs text-surface-700 hover:text-accent-600 hover:underline"
-            >
-                {file.name}
-            </a>
-        </div>
+            )}
+        </>
     );
 };
 
 const FileCellValue = ({ value }: { value: string }) => {
-    const file = parseFileValue(value);
-    if (!file) return <span className="text-surface-300">—</span>;
+    const files = parseFilesValue(value);
+    if (files.length === 0) return <span className="text-surface-300">—</span>;
 
-    const iconClass = getFileIconClass(file.mime || file.name);
-    const sizeStr = formatFileSize(file.size);
-    const targetUrl = file.download_url || file.url || getFileDownloadUrl(file.id);
+    if (files.length === 1) {
+        const file = files[0];
+        const iconClass = getFileIconClass(file.mime || file.name);
+        const sizeStr = formatFileSize(file.size);
+        const targetUrl = file.download_url || file.url || getFileDownloadUrl(file.id);
+
+        return (
+            <a
+                href={targetUrl}
+                target="_blank"
+                download={file.name}
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title={`Download ${file.name}${sizeStr ? ` (${sizeStr})` : ''}`}
+                className="inline-flex items-center gap-1.5 max-w-full px-2 py-0.5 rounded text-xs text-surface-700 hover:bg-surface-100 hover:text-accent-700 transition-colors group/file truncate"
+            >
+                <i className={`${iconClass} text-[11px] shrink-0`} />
+                <span className="truncate font-medium">{file.name}</span>
+                {sizeStr && (
+                    <span className="text-[10px] text-surface-400 font-mono shrink-0">
+                        {sizeStr}
+                    </span>
+                )}
+                <i className="fa-solid fa-arrow-down text-[9px] text-surface-400 opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0 ml-0.5" />
+            </a>
+        );
+    }
 
     return (
-        <a
-            href={targetUrl}
-            target="_blank"
-            download={file.name}
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            title={`Download ${file.name}${sizeStr ? ` (${sizeStr})` : ''}`}
-            className="inline-flex items-center gap-1.5 max-w-full px-2 py-0.5 rounded text-xs text-surface-700 hover:bg-surface-100 hover:text-accent-700 transition-colors group/file truncate"
-        >
-            <i className={`${iconClass} text-[11px] shrink-0`} />
-            <span className="truncate font-medium">{file.name}</span>
-            {sizeStr && (
-                <span className="text-[10px] text-surface-400 font-mono shrink-0">
-                    {sizeStr}
+        <div className="flex items-center gap-1.5 flex-wrap py-0.5">
+            {files.slice(0, 2).map((file, idx) => {
+                const iconClass = getFileIconClass(file.mime || file.name);
+                const targetUrl = file.download_url || file.url || getFileDownloadUrl(file.id);
+                return (
+                    <a
+                        key={idx}
+                        href={targetUrl}
+                        target="_blank"
+                        download={file.name}
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        title={`Download ${file.name}${file.size ? ` (${formatFileSize(file.size)})` : ''}`}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs text-surface-700 bg-surface-50 hover:bg-surface-100 hover:text-accent-700 border border-surface-200 transition-colors truncate max-w-[130px]"
+                    >
+                        <i className={`${iconClass} text-[10px] shrink-0`} />
+                        <span className="truncate font-medium">{file.name}</span>
+                    </a>
+                );
+            })}
+            {files.length > 2 && (
+                <span
+                    className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-surface-100 text-surface-600 border border-surface-200 shrink-0"
+                    title={files.slice(2).map(f => f.name).join(', ')}
+                >
+                    +{files.length - 2}
                 </span>
             )}
-            <i className="fa-solid fa-arrow-down text-[9px] text-surface-400 opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0 ml-0.5" />
-        </a>
+        </div>
     );
 };
 
@@ -571,6 +659,17 @@ export const summarize = (column: DatatableColumn, values: string[]): string => 
 
     if (isTagType(column.column_type)) {
         return `${new Set(filled).size} unique`;
+    }
+
+    if (column.column_type === 'image' || column.column_type === 'file') {
+        let totalCount = 0;
+        filled.forEach(v => {
+            totalCount += parseFilesValue(v).length;
+        });
+        const unit = column.column_type === 'image'
+            ? (totalCount === 1 ? 'image' : 'images')
+            : (totalCount === 1 ? 'file' : 'files');
+        return `${totalCount} ${unit}`;
     }
 
     return `${filled.length} filled`;

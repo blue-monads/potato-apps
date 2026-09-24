@@ -275,3 +275,46 @@ export function serializeFileValue(file: SpaceFile | null): string {
     download_url: file.download_url || getFileDownloadUrl(file.id),
   });
 }
+
+export function parseFilesValue(raw: any): SpaceFile[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.map(item => parseFileValue(item)).filter((f): f is SpaceFile => f !== null);
+  }
+  if (typeof raw === 'object' && raw !== null) {
+    const f = parseFileValue(raw);
+    return f ? [f] : [];
+  }
+  if (typeof raw !== 'string') return [];
+  const str = raw.trim();
+  if (!str) return [];
+
+  // Try JSON array first
+  if (str.startsWith('[') && str.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => parseFileValue(item)).filter((f): f is SpaceFile => f !== null);
+      }
+    } catch {
+      // not JSON array, fallback
+    }
+  }
+
+  // Fallback to single file parsing
+  const single = parseFileValue(str);
+  return single ? [single] : [];
+}
+
+export function serializeFilesValue(files: SpaceFile[]): string {
+  if (!files || files.length === 0) return '';
+  return JSON.stringify(files.map(file => ({
+    id: file.id,
+    name: file.name,
+    size: file.size,
+    mime: file.mime || '',
+    url: file.url || getFilePreviewUrl(file.id),
+    download_url: file.download_url || getFileDownloadUrl(file.id),
+  })));
+}
+
