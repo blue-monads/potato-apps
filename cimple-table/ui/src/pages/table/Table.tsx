@@ -18,6 +18,8 @@ import {
     type Datatable,
     type DatatableColumn,
     type DatatableRow,
+    type FilterCondition,
+    type FilterOp,
 } from "../../lib/api";
 import EditRowModal from "./sub/EditRowModal";
 import CreateRowModal from "./sub/CreateRowModal";
@@ -25,6 +27,7 @@ import CreateTableModal from "./sub/CreateTableModal";
 import CreateColumnModal from "./sub/CreateColumnModal";
 import EditColumnModal from "./sub/EditColumnModal";
 import EditTableModal from "./sub/EditTableModal";
+import FilterModal from "./sub/FilterModal";
 import { useModal } from "../../lib/shared/modal/modal";
 import {
     CellValue,
@@ -43,18 +46,12 @@ import { getTableColorConfig } from "../../lib/tableColors";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
 
-type FilterOp = 'contains' | 'equals' | 'not_equals' | 'empty' | 'not_empty';
-
-interface FilterState {
-    columnId: number | null;
-    op: FilterOp;
-    value: string;
-}
-
-const EMPTY_FILTER: FilterState = {
-    columnId: null,
-    op: 'contains',
-    value: '',
+const getActiveFilters = (list: FilterCondition[]) => {
+    return list.filter(f => {
+        if (!f.columnId) return false;
+        if (f.op === 'empty' || f.op === 'not_empty') return true;
+        return f.value.trim() !== '';
+    });
 };
 
 const PAGE_SIZE = 100;
@@ -84,8 +81,8 @@ const Table = () => {
 
     const [search, setSearch] = useState("");
     const [sort, setSort] = useState<SortState>(null);
-    const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
-    const [filterOpen, setFilterOpen] = useState(false);
+    const [filters, setFilters] = useState<FilterCondition[]>([]);
+    const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
     const [appsMenuOpen, setAppsMenuOpen] = useState(false);
     const [targetRowOffset, setTargetRowOffset] = useState<number | null>(null);
@@ -117,7 +114,7 @@ const Table = () => {
             const rawOffset = searchParams.get('row_offset') || searchParams.get('offset');
             const targetRow = rawOffset ? Math.max(0, parseInt(rawOffset, 10) || 0) : 0;
             setSort(null);
-            setFilter(EMPTY_FILTER);
+            setFilters([]);
             setSearch("");
             setSelectedRowIds(new Set());
             loadTable(parseInt(tableId), targetRow);
@@ -136,7 +133,7 @@ const Table = () => {
 
     const handleRunQuery = async (
         offset = 0,
-        overrideFilter?: FilterState,
+        overrideFilters?: FilterCondition[],
         overrideSort?: SortState,
         overrideSearch?: string,
         tableOverride?: Datatable
@@ -145,19 +142,25 @@ const Table = () => {
         if (!tbl) return;
         setLoading(true);
 
-        const f = overrideFilter !== undefined ? overrideFilter : filter;
+        const currentFiltersList = overrideFilters !== undefined ? overrideFilters : filters;
         const s = overrideSort !== undefined ? overrideSort : sort;
         const q = overrideSearch !== undefined ? overrideSearch : search;
 
         const tblCols = normalizeArray<DatatableColumn>(tbl.columns);
-        const filterCol = f.columnId ? tblCols.find(c => c.id === f.columnId) : null;
         const sortCol = s ? tblCols.find(c => c.id === s.columnId) : null;
+
+        const activeList = getActiveFilters(currentFiltersList);
+        const queryFilters = activeList.map(f => {
+            const col = tblCols.find(c => c.id === f.columnId);
+            return col ? { column: col.slug, op: f.op, value: f.value } : null;
+        }).filter((item): item is { column: string; op: FilterOp; value: string } => item !== null);
 
         const res = await queryTable(tbl.id, {
             offset,
             limit: PAGE_SIZE,
             sort: sortCol ? { column: sortCol.slug, dir: s!.dir } : null,
-            filter: filterCol ? { column: filterCol.slug, op: f.op, value: f.value } : null,
+            filter: queryFilters[0] || null,
+            filters: queryFilters.length > 0 ? queryFilters : null,
             search: q.trim() || undefined,
         });
 
@@ -217,15 +220,17 @@ const Table = () => {
     };
 
     const columns = normalizeArray<DatatableColumn>(currentTable?.columns);
+    const activeFilters = getActiveFilters(filters);
+    const activeFilterCount = activeFilters.length;
 
-    // Debounce search and filter text input
+    // Debounce search text input
     useEffect(() => {
         if (!currentTable) return;
         const timer = setTimeout(() => {
             handleRunQuery(0);
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, filter.value]);
+    }, [search]);
 
     // Poll for changes when table and browser tab are active
     useEffect(() => {
@@ -298,14 +303,20 @@ const Table = () => {
         setLoadingMoreDown(true);
 
         const tblCols = normalizeArray<DatatableColumn>(currentTable.columns);
-        const filterCol = filter.columnId ? tblCols.find(c => c.id === filter.columnId) : null;
         const sortCol = sort ? tblCols.find(c => c.id === sort.columnId) : null;
+
+        const activeList = getActiveFilters(filters);
+        const queryFilters = activeList.map(f => {
+            const col = tblCols.find(c => c.id === f.columnId);
+            return col ? { column: col.slug, op: f.op, value: f.value } : null;
+        }).filter((item): item is { column: string; op: FilterOp; value: string } => item !== null);
 
         const res = await queryTable(currentTable.id, {
             offset: bottomOffset,
             limit: PAGE_SIZE,
             sort: sortCol ? { column: sortCol.slug, dir: sort!.dir } : null,
-            filter: filterCol ? { column: filterCol.slug, op: filter.op, value: filter.value } : null,
+            filter: queryFilters[0] || null,
+            filters: queryFilters.length > 0 ? queryFilters : null,
             search: search.trim() || undefined,
         });
 
@@ -328,14 +339,20 @@ const Table = () => {
         const newOffset = topOffset - countToLoad;
 
         const tblCols = normalizeArray<DatatableColumn>(currentTable.columns);
-        const filterCol = filter.columnId ? tblCols.find(c => c.id === filter.columnId) : null;
         const sortCol = sort ? tblCols.find(c => c.id === sort.columnId) : null;
+
+        const activeList = getActiveFilters(filters);
+        const queryFilters = activeList.map(f => {
+            const col = tblCols.find(c => c.id === f.columnId);
+            return col ? { column: col.slug, op: f.op, value: f.value } : null;
+        }).filter((item): item is { column: string; op: FilterOp; value: string } => item !== null);
 
         const res = await queryTable(currentTable.id, {
             offset: newOffset,
             limit: countToLoad,
             sort: sortCol ? { column: sortCol.slug, dir: sort!.dir } : null,
-            filter: filterCol ? { column: filterCol.slug, op: filter.op, value: filter.value } : null,
+            filter: queryFilters[0] || null,
+            filters: queryFilters.length > 0 ? queryFilters : null,
             search: search.trim() || undefined,
         });
 
@@ -530,7 +547,7 @@ const Table = () => {
                         const response = await deleteColumn(column.id);
                         if (!response.error) {
                             setSort(prev => (prev?.columnId === column.id ? null : prev));
-                            setFilter(prev => (prev.columnId === column.id ? EMPTY_FILTER : prev));
+                            setFilters(prev => prev.filter(f => f.columnId !== column.id));
                             await loadTable(currentTable.id);
                             closeModal();
                         } else {
@@ -752,14 +769,24 @@ const Table = () => {
 
                         <div className="flex items-center gap-1.5 pr-3 mr-1 border-r border-surface-200">
                             <button
-                                onClick={() => setFilterOpen(o => !o)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md border transition-colors ${
-                                    filter.columnId !== null || filterOpen
-                                        ? 'bg-accent-50 text-accent-700 border-accent-600'
-                                        : 'bg-white border-surface-200 hover:bg-surface-50 hover:border-surface-300'
+                                onClick={() => setFilterModalOpen(true)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md border transition-colors cursor-pointer ${
+                                    activeFilterCount > 0
+                                        ? 'bg-accent-50 text-accent-700 border-accent-600 font-semibold shadow-xs'
+                                        : 'bg-white border-surface-200 hover:bg-surface-50 hover:border-surface-300 text-surface-700'
                                 }`}
+                                title={activeFilterCount > 0 ? `${activeFilterCount} active filter${activeFilterCount > 1 ? 's' : ''}` : "Filter records"}
                             >
-                                <i className="fa-solid fa-filter text-[11px]" />Filter
+                                <i className="fa-solid fa-filter text-[11px]" />
+                                <span>Filter</span>
+                                {activeFilterCount > 0 && (
+                                    <span className="flex items-center gap-1 ml-0.5">
+                                        <span className="w-2 h-2 rounded-full bg-accent-600 inline-block shadow-xs animate-pulse" />
+                                        <span className="text-[11px] font-bold text-accent-700 font-mono">
+                                            ({activeFilterCount})
+                                        </span>
+                                    </span>
+                                )}
                             </button>
                             <button
                                 onClick={() => (sort ? cycleSort(sort.columnId) : columns[0] && cycleSort(columns[0].id))}
@@ -836,59 +863,57 @@ const Table = () => {
                         </button>
                     </div>
 
-                    {/* Filter panel */}
-                    {filterOpen && (
-                        <div className="flex items-center gap-2 flex-wrap bg-surface-50 border-b border-surface-200 px-4 py-2 text-[13px] shrink-0">
-                            <span className="font-semibold text-surface-500">Where</span>
-                            <select
-                                value={filter.columnId ?? ''}
-                                onChange={(e) => {
-                                    const next = {
-                                        ...filter,
-                                        columnId: e.target.value ? parseInt(e.target.value) : null,
-                                    };
-                                    setFilter(next);
-                                    handleRunQuery(0, next);
-                                }}
-                                className="px-2.5 py-1.5 bg-white border border-surface-200 rounded-md outline-none focus:border-accent-600 cursor-pointer"
-                            >
-                                <option value="">Select a field…</option>
-                                {columns.map(col => (
-                                    <option key={col.id} value={col.id}>{col.name}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={filter.op}
-                                onChange={(e) => {
-                                    const next = { ...filter, op: e.target.value as FilterOp };
-                                    setFilter(next);
-                                    handleRunQuery(0, next);
-                                }}
-                                className="px-2.5 py-1.5 bg-white border border-surface-200 rounded-md outline-none focus:border-accent-600 cursor-pointer"
-                            >
-                                <option value="contains">contains</option>
-                                <option value="equals">equals</option>
-                                <option value="not_equals">does not equal</option>
-                                <option value="empty">is empty</option>
-                                <option value="not_empty">is not empty</option>
-                            </select>
-                            {filter.op !== 'empty' && filter.op !== 'not_empty' && (
-                                <input
-                                    type="text"
-                                    value={filter.value}
-                                    onChange={(e) => setFilter(f => ({ ...f, value: e.target.value }))}
-                                    placeholder="Enter a value…"
-                                    className="px-2.5 py-1.5 bg-white border border-surface-200 rounded-md outline-none focus:border-accent-600"
-                                />
-                            )}
+                    {/* Active filters pill bar */}
+                    {activeFilterCount > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap bg-surface-50 border-b border-surface-200 px-4 py-1.5 text-xs shrink-0">
+                            <span className="font-semibold text-surface-600 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-accent-600 shrink-0" />
+                                <span>Filtered by:</span>
+                            </span>
+                            {activeFilters.map((cond, idx) => {
+                                const col = columns.find(c => c.id === cond.columnId);
+                                const colName = col ? col.name : 'Unknown';
+                                const opLabel = cond.op.replace(/_/g, ' ');
+                                const valDisplay = cond.op === 'empty' || cond.op === 'not_empty' ? '' : ` "${cond.value}"`;
+                                return (
+                                    <div
+                                        key={cond.id || idx}
+                                        className="inline-flex items-center gap-1 bg-white border border-surface-300 text-surface-800 rounded-md px-2 py-0.5 shadow-2xs group text-xs"
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => setFilterModalOpen(true)}
+                                            className="hover:text-accent-600 cursor-pointer font-medium text-left"
+                                            title="Click to edit filters"
+                                        >
+                                            <span className="text-surface-600">{idx > 0 ? "and " : ""}{colName}</span>
+                                            <span className="text-surface-400 mx-1">{opLabel}</span>
+                                            {valDisplay && <span className="font-semibold text-surface-900">{valDisplay}</span>}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const updated = filters.filter((_, i) => i !== idx);
+                                                setFilters(updated);
+                                                handleRunQuery(0, updated);
+                                            }}
+                                            className="text-surface-400 hover:text-coral-600 w-4 h-4 rounded flex items-center justify-center cursor-pointer transition-colors ml-0.5"
+                                            title="Remove this filter"
+                                        >
+                                            <i className="fa-solid fa-xmark text-[10px]" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
                             <button
+                                type="button"
                                 onClick={() => {
-                                    setFilter(EMPTY_FILTER);
-                                    handleRunQuery(0, EMPTY_FILTER);
+                                    setFilters([]);
+                                    handleRunQuery(0, []);
                                 }}
-                                className="px-2.5 py-1 text-[12px] text-surface-500 rounded hover:bg-surface-200 transition-colors"
+                                className="text-xs text-coral-600 hover:text-coral-700 hover:underline cursor-pointer ml-1 font-medium"
                             >
-                                Clear
+                                Clear all
                             </button>
                             <span className="ml-auto text-[12px] text-surface-400">
                                 {totalCount > 0 ? `Showing ${topOffset + 1}–${topOffset + rows.length} of ${totalCount.toLocaleString()} records` : '0 records'}
@@ -1109,6 +1134,19 @@ const Table = () => {
                     body="Pick a table from the tabs above to start exploring, or create a new one to get going."
                     actionLabel="Create New Table"
                     onAction={handleCreateTable}
+                />
+            )}
+
+            {currentTable && (
+                <FilterModal
+                    isOpen={filterModalOpen}
+                    columns={columns}
+                    initialFilters={filters}
+                    onApply={(newFilters) => {
+                        setFilters(newFilters);
+                        handleRunQuery(0, newFilters);
+                    }}
+                    onClose={() => setFilterModalOpen(false)}
                 />
             )}
         </div>

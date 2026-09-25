@@ -669,11 +669,12 @@ function query_datatable(ctx, table_id)
     local where_clauses = {}
     local where_params = {}
 
-    -- 1. Structured Filter
-    if data.filter and type(data.filter) == "table" then
-        local col = data.filter.column
-        local op = data.filter.op or "contains"
-        local val = tostring(data.filter.value or "")
+    -- 1. Structured Filters (Single or Multiple)
+    local function apply_filter_item(f)
+        if type(f) ~= "table" then return end
+        local col = f.column
+        local op = f.op or "contains"
+        local val = tostring(f.value or "")
 
         if col and allowed_cols[col] then
             if op == "empty" then
@@ -683,13 +684,44 @@ function query_datatable(ctx, table_id)
             elseif op == "contains" and val ~= "" then
                 table.insert(where_clauses, "LOWER(" .. col .. ") LIKE ?")
                 table.insert(where_params, "%" .. string.lower(val) .. "%")
+            elseif op == "not_contains" and val ~= "" then
+                table.insert(where_clauses, "(LOWER(" .. col .. ") NOT LIKE ? OR " .. col .. " IS NULL)")
+                table.insert(where_params, "%" .. string.lower(val) .. "%")
             elseif op == "equals" and val ~= "" then
                 table.insert(where_clauses, "LOWER(" .. col .. ") = LOWER(?)")
                 table.insert(where_params, val)
             elseif op == "not_equals" and val ~= "" then
                 table.insert(where_clauses, "(LOWER(" .. col .. ") != LOWER(?) OR " .. col .. " IS NULL)")
                 table.insert(where_params, val)
+            elseif (op == "gt" or op == "gte" or op == "lt" or op == "lte") and val ~= "" then
+                local sql_op = ">"
+                if op == "gte" then sql_op = ">="
+                elseif op == "lt" then sql_op = "<"
+                elseif op == "lte" then sql_op = "<="
+                end
+                local num_val = tonumber(val)
+                if num_val ~= nil then
+                    table.insert(where_clauses, "CAST(" .. col .. " AS NUMERIC) " .. sql_op .. " ?")
+                    table.insert(where_params, num_val)
+                else
+                    table.insert(where_clauses, col .. " " .. sql_op .. " ?")
+                    table.insert(where_params, val)
+                end
             end
+        end
+    end
+
+    if data.filters and type(data.filters) == "table" then
+        for _, f in ipairs(data.filters) do
+            apply_filter_item(f)
+        end
+    elseif data.filter and type(data.filter) == "table" then
+        if data.filter[1] ~= nil then
+            for _, f in ipairs(data.filter) do
+                apply_filter_item(f)
+            end
+        else
+            apply_filter_item(data.filter)
         end
     end
 

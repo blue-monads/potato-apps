@@ -130,15 +130,39 @@ export async function deleteColumn(id: number): Promise<ApiResponse<{ message: s
 }
 
 // Rows & Query API
+export type FilterOp =
+    | 'contains'
+    | 'not_contains'
+    | 'equals'
+    | 'not_equals'
+    | 'empty'
+    | 'not_empty'
+    | 'gt'
+    | 'gte'
+    | 'lt'
+    | 'lte';
+
+export interface FilterCondition {
+    id?: string;
+    columnId: number | null;
+    op: FilterOp;
+    value: string;
+}
+
 export interface DatatableQueryParams {
     offset?: number;
     limit?: number;
     sort?: { column: string; dir: 'asc' | 'desc' } | null;
     filter?: {
         column: string;
-        op: 'contains' | 'equals' | 'not_equals' | 'empty' | 'not_empty';
+        op: FilterOp;
         value: string;
     } | null;
+    filters?: Array<{
+        column: string;
+        op: FilterOp;
+        value: string;
+    }> | null;
     search?: string;
 }
 
