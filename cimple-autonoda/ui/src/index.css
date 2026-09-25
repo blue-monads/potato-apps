@@ -2,13 +2,13 @@
 
 :root {
   --wire-default: #94a3b8;
-  --wire-active: #3b82f6;
+  --wire-active: #4f46e5;
   --wire-true: #10b981;
   --wire-false: #ef4444;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
   user-select: none;
@@ -23,6 +23,15 @@ body {
   background-size: 20px 20px;
 }
 
+/* Node card smooth auto-layout glide transition */
+.flow-node-card {
+  transition: left 0.35s cubic-bezier(0.25, 1, 0.5, 1), top 0.35s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.flow-node-card.dragging {
+  transition: none !important;
+}
+
 /* SVG Connection Wire Styles */
 .connection-wire {
   stroke-width: 2.5px;
@@ -34,7 +43,7 @@ body {
 
 .connection-wire:hover {
   stroke-width: 4px;
-  stroke: #2563eb !important;
+  stroke: #4f46e5 !important;
 }
 
 .connection-wire-active {
@@ -49,7 +58,7 @@ body {
 }
 
 .ghost-wire {
-  stroke: #3b82f6;
+  stroke: #4f46e5;
   stroke-width: 2.5px;
   stroke-dasharray: 5 4;
   fill: none;
@@ -65,15 +74,15 @@ body {
   border: 2px solid #64748b;
   position: absolute;
   cursor: crosshair;
-  z-index: 20;
+  z-index: 25;
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .port-handle:hover {
   transform: scale(1.4);
-  border-color: #2563eb;
-  background-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+  border-color: #4f46e5;
+  background-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.25);
 }
 
 .port-handle.true-port {
@@ -82,6 +91,7 @@ body {
 
 .port-handle.true-port:hover {
   background-color: #10b981;
+  border-color: #10b981;
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25);
 }
 
@@ -91,5 +101,6 @@ body {
 
 .port-handle.false-port:hover {
   background-color: #ef4444;
+  border-color: #ef4444;
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.25);
 }

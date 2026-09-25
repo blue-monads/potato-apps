@@ -1,7 +1,7 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { FlowNode, Wire } from '../types/workflow';
 import { NodeCard } from './NodeCard';
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Wand2, Maximize2 } from 'lucide-react';
 
 interface CanvasProps {
   nodes: FlowNode[];
@@ -16,6 +16,8 @@ interface CanvasProps {
   onConnectWire: (fromNode: string, fromPort: 'out' | 'true' | 'false', toNode: string, toPort: 'in') => void;
   onDeleteWire: (wireId: string) => void;
   onDropNewNode: (type: any, subtype: string, name: string, x: number, y: number) => void;
+  onAutoLayout?: () => void;
+  fitViewTrigger?: number;
 }
 
 interface DraggingWireState {
@@ -40,10 +42,12 @@ export const Canvas: React.FC<CanvasProps> = ({
   onConnectWire,
   onDeleteWire,
   onDropNewNode,
+  onAutoLayout,
+  fitViewTrigger,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<number>(1.0);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 60, y: 30 });
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 120, y: 40 });
   const [isPanning, setIsPanning] = useState<boolean>(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -53,6 +57,32 @@ export const Canvas: React.FC<CanvasProps> = ({
   // Node drag state
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Fit View function
+  const fitView = useCallback(() => {
+    if (nodes.length === 0 || !containerRef.current) return;
+    const minX = Math.min(...nodes.map((n) => n.x));
+    const maxX = Math.max(...nodes.map((n) => n.x + 260));
+    const minY = Math.min(...nodes.map((n) => n.y));
+    const maxY = Math.max(...nodes.map((n) => n.y + 140));
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const graphW = maxX - minX + 80;
+    const graphH = maxY - minY + 80;
+
+    const targetZoom = Math.min(Math.max(Math.min(rect.width / graphW, rect.height / graphH) * 0.9, 0.45), 1.2);
+    const targetPanX = Math.round((rect.width - (maxX + minX) * targetZoom) / 2);
+    const targetPanY = Math.round(Math.max((rect.height - (maxY + minY) * targetZoom) / 2, 40));
+
+    setZoom(targetZoom);
+    setPan({ x: targetPanX, y: targetPanY });
+  }, [nodes]);
+
+  useEffect(() => {
+    if (fitViewTrigger && fitViewTrigger > 0) {
+      fitView();
+    }
+  }, [fitViewTrigger, fitView]);
 
   // Calculate coordinates for node ports in VERTICAL FLOW
   const getPortCoord = useCallback(
@@ -221,36 +251,56 @@ export const Canvas: React.FC<CanvasProps> = ({
         isPanning ? 'cursor-grabbing' : 'cursor-default'
       }`}
     >
-      {/* Zoom / Reset Toolbar */}
-      <div className="absolute bottom-5 left-5 bg-white border border-slate-200 rounded-lg p-1 flex items-center gap-1 shadow-md z-30">
+      {/* Floating Canvas Controls Toolbar (cimple-eventmap style) */}
+      <div className="absolute bottom-5 left-5 bg-white border border-slate-200/90 rounded-xl p-1 flex items-center gap-1 shadow-md z-30">
         <button
           onClick={() => setZoom((z) => Math.max(z * 0.85, 0.4))}
-          className="p-1 rounded text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
           title="Zoom Out"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut className="w-3.5 h-3.5" />
         </button>
-        <span className="text-[11px] font-semibold text-slate-600 px-1 min-w-[42px] text-center">
+        <span className="text-[11px] font-semibold text-slate-600 px-1 min-w-[42px] text-center font-mono">
           {Math.round(zoom * 100)}%
         </span>
         <button
           onClick={() => setZoom((z) => Math.min(z * 1.15, 2.0))}
-          className="p-1 rounded text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
           title="Zoom In"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <div className="w-[1px] h-4 bg-slate-200 mx-0.5" />
         <button
+          onClick={fitView}
+          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          title="Fit Workflow to View"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+        <button
           onClick={() => {
             setZoom(1.0);
-            setPan({ x: 80, y: 30 });
+            setPan({ x: 120, y: 40 });
           }}
-          className="p-1 rounded text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-          title="Reset View"
+          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+          title="Reset View (100%)"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
+        {onAutoLayout && (
+          <>
+            <div className="w-[1px] h-4 bg-slate-200 mx-0.5" />
+            <button
+              onClick={onAutoLayout}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors cursor-pointer"
+              title="Organize layout automatically"
+            >
+              <Wand2 className="w-3 h-3 text-indigo-600" />
+              <span>Auto Layout</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Scalable & Pannable Canvas Layer */}
@@ -375,6 +425,7 @@ export const Canvas: React.FC<CanvasProps> = ({
               node={node}
               isSelected={selectedNodeId === node.id}
               isExecuting={activeNodeId === node.id}
+              isDragging={draggingNodeId === node.id}
               execStatus={nodeExecStatuses[node.id]}
               onSelect={onSelectNode}
               onDelete={onDeleteNode}

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Workflow, FlowNode, NodeType } from '../types/workflow';
 import { workflowsApi } from '../lib/api';
 import { simulateWorkflowExecution } from '../lib/simulator';
+import { computeAutoLayout } from '../lib/layout';
 import { Header } from '../components/Header';
 import { Palette } from '../components/Palette';
 import { Canvas } from '../components/Canvas';
@@ -14,6 +15,11 @@ export default function Home() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | number | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  // UI layout states (cimple-eventmap inspired)
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [autoAlignEnabled, setAutoAlignEnabled] = useState<boolean>(true);
+  const [fitViewTrigger, setFitViewTrigger] = useState<number>(0);
 
   // Execution & Simulation state
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -68,6 +74,24 @@ export default function Home() {
     triggerAutoSave(updated);
   };
 
+  // Auto-Layout Execution
+  const applyAutoLayout = useCallback(
+    (customNodes?: FlowNode[], customWires?: any[]) => {
+      if (!activeWorkflow) return;
+      const targetNodes = customNodes || activeWorkflow.nodes;
+      const targetWires = customWires || activeWorkflow.wires;
+
+      const newPositions = computeAutoLayout(targetNodes, targetWires);
+      const updatedNodes = targetNodes.map((n) => {
+        const pos = newPositions[n.id];
+        return pos ? { ...n, x: pos.x, y: pos.y } : n;
+      });
+
+      updateActiveWorkflow({ nodes: updatedNodes });
+    },
+    [activeWorkflow]
+  );
+
   // Node operations
   const handleUpdateNodePosition = (nodeId: string, x: number, y: number) => {
     if (!activeWorkflow) return;
@@ -88,13 +112,22 @@ export default function Home() {
       (w) => w.fromNode !== nodeId && w.toNode !== nodeId
     );
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
-    updateActiveWorkflow({ nodes: newNodes, wires: newWires });
+
+    if (autoAlignEnabled) {
+      const newPositions = computeAutoLayout(newNodes, newWires);
+      const remappedNodes = newNodes.map((n) =>
+        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
+      );
+      updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
+    } else {
+      updateActiveWorkflow({ nodes: newNodes, wires: newWires });
+    }
   };
 
   const handleAddNode = (type: NodeType, subtype: string, name: string, dropX?: number, dropY?: number) => {
     if (!activeWorkflow) return;
-    const x = dropX !== undefined ? dropX : 200 + Math.random() * 80;
-    const y = dropY !== undefined ? dropY : 150 + Math.random() * 80;
+    const x = dropX !== undefined ? dropX : 340;
+    const y = dropY !== undefined ? dropY : 120 + activeWorkflow.nodes.length * 150;
 
     let config: any = {};
     if (type === 'trigger') {
@@ -127,7 +160,17 @@ export default function Home() {
     };
 
     const newNodes = [...activeWorkflow.nodes, newNode];
-    updateActiveWorkflow({ nodes: newNodes });
+
+    if (autoAlignEnabled && activeWorkflow.wires.length > 0) {
+      const newPositions = computeAutoLayout(newNodes, activeWorkflow.wires);
+      const remapped = newNodes.map((n) =>
+        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
+      );
+      updateActiveWorkflow({ nodes: remapped });
+    } else {
+      updateActiveWorkflow({ nodes: newNodes });
+    }
+
     setSelectedNodeId(newNode.id);
   };
 
@@ -139,7 +182,6 @@ export default function Home() {
     toPort: 'in'
   ) => {
     if (!activeWorkflow) return;
-    // Check if wire already exists
     const exists = activeWorkflow.wires.some(
       (w) =>
         w.fromNode === fromNode &&
@@ -156,13 +198,32 @@ export default function Home() {
       toNode,
       toPort,
     };
-    updateActiveWorkflow({ wires: [...activeWorkflow.wires, newWire] });
+    const newWires = [...activeWorkflow.wires, newWire];
+
+    if (autoAlignEnabled) {
+      const newPositions = computeAutoLayout(activeWorkflow.nodes, newWires);
+      const remappedNodes = activeWorkflow.nodes.map((n) =>
+        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
+      );
+      updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
+    } else {
+      updateActiveWorkflow({ wires: newWires });
+    }
   };
 
   const handleDeleteWire = (wireId: string) => {
     if (!activeWorkflow) return;
     const newWires = activeWorkflow.wires.filter((w) => w.id !== wireId);
-    updateActiveWorkflow({ wires: newWires });
+
+    if (autoAlignEnabled) {
+      const newPositions = computeAutoLayout(activeWorkflow.nodes, newWires);
+      const remappedNodes = activeWorkflow.nodes.map((n) =>
+        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
+      );
+      updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
+    } else {
+      updateActiveWorkflow({ wires: newWires });
+    }
   };
 
   // Workflow management
@@ -176,8 +237,8 @@ export default function Home() {
           type: 'trigger',
           subtype: 'webhook',
           title: 'Event Trigger',
-          x: 100,
-          y: 140,
+          x: 340,
+          y: 40,
           config: { eventType: 'custom.event' },
         },
       ],
@@ -206,7 +267,6 @@ export default function Home() {
   const handleRunWorkflow = async () => {
     if (!activeWorkflow || isRunning) return;
 
-    // Reset visual markers
     setNodeExecStatuses({});
     setActiveWireId(null);
     setActiveNodeId(null);
@@ -244,7 +304,6 @@ export default function Home() {
       const durationMs = Date.now() - startTime;
       await delay(300);
 
-      // Record to history
       workflowsApi.recordExecution({
         workflow_id: activeWorkflow.id,
         status: 'success',
@@ -288,10 +347,12 @@ export default function Home() {
 
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-50 font-sans">
-      {/* Top Header */}
+      {/* Top Header in cimple-eventmap style */}
       <Header
         workflow={activeWorkflow}
         allWorkflows={workflows}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onSelectWorkflow={(id) => {
           setActiveWorkflowId(id);
           setSelectedNodeId(null);
@@ -300,19 +361,25 @@ export default function Home() {
         onUpdateTitle={(title) => updateActiveWorkflow({ name: title })}
         onCreateWorkflow={handleCreateWorkflow}
         onDeleteWorkflow={handleDeleteWorkflow}
+        onAutoLayout={() => applyAutoLayout()}
+        onFitView={() => setFitViewTrigger((prev) => prev + 1)}
         onOpenPayloadModal={() => setIsPayloadModalOpen(true)}
         onOpenHistoryModal={() => setIsHistoryModalOpen(true)}
         onRunWorkflow={handleRunWorkflow}
         isRunning={isRunning}
         saveStatus={saveStatus}
+        autoAlignEnabled={autoAlignEnabled}
+        onToggleAutoAlign={() => setAutoAlignEnabled((prev) => !prev)}
       />
 
-      {/* Main Workspace Area: Palette + Canvas + Inspector */}
+      {/* Main Workspace Area */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left Palette */}
-        <Palette onAddNode={(type, subtype, name) => handleAddNode(type, subtype, name)} />
+        {/* Left Palette (collapsible) */}
+        {sidebarOpen && (
+          <Palette onAddNode={(type, subtype, name) => handleAddNode(type, subtype, name)} />
+        )}
 
-        {/* Visual Graph Canvas */}
+        {/* Visual Graph Canvas with Auto-Layout */}
         <Canvas
           nodes={activeWorkflow.nodes}
           wires={activeWorkflow.wires}
@@ -326,6 +393,8 @@ export default function Home() {
           onConnectWire={handleConnectWire}
           onDeleteWire={handleDeleteWire}
           onDropNewNode={(type, subtype, name, x, y) => handleAddNode(type, subtype, name, x, y)}
+          onAutoLayout={() => applyAutoLayout()}
+          fitViewTrigger={fitViewTrigger}
         />
 
         {/* Right Inspector Drawer */}

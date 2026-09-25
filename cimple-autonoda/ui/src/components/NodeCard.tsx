@@ -1,11 +1,12 @@
 import React from 'react';
 import type { FlowNode } from '../types/workflow';
-import { Bell, GitFork, Globe, Mail, Sparkles, Terminal, X, Check, AlertCircle } from 'lucide-react';
+import { Bell, GitFork, Globe, Mail, Sparkles, Terminal, X, Check, AlertCircle, ArrowDown } from 'lucide-react';
 
 interface NodeCardProps {
   node: FlowNode;
   isSelected: boolean;
   isExecuting: boolean;
+  isDragging?: boolean;
   execStatus?: 'pass' | 'fail' | 'done' | 'running';
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
@@ -18,6 +19,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   node,
   isSelected,
   isExecuting,
+  isDragging = false,
   execStatus,
   onSelect,
   onDelete,
@@ -26,8 +28,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   onDragStart,
 }) => {
   // Category styling
-  let headerBg = 'bg-slate-50 border-slate-200';
-  let iconBg = 'bg-slate-600 text-white';
+  let headerBg = 'bg-slate-50/90 border-slate-200';
+  let iconBg = 'bg-slate-700 text-white';
   let Icon = Globe;
 
   if (node.type === 'trigger') {
@@ -46,7 +48,6 @@ export const NodeCard: React.FC<NodeCardProps> = ({
     else if (node.subtype === 'log') Icon = Terminal;
   }
 
-  // Operator symbols map
   const opSymbols: Record<string, string> = {
     greater_than: '>',
     greater_or_equal: '>=',
@@ -71,13 +72,15 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         left: `${node.x}px`,
         top: `${node.y}px`,
       }}
-      className={`absolute w-64 bg-white rounded-xl border transition-all shadow-xs select-none ${
+      className={`flow-node-card absolute w-64 bg-white rounded-xl border select-none ${
+        isDragging ? 'dragging shadow-lg' : 'shadow-xs hover:shadow-md'
+      } ${
         isSelected
-          ? 'ring-2 ring-blue-500 shadow-md border-transparent'
-          : 'border-slate-200/90 hover:border-slate-300 hover:shadow-sm'
+          ? 'ring-2 ring-indigo-500 shadow-md border-transparent'
+          : 'border-slate-200/90 hover:border-slate-300'
       } ${
         isExecuting
-          ? 'scale-102 ring-3 ring-blue-400 shadow-lg'
+          ? 'scale-102 ring-3 ring-indigo-400 shadow-lg'
           : ''
       }`}
     >
@@ -88,9 +91,11 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             e.stopPropagation();
             onEndWire(node.id, 'in');
           }}
-          className="port-handle -top-[6px] left-1/2 -translate-x-1/2"
+          className="port-handle -top-[6px] left-1/2 -translate-x-1/2 flex items-center justify-center group"
           title="Flow Input (from step above)"
-        />
+        >
+          <ArrowDown className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
       )}
 
       {/* Node Header (Draggable Handle) */}
@@ -99,7 +104,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         className={`flex items-center justify-between px-3 py-2 border-b rounded-t-xl cursor-move ${headerBg}`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${iconBg}`}>
+          <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 shadow-2xs ${iconBg}`}>
             <Icon className="w-3 h-3" />
           </div>
           <span className="text-xs font-bold text-slate-800 truncate" title={node.title}>
@@ -112,7 +117,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             e.stopPropagation();
             onDelete(node.id);
           }}
-          className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
           title="Delete block"
         >
           <X className="w-3.5 h-3.5" />
@@ -123,7 +128,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
       <div className="p-3 text-xs text-slate-600 flex flex-col gap-1.5 relative">
         {node.type === 'trigger' && (
           <>
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-sky-50 text-sky-700 font-medium text-[11px] truncate border border-sky-100">
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-sky-50 text-sky-700 font-medium text-[11px] truncate border border-sky-100">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
               <span>{node.config.eventType || 'Event Dispatched'}</span>
             </div>
@@ -142,7 +147,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               </span>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-md p-1.5 text-[10px] font-mono flex flex-col gap-1 max-h-20 overflow-y-auto">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-1.5 text-[10px] font-mono flex flex-col gap-1 max-h-20 overflow-y-auto">
               {(node.config.rules || []).length === 0 ? (
                 <span className="text-slate-400 italic">No rules defined</span>
               ) : (
@@ -159,13 +164,13 @@ export const NodeCard: React.FC<NodeCardProps> = ({
             {/* Bottom Branch Bar for Vertical Logic Splitting */}
             <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-slate-100 text-center">
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-extrabold uppercase text-emerald-600 tracking-wider">
+                <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">
                   TRUE
                 </span>
                 <span className="text-[9px] text-slate-400">If passed</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] font-extrabold uppercase text-rose-600 tracking-wider">
+                <span className="text-[10px] font-bold uppercase text-rose-600 tracking-wider">
                   FALSE
                 </span>
                 <span className="text-[9px] text-slate-400">If failed</span>
@@ -176,7 +181,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
         {node.type === 'action' && (
           <>
-            <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-teal-50 text-teal-800 font-medium text-[11px] truncate border border-teal-100">
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-teal-50 text-teal-800 font-medium text-[11px] truncate border border-teal-100">
               {node.subtype === 'webhook' && (
                 <span>
                   <strong>{node.config.method || 'POST'}</strong>{' '}
@@ -218,8 +223,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
               </span>
             )}
             {execStatus === 'done' && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                <Check className="w-3 h-3 text-blue-600 stroke-3" /> Executed
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                <Check className="w-3 h-3 text-indigo-600 stroke-3" /> Executed
               </span>
             )}
           </div>
