@@ -21,8 +21,21 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keyboard shortcut to toggle sidebar (Cmd+\ or Ctrl+\)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault();
+        setIsSidebarOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Load all documents
   const loadDocuments = useCallback(async (selectIdAfterLoad?: number) => {
@@ -217,15 +230,18 @@ export const App: React.FC = () => {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#f7f7f5] text-[#20201d]">
       {/* Sidebar with Tree View */}
-      <Sidebar
-        documents={documents}
-        tree={documentTree}
-        activeDocId={activeDoc?.id ?? null}
-        onSelectDoc={handleSelectDoc}
-        onCreateDoc={handleCreateDoc}
-        onDeleteDoc={handleDeleteDoc}
-        onToggleStar={handleToggleStar}
-      />
+      {isSidebarOpen && (
+        <Sidebar
+          documents={documents}
+          tree={documentTree}
+          activeDocId={activeDoc?.id ?? null}
+          onSelectDoc={handleSelectDoc}
+          onCreateDoc={handleCreateDoc}
+          onDeleteDoc={handleDeleteDoc}
+          onToggleStar={handleToggleStar}
+          onToggle={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* Main Document Workspace */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
@@ -233,6 +249,8 @@ export const App: React.FC = () => {
           breadcrumbs={breadcrumbs}
           activeDoc={activeDoc}
           saveStatus={saveStatus}
+          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
           onTitleChange={handleUpdateTitle}
           onSelectDoc={handleSelectDoc}
           onAddSubpage={() => handleCreateDoc(activeDoc?.id ?? null)}

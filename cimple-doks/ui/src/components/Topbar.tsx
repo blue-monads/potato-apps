@@ -1,11 +1,13 @@
 import React from 'react';
-import { Star, Plus, Trash2, ChevronRight } from 'lucide-react';
+import { Star, Plus, Trash2, ChevronRight, SidebarClose, SidebarOpen } from 'lucide-react';
 import type { BreadcrumbItem, DocumentDetail } from '../types';
 
 interface TopbarProps {
   breadcrumbs: BreadcrumbItem[];
   activeDoc: DocumentDetail | null;
   saveStatus: 'saved' | 'saving' | 'error';
+  isSidebarOpen: boolean;
+  onToggleSidebar: () => void;
   onTitleChange: (newTitle: string) => void;
   onSelectDoc: (id: number) => void;
   onAddSubpage: () => void;
@@ -18,6 +20,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   breadcrumbs,
   activeDoc,
   saveStatus,
+  isSidebarOpen,
+  onToggleSidebar,
   onTitleChange,
   onSelectDoc,
   onAddSubpage,
@@ -28,7 +32,17 @@ export const Topbar: React.FC<TopbarProps> = ({
   if (!activeDoc) {
     return (
       <header className="sticky top-0 z-20 flex h-14 w-full items-center justify-between border-b border-[#e7e7e3] bg-[rgba(255,255,255,0.92)] px-4 backdrop-blur-md">
-        <span className="text-xs text-[#8a8a81]">No document selected</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            title={isSidebarOpen ? "Collapse sidebar (Ctrl+\\)" : "Expand sidebar (Ctrl+\\)"}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[#60605a] transition-colors hover:bg-[#f1f1ed] hover:text-[#20201d]"
+          >
+            {isSidebarOpen ? <SidebarClose className="h-4 w-4" /> : <SidebarOpen className="h-4 w-4" />}
+          </button>
+          <span className="text-xs text-[#8a8a81]">No document selected</span>
+        </div>
       </header>
     );
   }
@@ -37,8 +51,16 @@ export const Topbar: React.FC<TopbarProps> = ({
 
   return (
     <header className="sticky top-0 z-20 flex h-14 w-full items-center justify-between border-b border-[#e7e7e3] bg-[rgba(255,255,255,0.92)] px-4 backdrop-blur-md">
-      {/* Left side: Breadcrumbs & Title Input */}
+      {/* Left side: Sidebar Toggle, Breadcrumbs & Title Input */}
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          title={isSidebarOpen ? "Collapse sidebar (Ctrl+\\)" : "Expand sidebar (Ctrl+\\)"}
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[#60605a] transition-colors hover:bg-[#f1f1ed] hover:text-[#20201d]"
+        >
+          {isSidebarOpen ? <SidebarClose className="h-4 w-4" /> : <SidebarOpen className="h-4 w-4" />}
+        </button>
         {/* Breadcrumb path */}
         <div className="flex items-center text-xs text-[#8a8a81] truncate">
           <span className="cursor-default">Workspace</span>

@@ -6,7 +6,8 @@ import {
   Trash2, 
   Star, 
   Search, 
-  MoreHorizontal
+  MoreHorizontal,
+  SidebarClose
 } from 'lucide-react';
 import type { DocumentMeta, DocumentTreeNode } from '../types';
 
@@ -18,6 +19,7 @@ interface SidebarProps {
   onCreateDoc: (parentId?: number | null) => void;
   onDeleteDoc: (id: number) => void;
   onToggleStar: (id: number, currentStarred: boolean) => void;
+  onToggle: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,6 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCreateDoc,
   onDeleteDoc,
   onToggleStar,
+  onToggle,
 }) => {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<number, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -202,11 +205,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <button
           type="button"
-          onClick={() => onCreateDoc(null)}
-          title="New root document"
+          onClick={onToggle}
+          title="Collapse sidebar (Ctrl+\)"
           className="flex h-7 w-7 items-center justify-center rounded-md text-[#67675f] transition-colors hover:bg-[#f1f1ed] hover:text-[#20201d]"
         >
-          <Plus className="h-4 w-4" />
+          <SidebarClose className="h-4 w-4" />
         </button>
       </div>
 
@@ -332,15 +335,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Sidebar Footer */}
-      <div className="border-t border-[#e7e7e3] px-3.5 py-2.5 text-[11px] text-[#8a8a81] flex items-center justify-between">
+      <div className="border-t border-[#e7e7e3] px-3.5 py-2.5 text-[11px] text-[#8a8a81]">
         <span>{documents.length} {documents.length === 1 ? 'document' : 'documents'}</span>
-        <button
-          type="button"
-          onClick={() => onCreateDoc(null)}
-          className="flex items-center gap-1 font-medium text-[#20201d] hover:underline"
-        >
-          <Plus className="h-3 w-3" /> New page
-        </button>
       </div>
     </aside>
   );
