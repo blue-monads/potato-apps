@@ -7,7 +7,6 @@ import {
   Star, 
   Search, 
   MoreHorizontal,
-  SidebarClose
 } from 'lucide-react';
 import type { DocumentMeta, DocumentTreeNode } from '../types';
 
@@ -30,7 +29,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCreateDoc,
   onDeleteDoc,
   onToggleStar,
-  onToggle,
 }) => {
   const [collapsedNodes, setCollapsedNodes] = useState<Record<number, boolean>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,23 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="flex h-full w-[250px] flex-shrink-0 flex-col border-r border-[#e7e7e3] bg-[rgba(251,251,249,0.92)] select-none">
-      {/* Workspace Brand / Header */}
-      <div className="flex h-14 items-center justify-between border-b border-[#e7e7e3] px-3.5">
-        <div className="flex items-center gap-2 font-semibold text-[#252521]">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#d9d9d4] bg-white text-xs font-bold shadow-sm">
-            P
-          </div>
-          <span className="text-sm tracking-tight font-medium">Cimple Doks</span>
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          title="Collapse sidebar (Ctrl+\)"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-[#67675f] transition-colors hover:bg-[#f1f1ed] hover:text-[#20201d]"
-        >
-          <SidebarClose className="h-4 w-4" />
-        </button>
-      </div>
+      
 
       {/* Search Input */}
       <div className="px-3 pt-3 pb-1">
