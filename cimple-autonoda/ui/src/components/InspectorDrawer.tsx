@@ -1,5 +1,5 @@
 import React from 'react';
-import type { FlowNode, LogicRule, ComparisonOperator } from '../types/workflow';
+import type { FlowNode, LogicRule, ComparisonOperator, ActionSubtype } from '../types/workflow';
 import { X, Plus, Trash2, GitFork, Bell, Globe, Mail, Sparkles, Terminal } from 'lucide-react';
 
 interface InspectorDrawerProps {
@@ -21,6 +21,39 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
         ...node.config,
         ...newConfig,
       },
+    });
+  };
+
+  const handleActionTypeChange = (newSubtype: ActionSubtype) => {
+    const defaultTitles: Record<string, string> = {
+      webhook: 'Webhook Action',
+      email: 'Send Email',
+      enrich: 'Enrich Data',
+      log: 'Log Record',
+    };
+    const defaultOldTitles = ['Webhook Action', 'Send Email', 'Enrich Data', 'Log Record', 'Action Block', 'Action'];
+    const shouldUpdateTitle = defaultOldTitles.some((t) => node.title.toLowerCase().includes(t.toLowerCase()));
+
+    const newConfig = { ...node.config };
+    if (newSubtype === 'webhook' && !newConfig.url) {
+      newConfig.url = 'https://api.example.com/webhook';
+      newConfig.method = newConfig.method || 'POST';
+    } else if (newSubtype === 'email' && !newConfig.recipient) {
+      newConfig.recipient = '{{customer.email}}';
+      newConfig.subject = 'Workflow Notification';
+      newConfig.template = 'Hello {{customer.name}}, order {{order.id}} received.';
+    } else if (newSubtype === 'enrich' && !newConfig.enrichField) {
+      newConfig.enrichField = 'data.enriched';
+      newConfig.enrichValue = 'true';
+    } else if (newSubtype === 'log' && !newConfig.message) {
+      newConfig.logLevel = newConfig.logLevel || 'INFO';
+      newConfig.message = 'Flow checkpoint logged';
+    }
+
+    onUpdateNode(node.id, {
+      subtype: newSubtype,
+      title: shouldUpdateTitle ? defaultTitles[newSubtype] : node.title,
+      config: newConfig,
     });
   };
 
@@ -46,17 +79,19 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
   };
 
   let Icon = Globe;
-  let categoryLabel = 'ACTION CONFIGURATION';
+  let categoryLabel = 'ACTION BLOCK';
   if (node.type === 'trigger') {
     Icon = Bell;
-    categoryLabel = 'TRIGGER CONFIGURATION';
+    categoryLabel = 'TRIGGER BLOCK';
   } else if (node.type === 'logic') {
     Icon = GitFork;
-    categoryLabel = 'LOGIC BLOCK CONFIGURATION';
+    categoryLabel = 'LOGIC BLOCK';
   } else {
     if (node.subtype === 'email') Icon = Mail;
     else if (node.subtype === 'enrich') Icon = Sparkles;
     else if (node.subtype === 'log') Icon = Terminal;
+    else Icon = Globe;
+    categoryLabel = 'ACTION BLOCK';
   }
 
   return (
@@ -263,6 +298,29 @@ export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
         {/* Action Config */}
         {node.type === 'action' && (
           <div className="flex flex-col gap-3">
+            {/* Action Type Selector */}
+            <div className="flex flex-col gap-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
+              <label className="font-semibold text-slate-700 flex items-center justify-between text-xs">
+                <span>Action Type</span>
+                <span className="text-[10px] text-teal-700 font-mono font-bold uppercase bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
+                  {node.subtype || 'webhook'}
+                </span>
+              </label>
+              <select
+                value={node.subtype || 'webhook'}
+                onChange={(e) => handleActionTypeChange(e.target.value as ActionSubtype)}
+                className="w-full px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-hidden cursor-pointer text-xs transition-colors"
+              >
+                <option value="webhook">🌐 Webhook (HTTP Request)</option>
+                <option value="email">✉️ Send Email</option>
+                <option value="enrich">✨ Enrich Data (Transform Payload)</option>
+                <option value="log">📝 Log to Console</option>
+              </select>
+              <span className="text-[10px] text-slate-400">
+                Choose what action to execute. Settings for this type appear below.
+              </span>
+            </div>
+
             {node.subtype === 'webhook' && (
               <>
                 <div className="flex flex-col gap-1.5">

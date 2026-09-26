@@ -8,7 +8,6 @@ import {
   Plus, 
   Trash2, 
   GitFork, 
-  PanelLeft, 
   Wand2, 
   Maximize2 
 } from 'lucide-react';
@@ -16,8 +15,8 @@ import {
 interface HeaderProps {
   workflow: Workflow;
   allWorkflows: Workflow[];
-  sidebarOpen: boolean;
-  onToggleSidebar: () => void;
+  sidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
   onSelectWorkflow: (id: string | number) => void;
   onUpdateTitle: (title: string) => void;
   onCreateWorkflow: () => void;
@@ -36,8 +35,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   workflow,
   allWorkflows,
-  sidebarOpen,
-  onToggleSidebar,
   onSelectWorkflow,
   onUpdateTitle,
   onCreateWorkflow,
@@ -56,19 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-[58px] bg-white border-b border-slate-200 px-4 flex items-center justify-between z-30 shadow-2xs select-none">
       {/* Left Brand & Workflow Selector (cimple-eventmap style) */}
       <div className="flex items-center gap-3">
-        {/* Sidebar Toggle Button */}
-        <button
-          onClick={onToggleSidebar}
-          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-            sidebarOpen
-              ? 'bg-slate-100 text-slate-800 border-slate-300 shadow-2xs'
-              : 'bg-white text-slate-500 hover:text-slate-800 border-slate-200 hover:border-slate-300'
-          }`}
-          title={sidebarOpen ? 'Collapse Blocks Palette' : 'Expand Blocks Palette'}
-        >
-          <PanelLeft className="w-4 h-4" />
-        </button>
-
         {/* Brand Mark */}
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-xs">

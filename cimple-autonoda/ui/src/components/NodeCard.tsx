@@ -1,6 +1,6 @@
 import React from 'react';
 import type { FlowNode } from '../types/workflow';
-import { Bell, GitFork, Globe, Mail, Sparkles, Terminal, X, Check, AlertCircle, ArrowDown } from 'lucide-react';
+import { Bell, GitFork, Globe, Mail, Sparkles, Terminal, X, Check, AlertCircle, ArrowDown, Plus } from 'lucide-react';
 
 interface NodeCardProps {
   node: FlowNode;
@@ -13,6 +13,7 @@ interface NodeCardProps {
   onStartWire: (nodeId: string, port: 'out' | 'true' | 'false', e: React.MouseEvent) => void;
   onEndWire: (nodeId: string, port: 'in') => void;
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
+  onOpenAddMenu: (nodeId: string, port: 'out' | 'true' | 'false', clientX: number, clientY: number) => void;
 }
 
 export const NodeCard: React.FC<NodeCardProps> = ({
@@ -26,6 +27,7 @@ export const NodeCard: React.FC<NodeCardProps> = ({
   onStartWire,
   onEndWire,
   onDragStart,
+  onOpenAddMenu,
 }) => {
   // Category styling
   let headerBg = 'bg-slate-50/90 border-slate-200';
@@ -233,35 +235,73 @@ export const NodeCard: React.FC<NodeCardProps> = ({
 
       {/* Bottom Output Port Handle (Out) - Trigger & Action */}
       {node.type !== 'logic' && (
-        <div
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            onStartWire(node.id, 'out', e);
-          }}
-          className="port-handle -bottom-[6px] left-1/2 -translate-x-1/2"
-          title="Flow Output (connect to step below)"
-        />
+        <>
+          <div
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              onStartWire(node.id, 'out', e);
+            }}
+            className="port-handle -bottom-[6px] left-1/2 -translate-x-1/2"
+            title="Drag wire to connect output"
+          />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              onOpenAddMenu(node.id, 'out', rect.left + rect.width / 2, rect.bottom + 4);
+            }}
+            className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 shadow-2xs flex items-center justify-center transition-all cursor-pointer hover:scale-115 z-20 group"
+            title="Add next block"
+          >
+            <Plus className="w-3 h-3 stroke-[2.5]" />
+          </button>
+        </>
       )}
 
       {/* Dual Bottom Branch Ports (True & False) - Logic Block */}
       {node.type === 'logic' && (
         <>
+          {/* TRUE Port & (+) Add */}
           <div
             onMouseDown={(e) => {
               e.stopPropagation();
               onStartWire(node.id, 'true', e);
             }}
             className="port-handle true-port -bottom-[6px] left-[25%] -translate-x-1/2"
-            title="TRUE branch output (connect to step below)"
+            title="Drag wire to connect TRUE branch"
           />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              onOpenAddMenu(node.id, 'true', rect.left + rect.width / 2, rect.bottom + 4);
+            }}
+            className="absolute -bottom-6 left-[25%] -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50 text-emerald-600 shadow-2xs flex items-center justify-center transition-all cursor-pointer hover:scale-115 z-20 group"
+            title="Add block to TRUE branch"
+          >
+            <Plus className="w-3 h-3 stroke-[2.5]" />
+          </button>
+
+          {/* FALSE Port & (+) Add */}
           <div
             onMouseDown={(e) => {
               e.stopPropagation();
               onStartWire(node.id, 'false', e);
             }}
             className="port-handle false-port -bottom-[6px] left-[75%] -translate-x-1/2"
-            title="FALSE branch output (connect to step below)"
+            title="Drag wire to connect FALSE branch"
           />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = e.currentTarget.getBoundingClientRect();
+              onOpenAddMenu(node.id, 'false', rect.left + rect.width / 2, rect.bottom + 4);
+            }}
+            className="absolute -bottom-6 left-[75%] -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-rose-300 hover:border-rose-500 hover:bg-rose-50 text-rose-600 shadow-2xs flex items-center justify-center transition-all cursor-pointer hover:scale-115 z-20 group"
+            title="Add block to FALSE branch"
+          >
+            <Plus className="w-3 h-3 stroke-[2.5]" />
+          </button>
         </>
       )}
     </div>

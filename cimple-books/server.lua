@@ -12,6 +12,9 @@ function get_user_id(req)
 end
 
 
+
+
+
 function run_schema_sql(ctx)
     local req = ctx.request()
     local userId = get_user_id(req)

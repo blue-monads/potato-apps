@@ -4,7 +4,6 @@ import { workflowsApi } from '../lib/api';
 import { simulateWorkflowExecution } from '../lib/simulator';
 import { computeAutoLayout } from '../lib/layout';
 import { Header } from '../components/Header';
-import { Palette } from '../components/Palette';
 import { Canvas } from '../components/Canvas';
 import { InspectorDrawer } from '../components/InspectorDrawer';
 import { TraceDrawer } from '../components/TraceDrawer';
@@ -17,7 +16,6 @@ export default function Home() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   // UI layout states (cimple-eventmap inspired)
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const [autoAlignEnabled, setAutoAlignEnabled] = useState<boolean>(true);
   const [fitViewTrigger, setFitViewTrigger] = useState<number>(0);
 
@@ -172,6 +170,132 @@ export default function Home() {
     }
 
     setSelectedNodeId(newNode.id);
+  };
+
+  const handleAddNodeAndConnect = (
+    fromNodeId: string,
+    fromPort: 'out' | 'true' | 'false',
+    type: NodeType,
+    insertWireId?: string
+  ) => {
+    if (!activeWorkflow) return;
+
+    let subtype = 'webhook';
+    let title = 'Action Block';
+    let config: any = {};
+
+    if (type === 'action') {
+      subtype = 'webhook';
+      title = 'Action Block';
+      config = {
+        url: 'https://api.example.com/webhook',
+        method: 'POST',
+      };
+    } else if (type === 'logic') {
+      subtype = 'condition';
+      title = 'Condition Logic';
+      config = {
+        conditionMode: 'AND',
+        rules: [{ field: 'order.total', op: 'greater_than', value: '100' }],
+      };
+    } else if (type === 'trigger') {
+      subtype = 'webhook';
+      title = 'Event Trigger';
+      config = {
+        eventType: 'custom.event',
+        source: 'Webhook Ingest',
+      };
+    }
+
+    const newNode: FlowNode = {
+      id: `node_${type}_${Math.random().toString(36).substr(2, 7)}`,
+      type,
+      subtype,
+      title,
+      x: 340,
+      y: 200,
+      config,
+    };
+
+    let newWires = [...activeWorkflow.wires];
+
+    if (insertWireId) {
+      const existingWire = newWires.find((w) => w.id === insertWireId);
+      if (existingWire) {
+        newWires = newWires.filter((w) => w.id !== insertWireId);
+        newWires.push({
+          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
+          fromNode: existingWire.fromNode,
+          fromPort: existingWire.fromPort,
+          toNode: newNode.id,
+          toPort: 'in',
+        });
+        newWires.push({
+          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
+          fromNode: newNode.id,
+          fromPort: 'out',
+          toNode: existingWire.toNode,
+          toPort: existingWire.toPort,
+        });
+      }
+    } else {
+      const existingWire = newWires.find(
+        (w) => w.fromNode === fromNodeId && w.fromPort === fromPort
+      );
+      if (existingWire) {
+        // Splice in-between
+        newWires = newWires.filter((w) => w.id !== existingWire.id);
+        newWires.push({
+          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
+          fromNode: fromNodeId,
+          fromPort,
+          toNode: newNode.id,
+          toPort: 'in',
+        });
+        newWires.push({
+          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
+          fromNode: newNode.id,
+          fromPort: 'out',
+          toNode: existingWire.toNode,
+          toPort: existingWire.toPort,
+        });
+      } else {
+        // Direct connect
+        newWires.push({
+          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
+          fromNode: fromNodeId,
+          fromPort,
+          toNode: newNode.id,
+          toPort: 'in',
+        });
+      }
+    }
+
+    const newNodes = [...activeWorkflow.nodes, newNode];
+
+    // Auto-organize layout seamlessly
+    const newPositions = computeAutoLayout(newNodes, newWires);
+    const remappedNodes = newNodes.map((n) =>
+      newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
+    );
+
+    updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
+    setSelectedNodeId(newNode.id);
+  };
+
+  const handleAddTrigger = () => {
+    if (!activeWorkflow) return;
+    const newTrigger: FlowNode = {
+      id: `node_trigger_${Date.now()}`,
+      type: 'trigger',
+      subtype: 'webhook',
+      title: 'Event Trigger',
+      x: 340,
+      y: 60,
+      config: { eventType: 'custom.event', source: 'Webhook Ingest' },
+    };
+    updateActiveWorkflow({ nodes: [newTrigger] });
+    setSelectedNodeId(newTrigger.id);
   };
 
   // Wire operations
@@ -351,8 +475,6 @@ export default function Home() {
       <Header
         workflow={activeWorkflow}
         allWorkflows={workflows}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onSelectWorkflow={(id) => {
           setActiveWorkflowId(id);
           setSelectedNodeId(null);
@@ -374,12 +496,7 @@ export default function Home() {
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left Palette (collapsible) */}
-        {sidebarOpen && (
-          <Palette onAddNode={(type, subtype, name) => handleAddNode(type, subtype, name)} />
-        )}
-
-        {/* Visual Graph Canvas with Auto-Layout */}
+        {/* Visual Graph Canvas with Auto-Layout & In-Graph (+) Step Insertion */}
         <Canvas
           nodes={activeWorkflow.nodes}
           wires={activeWorkflow.wires}
@@ -393,6 +510,8 @@ export default function Home() {
           onConnectWire={handleConnectWire}
           onDeleteWire={handleDeleteWire}
           onDropNewNode={(type, subtype, name, x, y) => handleAddNode(type, subtype, name, x, y)}
+          onAddNodeAndConnect={handleAddNodeAndConnect}
+          onAddTrigger={handleAddTrigger}
           onAutoLayout={() => applyAutoLayout()}
           fitViewTrigger={fitViewTrigger}
         />
