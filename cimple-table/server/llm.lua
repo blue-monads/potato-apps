@@ -58,6 +58,76 @@ local function get_openrouter_api_key()
     return api_key
 end
 
+--- Helper to pre-format tool signatures into OpenAI format and resolve handlers.
+--- Supports both array format ([ { name = "...", parameters = "..." } ]) and map format ({ [name] = { ... } }).
+--- @param tools table? Tool definitions
+--- @param explicit_handlers table<string, function>? Optional explicit handlers map
+--- @return table api_tools Array of OpenAI tool definitions
+--- @return table<string, function> handlers Map of tool name to handler function
+local function normalize_tools(tools, explicit_handlers)
+    local api_tools = {}
+    local handlers = {}
+
+    if not tools then
+        return api_tools, handlers
+    end
+
+    if #tools > 0 then
+        -- Array format: [ { type = "function", ... } ] or [ { name = "...", ... } ]
+        for _, t in ipairs(tools) do
+            local name = nil
+            local handler = t.handler or t.func or t.fn or t.execute
+
+            if t.type == "function" and t["function"] then
+                name = t["function"].name
+                table.insert(api_tools, t)
+            else
+                name = t.name
+                table.insert(api_tools, {
+                    type = "function",
+                    ["function"] = {
+                        name = t.name,
+                        description = t.description or "",
+                        parameters = t.parameters or { type = "object", properties = {} }
+                    }
+                })
+            end
+
+            if name then
+                handlers[name] = handler or (explicit_handlers and explicit_handlers[name]) or _G[name]
+            end
+        end
+    else
+        -- Map format: { [name] = { description = "...", parameters = "...", handler = ... } }
+        for name, t in pairs(tools) do
+            local handler = nil
+            local desc = ""
+            local params = { type = "object", properties = {} }
+
+            if type(t) == "function" then
+                handler = t
+            elseif type(t) == "table" then
+                handler = t.handler or t.func or t.fn or t.execute
+                desc = t.description or ""
+                params = t.parameters or params
+            end
+
+            table.insert(api_tools, {
+                type = "function",
+                ["function"] = {
+                    name = name,
+                    description = desc,
+                    parameters = params
+                }
+            })
+
+            handlers[name] = handler or (explicit_handlers and explicit_handlers[name]) or _G[name]
+        end
+    end
+
+    return api_tools, handlers
+end
+
 --- Sends a chat completion request to OpenRouter using Potatoverse bindings.
 --- @param messages table Array of message tables.
 --- @param opts table? Options table: {model: string?, site_url: string?, site_title: string?, tools: table?, tool_choice: any?}
@@ -165,65 +235,10 @@ function llm_chat_with_tools(messages, opts)
     opts = opts or {}
     local model_options = opts.model_options or {}
 
-    -- 1. Normalize tools and collect handlers
-    local api_tools = {}
-    local tool_handlers = {}
+    -- 1. Pre-format tool signatures and resolve handlers using helper
+    local api_tools, tool_handlers = normalize_tools(opts.tools, opts.handlers)
 
-    if opts.tools then
-        local is_array = (#opts.tools > 0)
-        if is_array then
-            for _, t in ipairs(opts.tools) do
-                local name = nil
-                local handler = t.handler or t.func or t.fn or t.execute
-
-                if t.type == "function" and t["function"] then
-                    name = t["function"].name
-                    table.insert(api_tools, t)
-                else
-                    name = t.name
-                    table.insert(api_tools, {
-                        type = "function",
-                        ["function"] = {
-                            name = t.name,
-                            description = t.description or "",
-                            parameters = t.parameters or { type = "object", properties = {} }
-                        }
-                    })
-                end
-
-                if name then
-                    tool_handlers[name] = handler or (opts.handlers and opts.handlers[name]) or _G[name]
-                end
-            end
-        else
-            for name, t in pairs(opts.tools) do
-                local handler = nil
-                local desc = ""
-                local params = { type = "object", properties = {} }
-
-                if type(t) == "function" then
-                    handler = t
-                elseif type(t) == "table" then
-                    handler = t.handler or t.func or t.fn or t.execute
-                    desc = t.description or ""
-                    params = t.parameters or params
-                end
-
-                table.insert(api_tools, {
-                    type = "function",
-                    ["function"] = {
-                        name = name,
-                        description = desc,
-                        parameters = params
-                    }
-                })
-
-                tool_handlers[name] = handler or (opts.handlers and opts.handlers[name]) or _G[name]
-            end
-        end
-    end
-
-    -- 2. Build model options including tools
+    -- 2. Build model options with formatted tools
     local chat_opts = {}
     for k, v in pairs(model_options) do
         chat_opts[k] = v
@@ -287,11 +302,7 @@ function llm_chat_with_tools(messages, opts)
             local args = {}
             if type(args_str) == "string" and args_str ~= "" then
                 local decoded, decode_err = json.decode(args_str)
-                if decode_err then
-                    args = args_str
-                else
-                    args = decoded
-                end
+                args = decode_err and args_str or decoded
             elseif type(args_str) == "table" then
                 args = args_str
             end
@@ -351,5 +362,6 @@ end
 return {
     core_llm_chat = core_llm_chat,
     llm_chat = llm_chat,
-    llm_chat_with_tools = llm_chat_with_tools
+    llm_chat_with_tools = llm_chat_with_tools,
+    normalize_tools = normalize_tools
 }
