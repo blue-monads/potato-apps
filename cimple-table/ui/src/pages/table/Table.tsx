@@ -43,6 +43,7 @@ import {
     stageBatchResolveReverseRefs,
 } from "../../lib/refCache";
 import { getTableColorConfig } from "../../lib/tableColors";
+import AutoDashPanel from "../autodash/AutoDashPanel";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
 
@@ -85,6 +86,8 @@ const Table = () => {
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
     const [appsMenuOpen, setAppsMenuOpen] = useState(false);
+    const [autodashSidebarOpen, setAutodashSidebarOpen] = useState(false);
+    const [autodashSelectedDashId, setAutodashSelectedDashId] = useState<number | null>(null);
     const [targetRowOffset, setTargetRowOffset] = useState<number | null>(null);
     const [loadedLastUpdated, setLoadedLastUpdated] = useState<string | null>(null);
     const [hasRemoteChanges, setHasRemoteChanges] = useState<boolean>(false);
@@ -696,16 +699,21 @@ const Table = () => {
                                 <button
                                     onClick={() => {
                                         setAppsMenuOpen(false);
-                                        navigate(`${BASE_PATH}autodash`);
+                                        setAutodashSidebarOpen(true);
                                     }}
-                                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-100 transition-colors text-left group cursor-pointer mt-1"
+                                    className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-100 transition-colors text-left group cursor-pointer mt-1 ${
+                                        autodashSidebarOpen ? 'bg-blue-50/60' : ''
+                                    }`}
                                 >
                                     <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
                                         <i className="fa-solid fa-chart-line text-base" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="text-xs font-semibold text-surface-800 group-hover:text-accent-600 transition-colors">
-                                            Auto Dashboard
+                                        <div className="text-xs font-semibold text-surface-800 group-hover:text-accent-600 transition-colors flex items-center justify-between">
+                                            <span>Auto Dashboard</span>
+                                            {autodashSidebarOpen && (
+                                                <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded font-medium">Open</span>
+                                            )}
                                         </div>
                                         <div className="text-[11px] text-surface-400 truncate">
                                             AI-generated analytics & charts
@@ -719,8 +727,11 @@ const Table = () => {
                 </div>
             </header>
 
-            {/* Table tabs */}
-            <nav
+            {/* Main Content Area: Table + AutoDash Sidebar */}
+            <div className="flex-1 flex min-h-0 overflow-hidden relative">
+                <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+                    {/* Table tabs */}
+                    <nav
                 className="flex items-center gap-1 px-3 overflow-x-auto scrollbar-thin border-b border-black/20 shrink-0 transition-colors duration-200"
                 style={{ backgroundColor: activeColorConfig.navBg }}
             >
@@ -1157,6 +1168,21 @@ const Table = () => {
                     onAction={handleCreateTable}
                 />
             )}
+                </div>
+
+                {/* Right: AutoDash Sidebar */}
+                {autodashSidebarOpen && (
+                    <aside className="w-full sm:w-[480px] lg:w-[560px] xl:w-[620px] h-full flex flex-col bg-white border-l border-surface-200 shrink-0 z-30 shadow-2xl sm:shadow-none animate-slide-in">
+                        <AutoDashPanel
+                            dashId={autodashSelectedDashId}
+                            onSelectDashId={setAutodashSelectedDashId}
+                            isSidebar={true}
+                            onClose={() => setAutodashSidebarOpen(false)}
+                            currentTable={currentTable}
+                        />
+                    </aside>
+                )}
+            </div>
 
             {currentTable && (
                 <FilterModal
