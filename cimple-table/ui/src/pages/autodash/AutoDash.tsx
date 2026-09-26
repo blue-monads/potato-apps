@@ -369,6 +369,7 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
 
     // Code & Preview
     const [htmlCode, setHtmlCode] = useState<string>("");
+    const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
     const [isSavingCode, setIsSavingCode] = useState<boolean>(false);
     const [saveCodeSuccess, setSaveCodeSuccess] = useState<boolean>(false);
     const [previewKey, setPreviewKey] = useState<number>(0);
@@ -410,15 +411,16 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
                 const itemsList = normalizeArray<AutoDashItem>(res.data.items);
                 setItems(itemsList);
 
-                // Find latest HTML
-                let latestHtml = "";
-                for (let i = itemsList.length - 1; i >= 0; i--) {
-                    if (itemsList[i].html_content) {
-                        latestHtml = itemsList[i].html_content!;
-                        break;
-                    }
+                // Find version items and set latest
+                const vItems = itemsList.filter(it => Boolean(it.html_content && it.html_content.trim() !== ""));
+                if (vItems.length > 0) {
+                    const latest = vItems[vItems.length - 1];
+                    setSelectedVersionId(latest.id);
+                    setHtmlCode(latest.html_content || "");
+                } else {
+                    setSelectedVersionId(null);
+                    setHtmlCode("");
                 }
-                setHtmlCode(latestHtml);
                 setPreviewKey(k => k + 1);
 
                 // If dashboard has a user prompt and has no user messages sent yet, automatically trigger Dashy
@@ -455,6 +457,7 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
             } else if (res.data) {
                 setItems([...currentItems, optimisticItem, res.data.item]);
                 if (res.data.html_content) {
+                    setSelectedVersionId(res.data.item.id);
                     setHtmlCode(res.data.html_content);
                     setPreviewKey(k => k + 1);
                 }
@@ -538,6 +541,7 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
             } else if (res.data) {
                 setItems(prev => [...normalizeArray<AutoDashItem>(prev), res.data!.item]);
                 if (res.data.html_content) {
+                    setSelectedVersionId(res.data.item.id);
                     setHtmlCode(res.data.html_content);
                     setPreviewKey(k => k + 1);
                 }
@@ -558,6 +562,7 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
             const res = await saveAutoDashCode(currentDash.id, htmlCode);
             if (res.data?.item) {
                 setItems(prev => [...normalizeArray<AutoDashItem>(prev), res.data!.item]);
+                setSelectedVersionId(res.data.item.id);
                 setSaveCodeSuccess(true);
                 setPreviewKey(k => k + 1);
                 setTimeout(() => setSaveCodeSuccess(false), 3000);
@@ -578,6 +583,83 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
 
     const safeItems = normalizeArray<AutoDashItem>(items);
     const safeDatatables = normalizeArray<Datatable>(datatables);
+
+    // Compute version items (items with non-empty html_content)
+    const versionItems = safeItems.filter(it => Boolean(it.html_content && it.html_content.trim() !== ""));
+    const activeVersionItem = versionItems.find(it => String(it.id) === String(selectedVersionId)) || versionItems[versionItems.length - 1];
+    const isLatestVersion = Boolean(activeVersionItem && versionItems.length > 0 && String(activeVersionItem.id) === String(versionItems[versionItems.length - 1].id));
+    const isModified = activeVersionItem ? (activeVersionItem.html_content || "") !== htmlCode : false;
+
+    // Switch selected version and update htmlCode and previewKey
+    const handleSelectVersion = (versionId: number | string) => {
+        const vIdStr = String(versionId);
+        const target = versionItems.find(it => String(it.id) === vIdStr);
+        if (target) {
+            setSelectedVersionId(target.id);
+            setHtmlCode(target.html_content || "");
+            setPreviewKey(k => k + 1);
+        }
+    };
+
+    // Version selector component rendered in Code & Preview tabs
+    const renderVersionSelector = (variant: "code" | "preview") => {
+        if (versionItems.length === 0) return null;
+
+        const currentVal = selectedVersionId != null
+            ? String(selectedVersionId)
+            : (versionItems.length > 0 ? String(versionItems[versionItems.length - 1].id) : "");
+
+        return (
+            <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs border ${
+                variant === "preview"
+                    ? "bg-white border-surface-300 shadow-2xs"
+                    : "bg-surface-100 border-surface-200"
+            }`}>
+                <i className="fa-solid fa-clock-rotate-left text-surface-400 text-[11px]" />
+                <span className="text-surface-500 font-medium text-[11px]">Version:</span>
+                <select
+                    value={currentVal}
+                    onChange={e => handleSelectVersion(e.target.value)}
+                    className="bg-transparent text-surface-800 font-semibold text-xs outline-none cursor-pointer pr-1 max-w-[210px] sm:max-w-[340px] truncate"
+                >
+                    {versionItems.map((vItem, idx) => {
+                        const vNum = idx + 1;
+                        const vIdStr = String(vItem.id);
+                        const isLatest = idx === versionItems.length - 1;
+
+                        let desc = "";
+                        if (vItem.role === "system") {
+                            desc = "Manual edit";
+                        } else {
+                            const itemIndex = safeItems.findIndex(it => String(it.id) === vIdStr);
+                            if (itemIndex > 0) {
+                                for (let p = itemIndex - 1; p >= 0; p--) {
+                                    if (safeItems[p].role === "user") {
+                                        const prompt = safeItems[p].content.trim();
+                                        desc = prompt.length > 25 ? `${prompt.substring(0, 25)}...` : prompt;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!desc) desc = "Dashy generated";
+                        }
+
+                        const timeStr = vItem.created_at
+                            ? new Date(vItem.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                            : "";
+
+                        const label = `v${vNum}${isLatest ? " (Latest)" : ""}: ${desc}${timeStr ? ` • ${timeStr}` : ""}`;
+
+                        return (
+                            <option key={vIdStr} value={vIdStr}>
+                                {label}
+                            </option>
+                        );
+                    })}
+                </select>
+            </div>
+        );
+    };
 
     if (loading) {
         return (
@@ -727,14 +809,20 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
                                                     <button
-                                                        onClick={() => setActiveTab("preview")}
+                                                        onClick={() => {
+                                                            handleSelectVersion(item.id);
+                                                            setActiveTab("preview");
+                                                        }}
                                                         className="px-2.5 py-1 rounded bg-surface-100 hover:bg-surface-200 text-surface-700 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
                                                     >
                                                         <i className="fa-solid fa-eye text-[10px]" />
                                                         <span>Preview</span>
                                                     </button>
                                                     <button
-                                                        onClick={() => setActiveTab("code")}
+                                                        onClick={() => {
+                                                            handleSelectVersion(item.id);
+                                                            setActiveTab("code");
+                                                        }}
                                                         className="px-2.5 py-1 rounded bg-surface-100 hover:bg-surface-200 text-surface-700 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
                                                     >
                                                         <i className="fa-solid fa-code text-[10px]" />
@@ -819,16 +907,36 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
                 {/* 2. CODE TAB */}
                 {activeTab === "code" && (
                     <div className="flex-1 min-h-0 flex flex-col p-4 overflow-hidden max-w-6xl w-full mx-auto">
-                        <div className="flex items-center justify-between pb-3 mb-2 border-b border-surface-200 shrink-0">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-surface-700">Generated Dashboard Code (HTML/JS/CSS)</span>
+                        <div className="flex items-center justify-between pb-3 mb-2 border-b border-surface-200 shrink-0 gap-3 flex-wrap">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                                <span className="text-xs font-semibold text-surface-700">Generated Dashboard Code</span>
+                                {renderVersionSelector("code")}
                                 {saveCodeSuccess && (
-                                    <span className="text-[11px] text-emerald-600 font-medium">
-                                        <i className="fa-solid fa-check mr-1" />Saved successfully
+                                    <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                                        <i className="fa-solid fa-check" />Saved successfully
+                                    </span>
+                                )}
+                                {isModified && (
+                                    <span className="text-[11px] text-amber-600 font-medium flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                                        <i className="fa-solid fa-circle-dot text-[8px]" />Unsaved changes
                                     </span>
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
+                                {isModified && (
+                                    <button
+                                        onClick={() => {
+                                            if (activeVersionItem?.html_content) {
+                                                setHtmlCode(activeVersionItem.html_content);
+                                            }
+                                        }}
+                                        className="px-2.5 py-1.5 bg-white hover:bg-surface-100 text-surface-600 border border-surface-200 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                                        title="Revert edits to this version's saved code"
+                                    >
+                                        <i className="fa-solid fa-rotate-left text-[11px]" />
+                                        <span>Revert</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => {
                                         navigator.clipboard.writeText(htmlCode);
@@ -844,7 +952,7 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
                                     className="px-3 py-1.5 bg-accent-600 hover:bg-accent-700 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                                 >
                                     <i className="fa-solid fa-floppy-disk text-xs" />
-                                    <span>{isSavingCode ? "Saving..." : "Save Code"}</span>
+                                    <span>{isSavingCode ? "Saving..." : !isLatestVersion ? "Save as New Version" : "Save Code"}</span>
                                 </button>
                                 <button
                                     onClick={() => setActiveTab("preview")}
@@ -870,10 +978,21 @@ function AutoDashDetailView({ dashId }: { dashId: number }) {
                 {/* 3. PREVIEW TAB */}
                 {activeTab === "preview" && (
                     <div className="flex-1 min-h-0 flex flex-col w-full h-full bg-white relative overflow-hidden">
-                        <div className="bg-surface-100 border-b border-surface-200 px-4 py-1.5 flex items-center justify-between text-xs text-surface-600 shrink-0">
-                            <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="font-medium text-[11px]">Live Preview Iframe (postMessage bridge enabled)</span>
+                        <div className="bg-surface-100 border-b border-surface-200 px-4 py-1.5 flex items-center justify-between text-xs text-surface-600 shrink-0 gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <span className="font-medium text-[11px]">Live Preview</span>
+                                </div>
+                                {renderVersionSelector("preview")}
+                                {!isLatestVersion && versionItems.length > 0 && (
+                                    <button
+                                        onClick={() => handleSelectVersion(versionItems[versionItems.length - 1].id)}
+                                        className="text-[11px] text-accent-600 hover:text-accent-800 font-semibold underline flex items-center gap-1 cursor-pointer"
+                                    >
+                                        Jump to Latest
+                                    </button>
+                                )}
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
