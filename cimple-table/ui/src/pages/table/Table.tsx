@@ -692,6 +692,27 @@ const Table = () => {
                                     </div>
                                     <i className="fa-solid fa-chevron-right text-[10px] text-surface-300 group-hover:text-surface-600 transition-colors" />
                                 </button>
+
+                                <button
+                                    onClick={() => {
+                                        setAppsMenuOpen(false);
+                                        navigate(`${BASE_PATH}autodash`);
+                                    }}
+                                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-100 transition-colors text-left group cursor-pointer mt-1"
+                                >
+                                    <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                                        <i className="fa-solid fa-chart-line text-base" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-xs font-semibold text-surface-800 group-hover:text-accent-600 transition-colors">
+                                            Auto Dashboard
+                                        </div>
+                                        <div className="text-[11px] text-surface-400 truncate">
+                                            AI-generated analytics & charts
+                                        </div>
+                                    </div>
+                                    <i className="fa-solid fa-chevron-right text-[10px] text-surface-300 group-hover:text-surface-600 transition-colors" />
+                                </button>
                             </div>
                         )}
                     </div>

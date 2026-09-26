@@ -1516,6 +1516,12 @@ function on_http(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
+    -- AutoDash routes
+    if string.sub(path, 1, 9) == "/autodash" then
+        local autodash = require("./server/autodash/autodash")
+        return autodash.handle_routes(ctx, path, method)
+    end
+
     -- Datatables routes
     if path == "/datatables" and method == "GET" then
         return list_datatables(ctx)

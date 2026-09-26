@@ -50,10 +50,18 @@ local json = require("json")
 local OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 local DEFAULT_MODEL = "openai/gpt-4o-mini"
 
-local function get_openrouter_api_key()
+local function get_openrouter_api_key(explicit_key)
+    if explicit_key and explicit_key ~= "" then
+        return explicit_key
+    end
     local api_key = potato.core.get_env("OPENROUTER_API_KEY")
     if not api_key or api_key == "" then
         api_key = potato.core.get_env("OPENROUTER_KEY")
+    end
+    if not api_key or api_key == "" then
+        if os and os.getenv then
+            api_key = os.getenv("OPENROUTER_API_KEY")
+        end
     end
     return api_key
 end
@@ -133,12 +141,18 @@ end
 --- @param opts table? Options table: {model: string?, site_url: string?, site_title: string?, tools: table?, tool_choice: any?}
 --- @return ChatCompletionResponse|nil response Response object on success, nil on failure.
 --- @return nil|string error Error string on failure.
+--- Sends a chat completion request to OpenRouter using Potatoverse bindings.
+--- @param messages table Array of message tables.
+--- @param opts table? Options table: {model: string?, site_url: string?, site_title: string?, tools: table?, tool_choice: any?, api_key: string?}
+--- @return ChatCompletionResponse|nil response Response object on success, nil on failure.
+--- @return nil|string error Error string on failure.
 function core_llm_chat(messages, opts)
     opts = opts or {}
 
-    local api_key = get_openrouter_api_key()
+    local api_key = get_openrouter_api_key(opts.api_key)
     if not api_key or api_key == "" then
-        return nil, "Missing OpenRouter API key. Set OPENROUTER_API_KEY in package environment."
+        print("[LLM Error] Missing OpenRouter API key. Checked OPENROUTER_API_KEY, OPENROUTER_KEY, and request opts.")
+        return nil, "Missing OpenRouter API key. Set OPENROUTER_API_KEY in package environment or pass api_key."
     end
 
     local model = opts.model or DEFAULT_MODEL
@@ -172,6 +186,9 @@ function core_llm_chat(messages, opts)
 
     local req_body = json.encode(payload)
 
+    print(string.format("[LLM Call] Sending request: model=%s, messages=%d, tools=%d",
+        model, #formatted_messages, opts.tools and #opts.tools or 0))
+
     local res, err = phttp.post(OPENROUTER_URL, {
         headers = {
             ["Authorization"] = "Bearer " .. api_key,
@@ -184,20 +201,37 @@ function core_llm_chat(messages, opts)
     })
 
     if err then
+        print(string.format("[LLM Error] HTTP post failed: %s", tostring(err)))
         return nil, "HTTP request failed: " .. tostring(err)
     end
 
     if not res then
+        print("[LLM Error] No response received from OpenRouter HTTP request")
         return nil, "No response received from HTTP request"
     end
 
+    print(string.format("[LLM Response] HTTP status: %d", res.status_code))
+
     if res.status_code ~= 200 then
+        print(string.format("[LLM Error] OpenRouter API error (HTTP %d): %s", res.status_code, tostring(res.body)))
         return nil, "OpenRouter API error (HTTP " .. tostring(res.status_code) .. "): " .. tostring(res.body)
     end
 
     local decoded, parse_err = json.decode(res.body)
     if not decoded then
+        print(string.format("[LLM Error] Failed to parse JSON response: %s", tostring(parse_err)))
         return nil, "Failed to parse JSON response: " .. tostring(parse_err)
+    end
+
+    local usage = decoded.usage
+    if usage then
+        print(string.format("[LLM Success] Model=%s, tokens: prompt=%s, completion=%s, total=%s",
+            tostring(decoded.model or model),
+            tostring(usage.prompt_tokens or "?"),
+            tostring(usage.completion_tokens or "?"),
+            tostring(usage.total_tokens or "?")))
+    else
+        print(string.format("[LLM Success] Response received for model %s", tostring(decoded.model or model)))
     end
 
     return decoded, nil
@@ -261,8 +295,13 @@ function llm_chat_with_tools(messages, opts)
 
     -- 4. Tool call loop
     for step = 1, max_steps do
+        print(string.format("[LLM Loop] Step %d/%d starting...", step, max_steps))
         local response, err = core_llm_chat(conversation_messages, chat_opts)
         if err then
+            print(string.format("[LLM Loop] Step %d failed: %s", step, tostring(err)))
+            if not last_response then
+                return nil, err
+            end
             local partial_result = {
                 llm_response = last_response,
                 tool_calls = all_tool_calls
@@ -274,6 +313,10 @@ function llm_chat_with_tools(messages, opts)
 
         local choice = response.choices and response.choices[1]
         if not choice or not choice.message then
+            print(string.format("[LLM Loop] Step %d error: missing choice or message in response", step))
+            if not last_response then
+                return nil, "Invalid response: missing choice or message"
+            end
             local partial_result = {
                 llm_response = last_response,
                 tool_calls = all_tool_calls
@@ -293,6 +336,8 @@ function llm_chat_with_tools(messages, opts)
             }, nil
         end
 
+        print(string.format("[LLM Loop] Step %d: received %d tool calls from model", step, #tool_calls))
+
         -- 5. Execute each tool call
         for _, tc in ipairs(tool_calls) do
             local fn = tc["function"] or {}
@@ -307,6 +352,8 @@ function llm_chat_with_tools(messages, opts)
                 args = args_str
             end
 
+            print(string.format("[LLM Tool] Executing '%s' with args: %s", tostring(tool_name), type(args_str) == "string" and args_str or json.encode(args_str)))
+
             local handler = tool_handlers[tool_name] or (opts.handlers and opts.handlers[tool_name]) or _G[tool_name]
 
             local tool_record = {
@@ -320,12 +367,14 @@ function llm_chat_with_tools(messages, opts)
             local tool_output_str = nil
             if not handler then
                 local err_msg = "Tool handler not found for: " .. tostring(tool_name)
+                print(string.format("[LLM Tool Error] %s", err_msg))
                 tool_record.error = err_msg
                 tool_output_str = json.encode({ error = err_msg })
             else
                 local ok, res = pcall(handler, opts.func_ctx, args)
                 if not ok then
                     local err_msg = "Tool execution error in " .. tostring(tool_name) .. ": " .. tostring(res)
+                    print(string.format("[LLM Tool Error] %s", err_msg))
                     tool_record.error = err_msg
                     tool_output_str = json.encode({ error = err_msg })
                 else
@@ -337,6 +386,7 @@ function llm_chat_with_tools(messages, opts)
                     else
                         tool_output_str = tostring(res)
                     end
+                    print(string.format("[LLM Tool Success] '%s' executed successfully (output len=%d)", tostring(tool_name), string.len(tool_output_str)))
                 end
             end
 

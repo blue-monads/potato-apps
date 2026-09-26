@@ -9,6 +9,7 @@ import WithSpaceAuth from "./lib/shared/WithSpaceAuth";
 
 const TablePage = lazy(() => import("./pages/table/Table"));
 const SeederPage = lazy(() => import("./pages/seeder/Seeder"));
+const AutoDashPage = lazy(() => import("./pages/autodash/AutoDash"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -54,6 +55,14 @@ const router = createBrowserRouter([
           {
             path: "seeder/:tableId",
             element: <SeederPage />,
+          },
+          {
+            path: "autodash",
+            element: <AutoDashPage />,
+          },
+          {
+            path: "autodash/:dashId",
+            element: <AutoDashPage />,
           },
         ]
       },

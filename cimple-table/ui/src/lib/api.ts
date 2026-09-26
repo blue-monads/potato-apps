@@ -276,3 +276,83 @@ export async function resolveReverseRefs(
         }),
     });
 }
+
+// AutoDash API
+export interface AutoDash {
+    id: number;
+    name: string;
+    base_prompt: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AutoDashItem {
+    id: number;
+    auto_dash_id: number;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    html_content?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export async function listAutoDashboards(): Promise<ApiResponse<{ dashboards: AutoDash[] }>> {
+    return apiRequest<{ dashboards: AutoDash[] }>('/autodash');
+}
+
+export async function createAutoDashboard(data: { name?: string; base_prompt?: string }): Promise<ApiResponse<{ dashboard: AutoDash }>> {
+    return apiRequest<{ dashboard: AutoDash }>('/autodash', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function getAutoDashboard(id: number): Promise<ApiResponse<{ dashboard: AutoDash; items: AutoDashItem[] }>> {
+    return apiRequest<{ dashboard: AutoDash; items: AutoDashItem[] }>(`/autodash/${id}`);
+}
+
+export async function updateAutoDashboard(id: number, data: { name?: string; base_prompt?: string }): Promise<ApiResponse<{ dashboard: AutoDash }>> {
+    return apiRequest<{ dashboard: AutoDash }>(`/autodash/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteAutoDashboard(id: number): Promise<ApiResponse<{ success: boolean }>> {
+    return apiRequest<{ success: boolean }>(`/autodash/${id}`, {
+        method: 'DELETE',
+    });
+}
+
+export async function sendAutoDashChat(id: number, content: string, model?: string, apiKey?: string): Promise<ApiResponse<{
+    message: string;
+    html_content: string;
+    item: AutoDashItem;
+}>> {
+    return apiRequest<{ message: string; html_content: string; item: AutoDashItem }>(`/autodash/${id}/chat`, {
+        method: 'POST',
+        body: JSON.stringify({ content, model, api_key: apiKey }),
+    });
+}
+
+export async function saveAutoDashCode(id: number, html_content: string): Promise<ApiResponse<{ success: boolean; item: AutoDashItem }>> {
+    return apiRequest<{ success: boolean; item: AutoDashItem }>(`/autodash/${id}/code`, {
+        method: 'PUT',
+        body: JSON.stringify({ html_content }),
+    });
+}
+
+export async function runAutoDashQuery(sql: string, args?: any[]): Promise<ApiResponse<{ rows?: any[]; error?: string }>> {
+    return apiRequest<{ rows?: any[]; error?: string }>('/autodash/query', {
+        method: 'POST',
+        body: JSON.stringify({ sql, args: args || [] }),
+    });
+}
+
+export async function getAutoDashSchema(): Promise<ApiResponse<{ schema: string }>> {
+    return apiRequest<{ schema: string }>('/autodash/schema');
+}
+
+export async function getAutoDashTemplate(): Promise<ApiResponse<{ template: string }>> {
+    return apiRequest<{ template: string }>('/autodash/template');
+}
