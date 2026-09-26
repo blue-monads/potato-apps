@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --brand-primary: #0f172a;
+            --brand-secondary: #64748b;
+            --brand-accent: #2563eb;
+            --brand-bg: #f4f7f6;
+            --brand-text: #333333;
+            --brand-font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --brand-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--brand-font-body);
+            background: var(--brand-bg);
+            color: var(--brand-text);
+        }
+        #app {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .brand-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+        .brand-header img {
+            max-height: 40px;
+            max-width: 140px;
+            object-fit: contain;
+        }
+        .brand-header .brand-name {
+            font-family: var(--brand-font-heading);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--brand-primary);
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-top: 3px solid var(--brand-accent);
+        }
+        .card h3 {
+            margin-bottom: 12px;
+            font-family: var(--brand-font-heading);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--brand-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .metric {
+            font-family: var(--brand-font-heading);
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--brand-primary);
+        }
+        .status-msg {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--brand-secondary);
+            font-size: 15px;
+            grid-column: 1 / -1;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        th { font-weight: 600; color: var(--brand-secondary); }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="status-msg" id="status">Loading dashboard...</div>
+    </div>
+
+    <script>
+        const _pending = {};
+
+        function queryData(sqlQuery, args) {
+            return new Promise((resolve, reject) => {
+                const id = 'q_' + Math.random().toString(36).slice(2);
+                _pending[id] = { resolve, reject };
+                window.parent.postMessage({ type: 'ddash_query', id, sqlQuery, args: args || [] }, '*');
+            });
+        }
+
+        window.addEventListener('message', (event) => {
+            const d = event.data;
+            if (d && d.type === 'ddash_result' && _pending[d.id]) {
+                if (d.error) _pending[d.id].reject(new Error(d.error));
+                else _pending[d.id].resolve(d.rows);
+                delete _pending[d.id];
+            }
+        });
+
+        async function main() {
+            const app = document.getElementById('app');
+            const status = document.getElementById('status');
+            try {
+                // const rows = await queryData("SELECT * FROM Orders LIMIT 10");
+                status.textContent = 'Dashboard ready';
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+            }
+        }
+
+        window.onload = main;
+    </script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" 
+integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+</body>
+
+</html>
