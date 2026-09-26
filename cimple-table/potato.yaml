@@ -18,7 +18,7 @@ special_pages:
 spaces:
   - namespace: cimple-table
     executor_type: luaz
-    server_file: server.lua
+    server_file: server/server.lua
     is_default: true
     route_options:
       serve_folder: public
@@ -32,7 +32,7 @@ developer:
   output_zip_file: package.spk.zip
   include_files:
     - 'ui/dist/**/*,public'
-    - server.lua
+    - 'server/**/*'
     - 'init/init.html,public/init.html'
     - 'init/schema.sql,schema.sql'
   build_command: 'cd ui && { [ -d node_modules ] || bun install; } && bun run build'
