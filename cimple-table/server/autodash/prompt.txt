@@ -12,7 +12,7 @@ When querying in the frontend via `queryData(sql, args)`, ALWAYS use the physica
 
 
 
-- Put the complete document inside <html_content>...</html_content>. 
+- Put the complete document inside XML block: <html_content>...</html_content>. 
 - Must include <!DOCTYPE html> and be self-contained (CSS/JS inline or CDN).
 - Always include one short plain-language sentence outside those blocks describing what you changed 
 (e.g. "I made the empty-state card yellow."). 

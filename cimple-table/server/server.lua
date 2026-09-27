@@ -789,6 +789,7 @@ function get_table_last_updated(ctx, table_id)
     end
 
     local n_tid = tonumber(table_id) or table_id
+    local actual_tbl = "Actual" .. tostring(n_tid)
 
     local last_updated = ""
     local last_res, _ = potato.db.run_query_one("SELECT MAX(updated_at) as last_updated FROM " .. actual_tbl)
@@ -862,6 +863,7 @@ function resolve_ref_ids(ctx, table_id)
         table.insert(placeholders, "?")
     end
     local in_clause = table.concat(placeholders, ", ")
+    local actual_tbl = "Actual" .. tostring(n_tid)
     local sql = string.format("SELECT * FROM %s WHERE id IN (%s)", actual_tbl, in_clause)
 
     local query_rows, err = potato.db.run_query(sql, _unpack(valid_ids))
@@ -954,6 +956,7 @@ function resolve_reverse_refs(ctx, table_id)
 
     local query_rows = nil
     local query_err = nil
+    local actual_tbl = "Actual" .. tostring(target_table_id)
 
     if not is_multi then
         -- Single ref: use simple IN (?, ?, ...)

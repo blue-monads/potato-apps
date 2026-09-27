@@ -35,7 +35,7 @@ For creating, updating, deleting, and fetching records, NEVER generate raw SQL. 
 {{template}}
 
 ## Output Rules
-- Put the complete, self-contained HTML document inside <html_content>...</html_content>.
+- Put the complete, self-contained HTML document inside XML block: <html_content>...</html_content>.
 - Must include <!DOCTYPE html> and be fully self-contained.
 - Use modern, responsive styling with Tailwind CSS and FontAwesome 6 icons.
 - Ensure all forms have proper input labels, placeholders, input types, client-side validation, submit button state (loading / disabled during submission), and feedback banners or toast notifications upon success/error.
