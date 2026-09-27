@@ -10,6 +10,7 @@ import {
     saveAutoDashCode,
     runAutoDashQuery,
     listDatatables,
+    getAutoDashTemplate,
 } from "../../lib/api";
 import type {
     AutoDash as AutoDashType,
@@ -139,7 +140,7 @@ export function AutoDashListView({
     onSelectDashboard,
     onClose,
     onOpenSeparatePage,
-    currentTable,
+    currentTable: _currentTable,
 }: AutoDashListViewProps) {
     const navigate = useNavigate();
     const [localDashboards, setLocalDashboards] = useState<AutoDashType[]>(dashboards);
@@ -157,12 +158,8 @@ export function AutoDashListView({
     }, [dashboards]);
 
     const openCreateModal = () => {
-        const defaultName = currentTable ? `${currentTable.name} Dashboard` : "";
-        const defaultPrompt = currentTable
-            ? `Create KPI metric cards and charts analyzing data from table ${currentTable.name}`
-            : "";
-        setModalName(defaultName);
-        setModalPrompt(defaultPrompt);
+        setModalName("");
+        setModalPrompt("");
         setIsCreateModalOpen(true);
     };
 
@@ -592,7 +589,12 @@ export function AutoDashDetailView({
                     setHtmlCode(latest.html_content || "");
                 } else {
                     setSelectedVersionId(null);
-                    setHtmlCode("");
+                    try {
+                        const tmplRes = await getAutoDashTemplate();
+                        setHtmlCode(tmplRes.data?.template || "");
+                    } catch {
+                        setHtmlCode("");
+                    }
                 }
                 setPreviewKey(k => k + 1);
 
@@ -1034,7 +1036,7 @@ export function AutoDashDetailView({
                                         </div>
 
                                         {/* If assistant generated/updated HTML, provide quick preview card */}
-                                        {item.role === "assistant" && item.html_content && (
+                                        {item.role === "assistant" && item.html_content && item.html_content.trim() !== "" && (
                                             <div className="mt-2.5 pt-2.5 border-t border-surface-100 flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
                                                     <i className="fa-solid fa-circle-check text-[10px]" />

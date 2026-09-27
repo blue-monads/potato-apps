@@ -356,3 +356,99 @@ export async function getAutoDashSchema(): Promise<ApiResponse<{ schema: string 
 export async function getAutoDashTemplate(): Promise<ApiResponse<{ template: string }>> {
     return apiRequest<{ template: string }>('/autodash/template');
 }
+
+// AutoForm API interfaces and methods
+
+export interface AutoForm {
+    id: number;
+    name: string;
+    base_prompt: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AutoFormItem {
+    id: number;
+    auto_form_id: number;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    html_content?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export async function listAutoForms(): Promise<ApiResponse<{ forms: AutoForm[] }>> {
+    return apiRequest<{ forms: AutoForm[] }>('/autoform');
+}
+
+export async function createAutoForm(data: { name?: string; base_prompt?: string }): Promise<ApiResponse<{ form: AutoForm }>> {
+    return apiRequest<{ form: AutoForm }>('/autoform', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function getAutoForm(id: number): Promise<ApiResponse<{ form: AutoForm; items: AutoFormItem[] }>> {
+    return apiRequest<{ form: AutoForm; items: AutoFormItem[] }>(`/autoform/${id}`);
+}
+
+export async function updateAutoForm(id: number, data: { name?: string; base_prompt?: string }): Promise<ApiResponse<{ form: AutoForm }>> {
+    return apiRequest<{ form: AutoForm }>(`/autoform/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteAutoForm(id: number): Promise<ApiResponse<{ success: boolean }>> {
+    return apiRequest<{ success: boolean }>(`/autoform/${id}`, {
+        method: 'DELETE',
+    });
+}
+
+export async function sendAutoFormChat(id: number, content: string, model?: string, apiKey?: string): Promise<ApiResponse<{
+    message: string;
+    html_content: string;
+    item: AutoFormItem;
+}>> {
+    return apiRequest<{ message: string; html_content: string; item: AutoFormItem }>(`/autoform/${id}/chat`, {
+        method: 'POST',
+        body: JSON.stringify({ content, model, api_key: apiKey }),
+    });
+}
+
+export async function saveAutoFormCode(id: number, html_content: string): Promise<ApiResponse<{ success: boolean; item: AutoFormItem }>> {
+    return apiRequest<{ success: boolean; item: AutoFormItem }>(`/autoform/${id}/code`, {
+        method: 'PUT',
+        body: JSON.stringify({ html_content }),
+    });
+}
+
+export async function runAutoFormQuery(sql: string, args?: any[]): Promise<ApiResponse<{ success?: boolean; rows?: any[]; error?: string }>> {
+    return apiRequest<{ success?: boolean; rows?: any[]; error?: string }>('/autoform/query', {
+        method: 'POST',
+        body: JSON.stringify({ sql, args: args || [] }),
+    });
+}
+
+export async function runAutoFormCrud(params: {
+    action: 'insert' | 'update' | 'delete' | 'list' | 'get';
+    table: string | number;
+    data?: any;
+    row_id?: number | string;
+    limit?: number;
+    offset?: number;
+    order_by?: string;
+}): Promise<ApiResponse<{ success?: boolean; id?: number | string; row?: any; rows?: any[]; error?: string }>> {
+    return apiRequest<{ success?: boolean; id?: number | string; row?: any; rows?: any[]; error?: string }>('/autoform/crud', {
+        method: 'POST',
+        body: JSON.stringify(params),
+    });
+}
+
+export async function getAutoFormSchema(): Promise<ApiResponse<{ schema: string }>> {
+    return apiRequest<{ schema: string }>('/autoform/schema');
+}
+
+export async function getAutoFormTemplate(): Promise<ApiResponse<{ template: string }>> {
+    return apiRequest<{ template: string }>('/autoform/template');
+}

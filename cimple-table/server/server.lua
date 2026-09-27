@@ -171,56 +171,8 @@ local function get_table_columns(table_id)
     return columns or {}
 end
 
-local function ensure_actual_table(table_id)
-    local table_name = "Actual" .. tostring(table_id)
-    local ddl = string.format([[
-        CREATE TABLE IF NOT EXISTS %s (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-    ]], table_name)
-    local _, err = potato.db.run_ddl(ddl)
-    if err ~= nil then
-        print("ensure_actual_table run_ddl err:", err)
-    end
-
-    local idx_ddl = string.format("CREATE INDEX IF NOT EXISTS idx_%s_updated_at ON %s (updated_at);", table_name, table_name)
-    local _, idx_err = potato.db.run_ddl(idx_ddl)
-    if idx_err ~= nil then
-        print("ensure_actual_table idx_err:", idx_err)
-    end
-
-    -- Verify columns in DatatableColumns are present in Actual<table_id>
-    local columns = get_table_columns(table_id)
-    if columns ~= nil and type(columns) == "table" and #columns > 0 then
-        local existing_cols = get_existing_table_columns(table_name)
-        for _, col in ipairs(columns) do
-            if col.column_type ~= "reverse_ref" then
-                local slug = col.slug
-                if slug == nil or slug == "" then
-                    slug = generate_column_slug(table_id, col.name)
-                    col.slug = slug
-                    potato.db.update_by_id("DatatableColumns", col.id, { slug = slug })
-                end
-                if not existing_cols[string.lower(slug)] then
-                    local col_type_sql = sql_type_for_column(col.column_type)
-                    local alter_ddl = string.format("ALTER TABLE %s ADD COLUMN %s %s", table_name, slug, col_type_sql)
-                    local _, alter_err = potato.db.run_ddl(alter_ddl)
-                    if alter_err ~= nil then
-                        print("ensure_actual_table alter_ddl err:", alter_err)
-                    end
-                    existing_cols[string.lower(slug)] = true
-                end
-            end
-        end
-    end
-
-    return table_name
-end
 
 local function get_table_rows(table_id, cols_array)
-    ensure_actual_table(table_id)
 
     local actual_list, _ = potato.db.find_all_by_cond("Actual" .. tostring(table_id), {})
     if actual_list == nil or type(actual_list) ~= "table" then
@@ -246,22 +198,10 @@ local function get_table_rows(table_id, cols_array)
     return rows
 end
 
-local _schema_migrated = false
-local function ensure_schema_migrations()
-    if _schema_migrated then return end
-    _schema_migrated = true
-    pcall(function()
-        potato.db.run_ddl("ALTER TABLE Datatables ADD COLUMN color TEXT NOT NULL DEFAULT ''")
-    end)
-    pcall(function()
-        potato.db.run_ddl("ALTER TABLE DatatableColumns ADD COLUMN icon TEXT NOT NULL DEFAULT ''")
-    end)
-end
 
 -- DATATABLES CRUD
 
 function list_datatables(ctx)
-    ensure_schema_migrations()
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
@@ -279,7 +219,6 @@ function list_datatables(ctx)
 end
 
 function create_datatable(ctx)
-    ensure_schema_migrations()
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
@@ -350,9 +289,6 @@ function get_datatable(ctx, table_id)
         })
         return
     end
-
-    -- Ensure Actual<table_id> table exists
-    ensure_actual_table(table_id)
 
     -- Get columns
     local columns, cols_err = potato.db.find_all_by_cond("DatatableColumns", {
@@ -493,7 +429,6 @@ function create_column(ctx)
     end
 
     local table_id = tonumber(data.table_id)
-    ensure_actual_table(table_id)
 
     local slug = data.slug
     if slug == nil or slug == "" then
@@ -629,8 +564,6 @@ function query_datatable(ctx, table_id)
         req.json(404, { error = "Datatable not found" })
         return
     end
-
-    ensure_actual_table(n_tid)
 
     local data = req.bind_json() or {}
     local offset = tonumber(data.offset) or 0
@@ -856,7 +789,6 @@ function get_table_last_updated(ctx, table_id)
     end
 
     local n_tid = tonumber(table_id) or table_id
-    local actual_tbl = ensure_actual_table(n_tid)
 
     local last_updated = ""
     local last_res, _ = potato.db.run_query_one("SELECT MAX(updated_at) as last_updated FROM " .. actual_tbl)
@@ -915,7 +847,6 @@ function resolve_ref_ids(ctx, table_id)
         return
     end
 
-    local actual_tbl = ensure_actual_table(n_tid)
     local columns = get_table_columns(n_tid)
     local cols_array = {}
     if columns ~= nil and type(columns) == "table" then
@@ -1001,7 +932,6 @@ function resolve_reverse_refs(ctx, table_id)
         return
     end
 
-    local actual_tbl = ensure_actual_table(target_table_id)
     local target_columns = get_table_columns(target_table_id)
     local target_cols_array = {}
     local target_col_def = nil
@@ -1132,8 +1062,6 @@ function seed_datatable_rows(ctx, table_id)
         return
     end
 
-    ensure_actual_table(n_tid)
-
     local data = req.bind_json() or {}
     local rows_input = data.rows or {}
     local columns = get_table_columns(n_tid)
@@ -1211,7 +1139,6 @@ function create_row(ctx)
     end
 
     local table_id = tonumber(data.table_id) or data.table_id
-    ensure_actual_table(table_id)
 
     local columns = get_table_columns(table_id)
     local col_map_by_id = {}
@@ -1304,8 +1231,6 @@ function update_row(ctx, row_id)
         })
         return
     end
-
-    ensure_actual_table(table_id)
 
     local columns = get_table_columns(table_id)
     local col_map_by_id = {}
@@ -1461,8 +1386,6 @@ function upsert_cell(ctx)
         return
     end
 
-    ensure_actual_table(table_id)
-
     local actual_rec, _ = potato.db.find_by_id("Actual" .. tostring(table_id), row_id)
     if actual_rec ~= nil then
         local u = {}
@@ -1492,7 +1415,6 @@ function get_actual_table_data(ctx, table_id)
         return
     end
 
-    ensure_actual_table(table_id)
     local records, err = potato.db.find_all_by_cond("Actual" .. tostring(table_id), {})
     if err ~= nil then
         req.json(400, { error = tostring(err) })
@@ -1520,6 +1442,12 @@ function on_http(ctx)
     if string.sub(path, 1, 9) == "/autodash" then
         local autodash = require("./server/autodash/autodash")
         return autodash.handle_routes(ctx, path, method)
+    end
+
+    -- AutoForm routes
+    if string.sub(path, 1, 9) == "/autoform" then
+        local autoform = require("./server/autoform/autoform")
+        return autoform.handle_routes(ctx, path, method)
     end
 
     -- Datatables routes

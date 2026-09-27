@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
-import { TABLE_TEMPLATES, type TableTemplate } from "../../../lib/templates";
+import {
+    TABLE_TEMPLATES,
+    createTableGroup,
+    type TableTemplate,
+    type TableInGroupTemplate,
+    type TableGroupTemplate,
+} from "../../../lib/templates";
 import { getTypeIcon, parseTextPatternConfig } from "./columnTypes";
 import { TABLE_COLOR_PRESETS } from "../../../lib/tableColors";
 import { listDatatables, type Datatable } from "../../../lib/api";
 import { parseRefOptions } from "../../../lib/refCache";
 import IconSelector from "./IconSelector";
+import GroupTemplatesView from "./GroupTemplatesView";
 
 export interface ColumnDraft {
     id: string;
@@ -29,6 +36,8 @@ interface CreateTableModalProps {
         columns: { name: string; column_type: string; icon?: string; info?: string; required?: boolean; options?: string }[]
     ) => Promise<void>;
     onCancel: () => void;
+    onGroupCreated?: (firstTableId: number) => Promise<void>;
+    initialTable?: TableInGroupTemplate | null;
 }
 
 const AVAILABLE_TYPES = [
@@ -55,18 +64,31 @@ const AVAILABLE_TYPES = [
     { value: "radio", label: "Radio", icon: "circle-dot" },
 ];
 
-const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
-    const [step, setStep] = useState<"presets" | "builder">("presets");
+const CreateTableModal = ({ onSave, onCancel, onGroupCreated, initialTable }: CreateTableModalProps) => {
+    const [step, setStep] = useState<"presets" | "builder">(initialTable ? "builder" : "presets");
     const [submitting, setSubmitting] = useState(false);
+    const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+    const [creationProgress, setCreationProgress] = useState("");
 
     // Table Meta State
-    const [name, setName] = useState("");
-    const [info, setInfo] = useState("");
-    const [icon, setIcon] = useState("table");
-    const [color, setColor] = useState("blue");
+    const [name, setName] = useState(initialTable?.name || "");
+    const [info, setInfo] = useState(initialTable?.description || "");
+    const [icon, setIcon] = useState(initialTable?.icon || "table");
+    const [color, setColor] = useState(initialTable?.color || "blue");
 
     // Columns Builder State
-    const [columns, setColumns] = useState<ColumnDraft[]>([]);
+    const [columns, setColumns] = useState<ColumnDraft[]>(() => {
+        if (!initialTable) return [];
+        return initialTable.columns.map((c, i) => ({
+            id: `col-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+            name: c.name,
+            column_type: c.column_type,
+            icon: c.icon || "",
+            info: c.info || "",
+            required: c.required || false,
+            options: c.options || "",
+        }));
+    });
     const [allTables, setAllTables] = useState<Datatable[]>([]);
 
     useEffect(() => {
@@ -76,6 +98,24 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
             }
         });
     }, []);
+
+    const handleCreateGroup = async (group: TableGroupTemplate) => {
+        setIsCreatingGroup(true);
+        setCreationProgress(`Creating ${group.name}...`);
+        try {
+            const res = await createTableGroup(group, (cur, total, msg) => {
+                setCreationProgress(`${msg} (${cur}/${total})`);
+            });
+            if (res.firstTableId && onGroupCreated) {
+                await onGroupCreated(res.firstTableId);
+            } else if (res.error) {
+                alert(`Error creating table group: ${res.error}`);
+            }
+        } finally {
+            setIsCreatingGroup(false);
+            setCreationProgress("");
+        }
+    };
 
     // Quick start into builder from a template
     const handleSelectTemplate = (template: TableTemplate) => {
@@ -89,7 +129,7 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
                 id: `col-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
                 name: c.name,
                 column_type: c.column_type,
-                icon: "",
+                icon: c.icon || "",
                 info: c.info || "",
                 required: c.required || false,
                 options: c.options || "",
@@ -174,90 +214,26 @@ const CreateTableModal = ({ onSave, onCancel }: CreateTableModalProps) => {
     };
 
     // ==========================================
-    // PAGE 1: PRESETS LIST
+    // PAGE 1: PRESETS / GROUP TEMPLATES LIST
     // ==========================================
     if (step === "presets") {
         return (
             <div className="space-y-4">
-                {/* Stepper Header */}
-                <div className="flex items-center justify-between border-b border-surface-200 pb-3">
-                    <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-accent-600 text-white text-[11px] font-bold flex items-center justify-center">1</span>
-                        <span className="text-xs font-bold text-surface-900 uppercase tracking-wider">Choose a Template</span>
-                        <span className="text-surface-300">→</span>
-                        <span className="w-5 h-5 rounded-full bg-surface-200 text-surface-500 text-[11px] font-bold flex items-center justify-center">2</span>
-                        <span className="text-xs font-semibold text-surface-400 uppercase tracking-wider">Table Builder</span>
-                    </div>
-                    <button
-                        onClick={() => handleSelectTemplate(TABLE_TEMPLATES[0])}
-                        className="text-xs font-semibold text-accent-600 hover:text-accent-700 hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                        <i className="fa-solid fa-plus text-[10px]" />
-                        <span>Start from blank</span>
-                    </button>
-                </div>
-
-                {/* Templates Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[58vh] overflow-y-auto pr-1">
-                    {TABLE_TEMPLATES.map((template) => {
-                        const isBlank = template.id === "blank";
-                        return (
-                            <button
-                                key={template.id}
-                                type="button"
-                                onClick={() => handleSelectTemplate(template)}
-                                className="p-3.5 bg-white border border-surface-200 hover:border-accent-500 rounded-lg transition-all flex flex-col justify-between text-left group shadow-xs hover:shadow-md cursor-pointer"
-                            >
-                                <div className="w-full">
-                                    <div className="flex items-start justify-between gap-2 mb-2">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="w-9 h-9 bg-surface-100 rounded-lg flex items-center justify-center group-hover:bg-accent-50 text-surface-500 group-hover:text-accent-600 transition-colors shrink-0">
-                                                <i className={`fa-solid fa-${template.icon} text-base`} />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <h4 className="text-sm font-bold text-surface-900 group-hover:text-accent-700 transition-colors truncate">
-                                                    {template.name}
-                                                </h4>
-                                                <span className="text-[11px] font-medium text-surface-400">
-                                                    {isBlank ? "Build custom columns" : `${template.columns.length} columns`}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-surface-300 group-hover:text-accent-600 group-hover:bg-accent-50 transition-all shrink-0">
-                                            <i className="fa-solid fa-chevron-right text-[11px] group-hover:translate-x-0.5 transition-transform" />
-                                        </div>
-                                    </div>
-
-                                    <p className="text-xs text-surface-500 line-clamp-2 mb-3">
-                                        {template.description}
-                                    </p>
-                                </div>
-
-                                {/* Column preview badges */}
-                                {!isBlank && template.columns.length > 0 && (
-                                    <div className="w-full flex flex-wrap gap-1 pt-2 border-t border-surface-100">
-                                        {template.columns.map((c, i) => (
-                                            <span
-                                                key={i}
-                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-100 text-surface-600"
-                                            >
-                                                <i className={`fa-solid fa-${getTypeIcon(c.column_type)} text-[9px] text-surface-400`} />
-                                                {c.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
+                <GroupTemplatesView
+                    onSelectSingleTable={handleSelectTemplate}
+                    onAddGroup={handleCreateGroup}
+                    onStartBlank={() => handleSelectTemplate(TABLE_TEMPLATES[0])}
+                    isCreatingGroup={isCreatingGroup}
+                    creationProgress={creationProgress}
+                    isModal={true}
+                />
 
                 {/* Footer */}
-                <div className="flex justify-end gap-2 pt-3 border-t border-surface-200">
+                <div className="flex justify-end gap-2 pt-2 border-t border-surface-200">
                     <button
                         onClick={onCancel}
-                        className="px-4 py-1.5 text-xs font-medium text-surface-600 hover:bg-surface-100 rounded transition-colors cursor-pointer"
+                        disabled={isCreatingGroup}
+                        className="px-4 py-1.5 text-xs font-medium text-surface-600 hover:bg-surface-100 rounded transition-colors cursor-pointer disabled:opacity-50"
                     >
                         Cancel
                     </button>

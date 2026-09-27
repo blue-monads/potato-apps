@@ -64,3 +64,21 @@ create table AutoDashItem(
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+create table AutoForm(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name text not null,
+    base_prompt text not null,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+create table AutoFormItem(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    auto_form_id INTEGER NOT NULL,
+    role text not null default 'user',
+    content text not null,
+    html_content text,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

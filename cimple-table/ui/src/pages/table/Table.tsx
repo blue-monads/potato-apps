@@ -44,6 +44,13 @@ import {
 } from "../../lib/refCache";
 import { getTableColorConfig } from "../../lib/tableColors";
 import AutoDashPanel from "../autodash/AutoDashPanel";
+import AutoFormPanel from "../autoform/AutoFormPanel";
+import {
+    createTableGroup,
+    type TableGroupTemplate,
+    type TableInGroupTemplate,
+} from "../../lib/templates";
+import GroupTemplatesView from "./sub/GroupTemplatesView";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
 
@@ -88,6 +95,10 @@ const Table = () => {
     const [appsMenuOpen, setAppsMenuOpen] = useState(false);
     const [autodashSidebarOpen, setAutodashSidebarOpen] = useState(false);
     const [autodashSelectedDashId, setAutodashSelectedDashId] = useState<number | null>(null);
+    const [autoformSidebarOpen, setAutoformSidebarOpen] = useState(false);
+    const [autoformSelectedFormId, setAutoformSelectedFormId] = useState<number | null>(null);
+    const [isCreatingGroup, setIsCreatingGroup] = useState<boolean>(false);
+    const [groupCreationProgress, setGroupCreationProgress] = useState<string>("");
     const [targetRowOffset, setTargetRowOffset] = useState<number | null>(null);
     const [loadedLastUpdated, setLoadedLastUpdated] = useState<string | null>(null);
     const [hasRemoteChanges, setHasRemoteChanges] = useState<boolean>(false);
@@ -441,12 +452,18 @@ const Table = () => {
         setSelectedRowIds(new Set());
     };
 
-    const handleCreateTable = () => {
+    const handleCreateTable = (initialTable?: TableInGroupTemplate | null) => {
         openModal({
-            title: "Create New Datatable",
-            maxWidth: '820px',
+            title: initialTable ? `Create Table: ${initialTable.name}` : "Create New Datatable",
+            maxWidth: '920px',
             content: (
                 <CreateTableModal
+                    initialTable={initialTable}
+                    onGroupCreated={async (firstTableId) => {
+                        await loadDatatables();
+                        navigate(`${BASE_PATH}table/${firstTableId}`);
+                        closeModal();
+                    }}
                     onSave={async (data, templateColumns) => {
                         const response = await createDatatable(data);
                         if (!response.error && response.data) {
@@ -472,6 +489,25 @@ const Table = () => {
                 />
             ),
         });
+    };
+
+    const handleCreateGroupDirect = async (group: TableGroupTemplate) => {
+        setIsCreatingGroup(true);
+        setGroupCreationProgress(`Creating ${group.name}...`);
+        try {
+            const res = await createTableGroup(group, (cur, total, msg) => {
+                setGroupCreationProgress(`${msg} (${cur}/${total})`);
+            });
+            if (res.firstTableId) {
+                await loadDatatables();
+                navigate(`${BASE_PATH}table/${res.firstTableId}`);
+            } else if (res.error) {
+                alert(`Error creating table group: ${res.error}`);
+            }
+        } finally {
+            setIsCreatingGroup(false);
+            setGroupCreationProgress("");
+        }
     };
 
     const handleEditTable = (table: Datatable) => {
@@ -699,6 +735,7 @@ const Table = () => {
                                 <button
                                     onClick={() => {
                                         setAppsMenuOpen(false);
+                                        setAutoformSidebarOpen(false);
                                         setAutodashSidebarOpen(true);
                                     }}
                                     className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-100 transition-colors text-left group cursor-pointer mt-1 ${
@@ -717,6 +754,33 @@ const Table = () => {
                                         </div>
                                         <div className="text-[11px] text-surface-400 truncate">
                                             AI-generated analytics & charts
+                                        </div>
+                                    </div>
+                                    <i className="fa-solid fa-chevron-right text-[10px] text-surface-300 group-hover:text-surface-600 transition-colors" />
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        setAppsMenuOpen(false);
+                                        setAutodashSidebarOpen(false);
+                                        setAutoformSidebarOpen(true);
+                                    }}
+                                    className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-100 transition-colors text-left group cursor-pointer mt-1 ${
+                                        autoformSidebarOpen ? 'bg-violet-50/60' : ''
+                                    }`}
+                                >
+                                    <div className="w-9 h-9 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0 group-hover:bg-violet-100 transition-colors">
+                                        <i className="fa-solid fa-rectangle-list text-base" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-xs font-semibold text-surface-800 group-hover:text-violet-600 transition-colors flex items-center justify-between">
+                                            <span>Auto Form</span>
+                                            {autoformSidebarOpen && (
+                                                <span className="text-[10px] text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded font-medium">Open</span>
+                                            )}
+                                        </div>
+                                        <div className="text-[11px] text-surface-400 truncate">
+                                            AI-generated mini-apps & forms
                                         </div>
                                     </div>
                                     <i className="fa-solid fa-chevron-right text-[10px] text-surface-300 group-hover:text-surface-600 transition-colors" />
@@ -771,7 +835,7 @@ const Table = () => {
                     );
                 })}
                 <button
-                    onClick={handleCreateTable}
+                    onClick={() => handleCreateTable()}
                     className="px-2.5 py-1.5 my-1 text-white/70 text-[13px] rounded hover:text-white hover:bg-white/10 whitespace-nowrap transition-colors cursor-pointer"
                 >
                     <i className="fa-solid fa-plus text-[11px] mr-1.5" />New Table
@@ -1159,13 +1223,24 @@ const Table = () => {
                         </div>
                     )}
                 </>
+            ) : datatables.length === 0 ? (
+                <div className="flex-1 overflow-y-auto bg-surface-50">
+                    <GroupTemplatesView
+                        onSelectSingleTable={(table) => handleCreateTable(table)}
+                        onAddGroup={handleCreateGroupDirect}
+                        onStartBlank={() => handleCreateTable(null)}
+                        isCreatingGroup={isCreatingGroup}
+                        creationProgress={groupCreationProgress}
+                        isModal={false}
+                    />
+                </div>
             ) : (
                 <EmptyState
                     icon="cubes"
-                    title="Your data, simplified"
+                    title="Select a Table"
                     body="Pick a table from the tabs above to start exploring, or create a new one to get going."
                     actionLabel="Create New Table"
-                    onAction={handleCreateTable}
+                    onAction={() => handleCreateTable(null)}
                 />
             )}
                 </div>
@@ -1178,6 +1253,19 @@ const Table = () => {
                             onSelectDashId={setAutodashSelectedDashId}
                             isSidebar={true}
                             onClose={() => setAutodashSidebarOpen(false)}
+                            currentTable={currentTable}
+                        />
+                    </aside>
+                )}
+
+                {/* Right: AutoForm Sidebar */}
+                {autoformSidebarOpen && (
+                    <aside className="w-full sm:w-[480px] lg:w-[560px] xl:w-[620px] h-full flex flex-col bg-white border-l border-surface-200 shrink-0 z-30 shadow-2xl sm:shadow-none animate-slide-in">
+                        <AutoFormPanel
+                            formId={autoformSelectedFormId}
+                            onSelectFormId={setAutoformSelectedFormId}
+                            isSidebar={true}
+                            onClose={() => setAutoformSidebarOpen(false)}
                             currentTable={currentTable}
                         />
                     </aside>

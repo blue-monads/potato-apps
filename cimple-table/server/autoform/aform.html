@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoForm</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        #app {
+            padding: 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .status-msg {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="status-msg" id="status">
+            <i class="fa-solid fa-wand-magic-sparkles text-violet-500 text-2xl mb-3 block"></i>
+            <p class="font-medium text-slate-700">AutoForm ready</p>
+            <p class="text-xs text-slate-400 mt-1">Ask Formy in the chat to generate forms, inputs, and records management for your tables.</p>
+        </div>
+    </div>
+
+    <!-- POSTMESSAGE CLIENT HELPER -->
+    <script>
+        const _pending = {};
+
+        window.autoform = {
+            query: function(sqlQuery, args) {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_q_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_query', id, sqlQuery, args: args || [] }, '*');
+                });
+            },
+            insert: function(table, data) {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_i_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_insert', id, table, data }, '*');
+                });
+            },
+            update: function(table, rowId, data) {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_u_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_update', id, table, rowId, data }, '*');
+                });
+            },
+            delete: function(table, rowId) {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_d_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_delete', id, table, rowId }, '*');
+                });
+            },
+            list: function(table, options) {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_l_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_list', id, table, options: options || {} }, '*');
+                });
+            },
+            get: function(table, rowId) {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_g_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_get', id, table, rowId }, '*');
+                });
+            },
+            getSchema: function() {
+                return new Promise((resolve, reject) => {
+                    const id = 'af_s_' + Math.random().toString(36).slice(2);
+                    _pending[id] = { resolve, reject };
+                    window.parent.postMessage({ type: 'aform_schema', id }, '*');
+                });
+            }
+        };
+
+        // Listen for parent postMessage responses
+        window.addEventListener('message', (event) => {
+            const d = event.data;
+            if (d && d.type === 'aform_result' && _pending[d.id]) {
+                if (d.error) {
+                    _pending[d.id].reject(new Error(d.error));
+                } else {
+                    _pending[d.id].resolve(d.data !== undefined ? d.data : (d.rows || d.row || d));
+                }
+                delete _pending[d.id];
+            }
+        });
+
+        async function main() {
+            // LLM will generate form layout and records views inside #app
+        }
+
+        window.onload = main;
+    </script>
+</body>
+
+</html>
