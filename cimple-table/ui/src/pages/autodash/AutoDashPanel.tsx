@@ -17,6 +17,7 @@ import type {
     AutoDashItem,
     Datatable,
 } from "../../lib/api";
+import CodeEditorTab from "../shared/CodeEditorTab";
 
 export type ActiveTab = "chat" | "code" | "preview";
 
@@ -1143,70 +1144,23 @@ export function AutoDashDetailView({
 
                 {/* 2. CODE TAB */}
                 {activeTab === "code" && (
-                    <div className="flex-1 min-h-0 flex flex-col p-3 overflow-hidden w-full h-full">
-                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-surface-200 shrink-0 gap-2 flex-wrap">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-semibold text-surface-700">Code</span>
-                                {renderVersionSelector("code")}
-                                {saveCodeSuccess && (
-                                    <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
-                                        <i className="fa-solid fa-check" />Saved
-                                    </span>
-                                )}
-                                {isModified && (
-                                    <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
-                                        <i className="fa-solid fa-circle-dot text-[7px]" />Unsaved
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                {isModified && (
-                                    <button
-                                        onClick={() => {
-                                            if (activeVersionItem?.html_content) {
-                                                setHtmlCode(activeVersionItem.html_content);
-                                            }
-                                        }}
-                                        className="px-2 py-1 bg-white hover:bg-surface-100 text-surface-600 border border-surface-200 rounded text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                                        title="Revert edits"
-                                    >
-                                        <i className="fa-solid fa-rotate-left text-[10px]" />
-                                        <span>Revert</span>
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => navigator.clipboard.writeText(htmlCode)}
-                                    className="px-2 py-1 bg-white hover:bg-surface-100 text-surface-700 border border-surface-200 rounded text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
-                                >
-                                    <i className="fa-regular fa-copy text-xs" />
-                                    <span className="hidden sm:inline">Copy</span>
-                                </button>
-                                <button
-                                    onClick={handleSaveCode}
-                                    disabled={isSavingCode}
-                                    className="px-2.5 py-1 bg-accent-600 hover:bg-accent-700 text-white rounded text-xs font-medium flex items-center gap-1 transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
-                                >
-                                    <i className="fa-solid fa-floppy-disk text-[11px]" />
-                                    <span>{isSavingCode ? "Saving..." : !isLatestVersion ? "Save As New" : "Save"}</span>
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("preview")}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
-                                >
-                                    <i className="fa-solid fa-play text-[10px]" />
-                                    <span>Run</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="flex-1 min-h-0 bg-surface-900 rounded-lg overflow-hidden border border-surface-800 shadow-inner flex flex-col">
-                            <textarea
-                                value={htmlCode}
-                                onChange={e => setHtmlCode(e.target.value)}
-                                className="w-full flex-1 min-h-0 p-3 bg-transparent text-emerald-400 font-mono text-xs outline-none resize-none leading-relaxed selection:bg-surface-700 overflow-y-auto"
-                                spellCheck={false}
-                            />
-                        </div>
+                    <div className="flex-1 min-h-0 flex flex-col w-full h-full overflow-hidden">
+                        <CodeEditorTab
+                            code={htmlCode}
+                            onChangeCode={setHtmlCode}
+                            onSave={handleSaveCode}
+                            isSaving={isSavingCode}
+                            saveSuccess={saveCodeSuccess}
+                            onRunPreview={() => setActiveTab("preview")}
+                            themeColor="blue"
+                            isModified={isModified}
+                            onRevert={() => {
+                                if (activeVersionItem?.html_content) {
+                                    setHtmlCode(activeVersionItem.html_content);
+                                }
+                            }}
+                            versionBadge={renderVersionSelector("code")}
+                        />
                     </div>
                 )}
 

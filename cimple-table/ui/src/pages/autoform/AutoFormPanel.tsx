@@ -18,6 +18,7 @@ import type {
     AutoFormItem,
     Datatable,
 } from "../../lib/api";
+import CodeEditorTab from "../shared/CodeEditorTab";
 
 export type ActiveTab = "chat" | "code" | "preview";
 
@@ -607,7 +608,6 @@ function AutoFormDetailView({
     const [htmlCode, setHtmlCode] = useState<string>("");
     const [isSavingCode, setIsSavingCode] = useState(false);
     const [saveCodeSuccess, setSaveCodeSuccess] = useState(false);
-    const [copySuccess, setCopySuccess] = useState(false);
 
     // Preview State
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -874,12 +874,6 @@ function AutoFormDetailView({
         } finally {
             setIsSavingCode(false);
         }
-    };
-
-    const handleCopyCode = () => {
-        navigator.clipboard.writeText(htmlCode);
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
     };
 
     if (loading && !currentForm) {
@@ -1233,61 +1227,26 @@ function AutoFormDetailView({
                 </div>
 
                 {/* 3. CODE TAB */}
-                <div className={`h-full w-full flex flex-col bg-surface-900 text-surface-100 ${activeTab === "code" ? "flex" : "hidden"}`}>
-                    {/* Code Editor Header */}
-                    <div className="flex items-center justify-between px-4 py-2 bg-surface-800 border-b border-surface-700 text-xs shrink-0">
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-violet-400 font-semibold text-[11px]">index.html</span>
-                            {selectedVersionId && (
-                                <span className="text-[10px] text-surface-400 bg-surface-700/60 px-2 py-0.5 rounded">
+                <div className={`h-full w-full flex flex-col ${activeTab === "code" ? "flex" : "hidden"}`}>
+                    <CodeEditorTab
+                        code={htmlCode}
+                        onChangeCode={setHtmlCode}
+                        onSave={handleSaveCode}
+                        isSaving={isSavingCode}
+                        saveSuccess={saveCodeSuccess}
+                        onRunPreview={() => {
+                            setActiveTab("preview");
+                            setPreviewKey((k) => k + 1);
+                        }}
+                        themeColor="violet"
+                        versionBadge={
+                            selectedVersionId ? (
+                                <span className="text-[10px] text-surface-500 bg-surface-100 border border-surface-200 px-2 py-0.5 rounded font-medium">
                                     Version #{selectedVersionId}
                                 </span>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleCopyCode}
-                                className="px-2.5 py-1 rounded bg-surface-700 hover:bg-surface-600 text-surface-200 text-xs font-medium transition-colors flex items-center gap-1.5"
-                            >
-                                <i className={`fa-solid ${copySuccess ? "fa-check text-emerald-400" : "fa-copy"}`} />
-                                <span>{copySuccess ? "Copied!" : "Copy"}</span>
-                            </button>
-
-                            <button
-                                onClick={handleSaveCode}
-                                disabled={isSavingCode}
-                                className="px-3 py-1 rounded bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-1.5"
-                            >
-                                {isSavingCode ? (
-                                    <>
-                                        <i className="fa-solid fa-circle-notch fa-spin text-[10px]" />
-                                        <span>Saving...</span>
-                                    </>
-                                ) : saveCodeSuccess ? (
-                                    <>
-                                        <i className="fa-solid fa-check text-[10px]" />
-                                        <span>Saved!</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="fa-solid fa-floppy-disk text-[10px]" />
-                                        <span>Save & Preview</span>
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Code Textarea */}
-                    <div className="flex-1 p-2 bg-surface-950 font-mono text-xs overflow-hidden">
-                        <textarea
-                            value={htmlCode}
-                            onChange={(e) => setHtmlCode(e.target.value)}
-                            spellCheck={false}
-                            className="w-full h-full p-3 bg-transparent text-emerald-400 font-mono text-xs resize-none focus:outline-none leading-relaxed selection:bg-violet-900 selection:text-white"
-                        />
-                    </div>
+                            ) : null
+                        }
+                    />
                 </div>
             </div>
         </div>
