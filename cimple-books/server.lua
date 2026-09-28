@@ -50,6 +50,239 @@ function run_schema_sql(ctx)
     })
 end
 
+function seed_database(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    -- Check if tables exist, if not apply schema first
+    local tables = potato.db.list_tables()
+    if tables == nil or #tables == 0 then
+        local schema, err = potato.core.read_package_file("schema.sql")
+        if err == nil and schema ~= nil then
+            potato.db.run_ddl(schema)
+        end
+    end
+
+    -- Check if already seeded
+    local existing_accounts = potato.db.find_all_by_cond("Accounts", {
+        is_deleted = 0
+    })
+    if existing_accounts ~= nil and #existing_accounts > 0 then
+        req.json(200, {
+            message = "Database is already seeded.",
+            count = #existing_accounts
+        })
+        return
+    end
+
+    -- Seed Accounts
+    local accounts = {
+        { name = "Cash on Hand", acc_type = "assets", info = "Petty cash and cash register", parent_id = 0, total_debit = 1000000, total_credit = 0, contact_id = 0, is_deleted = 0 },
+        { name = "Operating Bank Account", acc_type = "assets", info = "Primary business bank account", parent_id = 0, total_debit = 5000000, total_credit = 0, contact_id = 0, is_deleted = 0 },
+        { name = "Accounts Receivable", acc_type = "assets", info = "Money owed by customers", parent_id = 0, total_debit = 250000, total_credit = 0, contact_id = 0, is_deleted = 0 },
+        { name = "Inventory Asset", acc_type = "assets", info = "Value of inventory on hand", parent_id = 0, total_debit = 1500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
+        { name = "Accounts Payable", acc_type = "liabilities", info = "Money owed to suppliers", parent_id = 0, total_debit = 0, total_credit = 300000, contact_id = 0, is_deleted = 0 },
+        { name = "Sales Tax Payable", acc_type = "liabilities", info = "Collected sales tax to remit", parent_id = 0, total_debit = 0, total_credit = 65000, contact_id = 0, is_deleted = 0 },
+        { name = "Owner's Equity", acc_type = "equity", info = "Initial capital contribution", parent_id = 0, total_debit = 0, total_credit = 6000000, contact_id = 0, is_deleted = 0 },
+        { name = "Sales Revenue", acc_type = "revenue", info = "Revenue from product sales", parent_id = 0, total_debit = 0, total_credit = 1500000, contact_id = 0, is_deleted = 0 },
+        { name = "Service Income", acc_type = "revenue", info = "Revenue from consulting and services", parent_id = 0, total_debit = 0, total_credit = 450000, contact_id = 0, is_deleted = 0 },
+        { name = "Rent Expense", acc_type = "expenses", info = "Monthly office rent", parent_id = 0, total_debit = 120000, total_credit = 0, contact_id = 0, is_deleted = 0 },
+        { name = "Salaries Expense", acc_type = "expenses", info = "Staff payroll expenses", parent_id = 0, total_debit = 350000, total_credit = 0, contact_id = 0, is_deleted = 0 },
+        { name = "Office Supplies Expense", acc_type = "expenses", info = "Stationery and supplies", parent_id = 0, total_debit = 15000, total_credit = 0, contact_id = 0, is_deleted = 0 }
+    }
+
+    local created_accounts = {}
+    for _, acc in ipairs(accounts) do
+        local id, err = potato.db.insert("Accounts", acc)
+        if id ~= nil then
+            created_accounts[acc.name] = id
+        end
+    end
+
+    -- Seed Tax Rates
+    local taxes = {
+        { name = "Standard Sales VAT (13%)", ttype = "sales", info = "Standard Value Added Tax on sales", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Purchase VAT (13%)", ttype = "purchase", info = "Input VAT on purchases", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Sales Tax (5%)", ttype = "sales", info = "State sales tax", rate = 500, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Zero Tax (0%)", ttype = "sales", info = "Tax exempt items", rate = 0, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 }
+    }
+
+    local created_taxes = {}
+    for _, t in ipairs(taxes) do
+        local id, err = potato.db.insert("Tax", t)
+        if id ~= nil then
+            table.insert(created_taxes, id)
+        end
+    end
+
+    -- Seed Categories (table name is Catagories in schema.sql)
+    local categories = {
+        { name = "Electronics & Gadgets", info = "Hardware, peripherals, and electronic equipment", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Office Supplies", info = "Stationery, paper, and desk equipment", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Professional Services", info = "Consulting, audit, and advisory services", product_class = "service", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 }
+    }
+
+    local created_categories = {}
+    for _, cat in ipairs(categories) do
+        local id, err = potato.db.insert("Catagories", cat)
+        if id ~= nil then
+            table.insert(created_categories, id)
+        end
+    end
+
+    -- Seed Products
+    local cat_electronics = created_categories[1] or 1
+    local cat_office = created_categories[2] or 2
+    local cat_services = created_categories[3] or 3
+
+    local products = {
+        { name = "Ultra Slim Laptop 15\"", info = "Core i7, 16GB RAM, 512GB SSD", variant_id = "", catagory_id = cat_electronics, price = 119900, parent_id = 0, image = "", alt_images = "", epoch = 0, stock_count = 15, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Ergonomic Wireless Mouse", info = "Rechargeable Bluetooth optical mouse", variant_id = "", catagory_id = cat_electronics, price = 2999, parent_id = 0, image = "", alt_images = "", epoch = 0, stock_count = 60, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Mechanical Keyboard", info = "RGB Backlit USB-C mechanical keyboard", variant_id = "", catagory_id = cat_electronics, price = 7999, parent_id = 0, image = "", alt_images = "", epoch = 0, stock_count = 35, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Executive Desk Notebook Set", info = "Pack of 3 premium hardcover notebooks", variant_id = "", catagory_id = cat_office, price = 1850, parent_id = 0, image = "", alt_images = "", epoch = 0, stock_count = 120, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Mesh High-Back Ergonomic Chair", info = "Adjustable lumbar support office chair", variant_id = "", catagory_id = cat_office, price = 24900, parent_id = 0, image = "", alt_images = "", epoch = 0, stock_count = 10, created_by = userId, updated_by = userId, is_deleted = 0 },
+        { name = "Business Financial Advisory (1 hr)", info = "Hourly accounting & financial consulting", variant_id = "", catagory_id = cat_services, price = 15000, parent_id = 0, image = "", alt_images = "", epoch = 0, stock_count = 999, created_by = userId, updated_by = userId, is_deleted = 0 }
+    }
+
+    local created_products = {}
+    for _, prod in ipairs(products) do
+        local id, err = potato.db.insert("Products", prod)
+        if id ~= nil then
+            table.insert(created_products, id)
+        end
+    end
+
+    -- Seed Sample Sales
+    local sale_id, _ = potato.db.insert("Sales", {
+        title = "INV-2026-001 - Acme Corporation",
+        client_id = 101,
+        client_name = "Acme Corporation",
+        notes = "Invoice for Q1 hardware and consulting services",
+        attachments = "",
+        total_item_price = 122899,
+        total_item_tax_amount = 15976,
+        total_item_discount_amount = 5000,
+        sub_total = 133875,
+        overall_discount_amount = 0,
+        overall_tax_amount = 0,
+        total = 133875,
+        created_by = userId,
+        updated_by = userId,
+        payment_status = "paid",
+        invalidated_reason = "",
+        is_deleted = 0
+    })
+
+    if sale_id ~= nil and #created_products >= 2 then
+        potato.db.insert("SalesLines", {
+            sale_id = sale_id,
+            product_id = created_products[1],
+            info = "Ultra Slim Laptop 15\"",
+            qty = 1,
+            price = 119900,
+            tax_amount = 15587,
+            discount_amount = 5000,
+            total_amount = 130487,
+            created_by = userId,
+            updated_by = userId
+        })
+        potato.db.insert("SalesLines", {
+            sale_id = sale_id,
+            product_id = created_products[2],
+            info = "Ergonomic Wireless Mouse",
+            qty = 1,
+            price = 2999,
+            tax_amount = 389,
+            discount_amount = 0,
+            total_amount = 3388,
+            created_by = userId,
+            updated_by = userId
+        })
+    end
+
+    -- Seed Sample Transactions
+    local bank_acc_id = created_accounts["Operating Bank Account"] or 2
+    local owner_equity_id = created_accounts["Owner's Equity"] or 7
+    local rent_acc_id = created_accounts["Rent Expense"] or 10
+
+    local txn1_id, _ = potato.db.insert("Transactions", {
+        title = "Initial Capital Contribution",
+        notes = "Owner funding of business account",
+        txn_type = "manual",
+        reference_id = "TXN-INIT-001",
+        attachments = "",
+        created_by = userId,
+        updated_by = userId,
+        is_editable = 1,
+        is_deleted = 0
+    })
+    if txn1_id ~= nil then
+        potato.db.insert("TransactionLines", {
+            account_id = bank_acc_id,
+            txn_id = txn1_id,
+            debit_amount = 5000000,
+            credit_amount = 0,
+            created_by = userId,
+            updated_by = userId,
+            linked_sales_id = 0,
+            linked_stockin_id = 0
+        })
+        potato.db.insert("TransactionLines", {
+            account_id = owner_equity_id,
+            txn_id = txn1_id,
+            debit_amount = 0,
+            credit_amount = 5000000,
+            created_by = userId,
+            updated_by = userId,
+            linked_sales_id = 0,
+            linked_stockin_id = 0
+        })
+    end
+
+    local txn2_id, _ = potato.db.insert("Transactions", {
+        title = "Office Rent - September",
+        notes = "Paid September commercial space rent",
+        txn_type = "manual",
+        reference_id = "TXN-RENT-001",
+        attachments = "",
+        created_by = userId,
+        updated_by = userId,
+        is_editable = 1,
+        is_deleted = 0
+    })
+    if txn2_id ~= nil then
+        potato.db.insert("TransactionLines", {
+            account_id = rent_acc_id,
+            txn_id = txn2_id,
+            debit_amount = 120000,
+            credit_amount = 0,
+            created_by = userId,
+            updated_by = userId,
+            linked_sales_id = 0,
+            linked_stockin_id = 0
+        })
+        potato.db.insert("TransactionLines", {
+            account_id = bank_acc_id,
+            txn_id = txn2_id,
+            debit_amount = 0,
+            credit_amount = 120000,
+            created_by = userId,
+            updated_by = userId,
+            linked_sales_id = 0,
+            linked_stockin_id = 0
+        })
+    end
+
+    req.json(200, {
+        message = "Seed data successfully populated",
+        accounts_count = #accounts,
+        products_count = #products,
+        categories_count = #categories,
+        taxes_count = #taxes
+    })
+end
+
 -- ACCOUNTS
 
 --- @param ctx HttpContext
@@ -1145,6 +1378,11 @@ function on_http(ctx)
     -- Schema initialization
     if path == "/run_schema_sql" and method == "POST" then
         return run_schema_sql(ctx)
+    end
+
+    -- Seeding route
+    if path == "/seed" and method == "POST" then
+        return seed_database(ctx)
     end
 
     -- Accounts routes

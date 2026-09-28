@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { createTax, updateTax, type Tax } from '../../lib/api';
 
 const TAX_TYPES = [
-    { value: 'item_percent', label: 'Item Percent' },
-    { value: 'category_percent', label: 'Category Percent' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'purchase', label: 'Purchase' },
 ];
 
 interface TaxFormProps {
@@ -13,7 +13,7 @@ interface TaxFormProps {
 
 const TaxForm = ({ tax, onSave }: TaxFormProps) => {
     const [name, setName] = useState('');
-    const [ttype, setTtype] = useState('item_percent');
+    const [ttype, setTtype] = useState('sales');
     const [info, setInfo] = useState('');
     const [rate, setRate] = useState('');
     const [strict, setStrict] = useState(false);
@@ -23,13 +23,13 @@ const TaxForm = ({ tax, onSave }: TaxFormProps) => {
     useEffect(() => {
         if (tax) {
             setName(tax.name || '');
-            setTtype(tax.ttype || 'item_percent');
+            setTtype(tax.ttype || 'sales');
             setInfo(tax.info || '');
             setRate(tax.rate > 0 ? (tax.rate / 100).toFixed(2) : '');
             setStrict(tax.strict || false);
         } else {
             setName('');
-            setTtype('item_percent');
+            setTtype('sales');
             setInfo('');
             setRate('');
             setStrict(false);

@@ -5,8 +5,8 @@ import { useModal } from '../../lib/shared/modal/modal';
 import TaxForm from './TaxForm';
 
 const TAX_TYPES = [
-    { value: 'item_percent', label: 'Item Percent' },
-    { value: 'category_percent', label: 'Category Percent' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'purchase', label: 'Purchase' },
 ];
 
 const ListTax = () => {

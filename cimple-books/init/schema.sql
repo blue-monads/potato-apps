@@ -215,7 +215,7 @@ create table SalesLines(
 create table Tax(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL DEFAULT '',
-    ttype TEXT NOT NULL DEFAULT 'item_percent', -- item_percent, category_percent
+    ttype TEXT NOT NULL DEFAULT 'sales', -- sales, purchase
     info TEXT NOT NULL DEFAULT '',
     rate INTEGER NOT NULL DEFAULT 0,
     "strict" BOOLEAN NOT NULL DEFAULT FALSE,
@@ -226,16 +226,5 @@ create table Tax(
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-
-create table ProductTaxes(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    catagory_id INTEGER NOT NULL DEFAULT 0,
-    product_id INTEGER NOT NULL DEFAULT 0,
-    tax_id INTEGER NOT NULL,
-    created_by INTEGER NOT NULL,
-    updated_by INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
 
 

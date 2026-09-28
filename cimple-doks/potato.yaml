@@ -26,6 +26,15 @@ spaces:
       force_html_extension: false
       force_index_html_file: true
       on_not_found_file: index.html
+  - namespace: cimple-doks:test
+    executor_type: luaz
+    server_file: server.lua
+    is_default: false
+    route_options:
+      serve_folder: test
+      force_html_extension: false
+      force_index_html_file: true
+      on_not_found_file: test.html
 
 capabilities:
   - name: xMigrator
@@ -43,6 +52,7 @@ developer:
   output_zip_file: package.spk.zip
   include_files:
     - 'ui/dist/**/*,public'
+    - 'test.html,test/test.html'
     - 'server/server.lua,server.lua'
     - 'meta/init.html,public/init.html'
     - 'server/migration/**/*.sql,migration'
