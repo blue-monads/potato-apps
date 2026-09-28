@@ -35,10 +35,10 @@ const OverallTaxPicker = ({ subTotal, currentTax, onSet }: OverallTaxPickerProps
 
     return (
         <div className="p-6 min-w-[400px]">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Overall Tax</h3>
-            <div className="space-y-4">
+            <h3 className="text-xl font-display font-semibold text-[#1B2A21] mb-4">Overall Tax</h3>
+            <div className="space-y-4 font-sans">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                         Tax Amount
                     </label>
                     <input
@@ -50,12 +50,12 @@ const OverallTaxPicker = ({ subTotal, currentTax, onSet }: OverallTaxPickerProps
                             const value = parseFloat(e.target.value) || 0;
                             handleTaxAmountChange(Math.round(value * 100));
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                         Tax Percentage (%)
                     </label>
                     <input
@@ -68,29 +68,29 @@ const OverallTaxPicker = ({ subTotal, currentTax, onSet }: OverallTaxPickerProps
                             const value = parseFloat(e.target.value) || 0;
                             handleTaxPercentageChange(value);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                     />
                 </div>
 
-                <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="p-3 bg-[#F4F5F1] rounded-lg border border-[#E1E3DB]">
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-semibold text-gray-900">
+                        <span className="text-stone-600">Subtotal:</span>
+                        <span className="font-semibold text-[#1B2A21]">
                             ${formatCurrency(subTotal)}
                         </span>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E3DB]">
                     <button
                         onClick={closeModal}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="px-4 py-2 border border-[#E1E3DB] text-stone-700 bg-white hover:bg-[#F4F5F1] rounded-lg transition-colors font-medium text-sm"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors font-medium text-sm shadow-sm"
                     >
                         Set Tax
                     </button>

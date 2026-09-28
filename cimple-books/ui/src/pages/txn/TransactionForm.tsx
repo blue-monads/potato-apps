@@ -155,7 +155,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                                 placeholder="Transaction title"
                             />
                         </div>
@@ -167,7 +167,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                                 type="date"
                                 value={txnDate}
                                 onChange={(e) => setTxnDate(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                             />
                         </div>
                     </div>
@@ -180,7 +180,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                             type="text"
                             value={referenceId}
                             onChange={(e) => setReferenceId(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                             placeholder="Reference number"
                         />
                     </div>
@@ -193,7 +193,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                             rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                             placeholder="Additional notes"
                         />
                     </div>
@@ -207,9 +207,9 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                             <button
                                 type="button"
                                 onClick={addLine}
-                                className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700"
+                                className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-[#2E6E52] hover:bg-[#EAF3EE] rounded-lg transition-colors border border-[#2E6E52]/20"
                             >
-                                <Plus className="w-4 h-4" />
+                                <Plus className="w-3.5 h-3.5" />
                                 Add Line
                             </button>
                         </div>
@@ -222,7 +222,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                                             value={line.account_id}
                                             onChange={(e) => updateLine(index, 'account_id', parseInt(e.target.value))}
                                             required
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                                         >
                                             <option value={0}>Select Account</option>
                                             {accounts.map((acc) => (
@@ -242,7 +242,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                                                 updateLine(index, 'debit_amount', Math.round(value * 100));
                                             }}
                                             placeholder="Debit"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                                         />
                                     </div>
                                     <div className="w-32">
@@ -255,7 +255,7 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                                                 updateLine(index, 'credit_amount', Math.round(value * 100));
                                             }}
                                             placeholder="Credit"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                                         />
                                     </div>
                                     {lines.length > 2 && (
@@ -299,11 +299,11 @@ const TransactionForm = ({ transaction, accounts, onSave }: TransactionFormProps
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E3DB]">
                         <button
                             type="submit"
                             disabled={saving || !balanced}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-5 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors font-semibold text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {saving ? 'Saving...' : 'Save Transaction'}
                         </button>

@@ -78,7 +78,7 @@ const TaxForm = ({ tax, onSave }: TaxFormProps) => {
             )}
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-stone-700 mb-1">
                     Name *
                 </label>
                 <input
@@ -86,21 +86,21 @@ const TaxForm = ({ tax, onSave }: TaxFormProps) => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Tax name"
+                    className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
+                    placeholder="e.g., VAT, Sales Tax, GST"
                 />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-stone-700 mb-1">
                         Type *
                     </label>
                     <select
                         value={ttype}
                         onChange={(e) => setTtype(e.target.value)}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors bg-white"
                     >
                         {TAX_TYPES.map((type) => (
                             <option key={type.value} value={type.value}>
@@ -110,7 +110,7 @@ const TaxForm = ({ tax, onSave }: TaxFormProps) => {
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-semibold text-stone-700 mb-1">
                         Rate (%) *
                     </label>
                     <input
@@ -119,47 +119,47 @@ const TaxForm = ({ tax, onSave }: TaxFormProps) => {
                         value={rate}
                         onChange={(e) => setRate(e.target.value)}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
                         placeholder="0.00"
                     />
                 </div>
             </div>
 
             <div>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                     <input
                         type="checkbox"
                         checked={strict}
                         onChange={(e) => setStrict(e.target.checked)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-4 h-4 text-[#2E6E52] border-[#E1E3DB] rounded focus:ring-[#2E6E52]"
                     />
-                    <span className="text-sm font-medium text-gray-700">Strict</span>
+                    <span className="text-sm font-medium text-stone-700">Strict</span>
                 </label>
-                <p className="text-xs text-gray-500 mt-1 ml-6">
-                    If strict, this tax must be applied when applicable
+                <p className="text-xs text-stone-500 mt-1 ml-6">
+                    If strict, this tax must be applied automatically when applicable
                 </p>
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Info
+                <label className="block text-sm font-semibold text-stone-700 mb-1">
+                    Description & Notes
                 </label>
                 <textarea
                     value={info}
                     onChange={(e) => setInfo(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Additional information about the tax"
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
+                    placeholder="Additional information about the tax rule"
                 />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E3DB]">
                 <button
                     type="submit"
                     disabled={saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors font-semibold text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {saving ? 'Saving...' : 'Save'}
+                    {saving ? 'Saving...' : (tax ? 'Update Tax' : 'Create Tax')}
                 </button>
             </div>
         </form>

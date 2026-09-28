@@ -223,29 +223,29 @@ const SalesForm = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-screen bg-[#F4F5F1] p-6">
             <div className="max-w-5xl mx-auto">
                 {/* Header */}
                 <div className="mb-6 flex items-center gap-4">
                     <Link
                         to={`${BASE_PATH}sales`}
-                        className="text-gray-600 hover:text-gray-900"
+                        className="p-2 text-[#5C645D] hover:text-[#1B2A21] hover:bg-[#EAECE4] rounded-lg transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">
+                        <h1 className="text-2xl font-display font-semibold text-[#1B2A21]">
                             {isEditMode ? 'Edit Sale' : 'New Sale'}
                         </h1>
-                        <p className="text-gray-600 mt-1">
+                        <p className="text-xs text-[#5C645D] mt-0.5">
                             {isEditMode ? 'Update sale information' : 'Create a new sale'}
                         </p>
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-lg shadow p-6">
+                <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl border border-[#E1E3DB] shadow-sm p-6">
                     {error && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                             {error}
                         </div>
                     )}
@@ -253,33 +253,33 @@ const SalesForm = () => {
             {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                         Title
                     </label>
                     <input
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                         placeholder="Sale title"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                         Date
                     </label>
                     <input
                         type="datetime-local"
                         value={salesDate}
                         onChange={(e) => setSalesDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                     />
                 </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                         Client Name
                     </label>
                     <input
@@ -289,18 +289,18 @@ const SalesForm = () => {
                             setClientName(e.target.value);
                             if (!clientId) setClientId(0);
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                         placeholder="Client name"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
                         Payment Status
                     </label>
                     <select
                         value={paymentStatus}
                         onChange={(e) => setPaymentStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                     >
                         <option value="unpaid">Unpaid</option>
                         <option value="paid">Paid</option>
@@ -311,14 +311,14 @@ const SalesForm = () => {
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-stone-700 mb-1">
                     Notes
                 </label>
                 <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
                     placeholder="Additional notes"
                 />
             </div>
@@ -326,13 +326,13 @@ const SalesForm = () => {
             {/* Sales Lines */}
             <div>
                 <div className="flex items-center justify-between mb-4">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#1B2A21]">
                         Line Items *
                     </label>
                     <button
                         type="button"
                         onClick={openItemPicker}
-                        className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#2E6E52] text-white rounded-lg hover:bg-[#255842] shadow-sm transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         Add Item
@@ -340,51 +340,51 @@ const SalesForm = () => {
                 </div>
 
                 {lines.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 text-sm border border-gray-200 rounded-lg">
+                    <div className="text-center py-8 text-[#5C645D] text-sm border border-[#E1E3DB] rounded-lg">
                         No items added. Click "Add Item" to add products.
                     </div>
                 ) : (
-                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="border border-[#E1E3DB] rounded-lg overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                            <table className="min-w-full divide-y divide-[#E1E3DB]">
+                                <thead className="bg-[#F4F5F1]">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"></th>
+                                        <th className="px-4 py-3 text-left text-xs font-semibold text-[#5C645D] uppercase">Item</th>
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-[#5C645D] uppercase">Qty</th>
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-[#5C645D] uppercase">Unit Price</th>
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-[#5C645D] uppercase">Tax</th>
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-[#5C645D] uppercase">Subtotal</th>
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-[#5C645D] uppercase"></th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-white divide-y divide-[#E1E3DB]">
                                     {lines.map((line, index) => (
-                                        <tr key={index} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm text-gray-900">
+                                        <tr key={index} className="hover:bg-[#F4F5F1]/50">
+                                            <td className="px-4 py-3 text-sm text-[#1B2A21]">
                                                 {line.info}
                                                 {line.discount_amount > 0 && (
-                                                    <div className="text-xs text-gray-500 mt-1">
+                                                    <div className="text-xs text-[#5C645D] mt-1">
                                                         Original: ${formatCurrency(line.price)} - Discount: ${formatCurrency(line.discount_amount)}
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-right text-gray-900">
+                                            <td className="px-4 py-3 text-sm text-right text-[#1B2A21]">
                                                 {line.qty}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-right text-gray-900">
+                                            <td className="px-4 py-3 text-sm text-right text-[#1B2A21]">
                                                 {line.amount === line.price ? (
                                                     <span>${formatCurrency(line.amount)}</span>
                                                 ) : (
                                                     <span>
-                                                        <span className="line-through text-gray-400">${formatCurrency(line.price)}</span>
+                                                        <span className="line-through text-stone-400">${formatCurrency(line.price)}</span>
                                                         {' '}- ({formatCurrency(line.discount_amount)}) = <strong>${formatCurrency(line.amount)}</strong>
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-right text-gray-900">
+                                            <td className="px-4 py-3 text-sm text-right text-[#1B2A21]">
                                                 {line.tax_amount > 0 ? `$${formatCurrency(line.tax_amount)}` : '-'}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">
+                                            <td className="px-4 py-3 text-sm text-right font-medium text-[#1B2A21]">
                                                 (
                                                 <span>
                                                     ${formatCurrency(line.price)}
@@ -413,10 +413,10 @@ const SalesForm = () => {
             </div>
 
             {/* Totals */}
-            <div className="border-t pt-4">
+            <div className="border-t border-[#E1E3DB] pt-4">
                 <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-stone-700 mb-1">
                             Overall Tax Amount
                         </label>
                         <div className="flex gap-2">
@@ -425,24 +425,24 @@ const SalesForm = () => {
                                 step="0.01"
                                 value={formatCurrency(overallTaxAmount)}
                                 readOnly
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                className="flex-1 px-3 py-2 border border-[#E1E3DB] rounded-lg bg-[#F4F5F1] text-[#1B2A21]"
                             />
                             <button
                                 type="button"
                                 onClick={openOverallTaxPicker}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                className="px-4 py-2 bg-[#2E6E52] text-white text-sm font-medium rounded-lg hover:bg-[#255842] shadow-sm transition-colors"
                             >
                                 Set
                             </button>
                         </div>
                         {overallTaxAmount > 0 && subTotal > 0 && (
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-[#5C645D]">
                                 {((overallTaxAmount / subTotal) * 100).toFixed(2)}% of subtotal
                             </p>
                         )}
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-stone-700 mb-1">
                             Overall Discount Amount
                         </label>
                         <div className="flex gap-2">
@@ -451,18 +451,18 @@ const SalesForm = () => {
                                 step="0.01"
                                 value={formatCurrency(overallDiscountAmount)}
                                 readOnly
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                className="flex-1 px-3 py-2 border border-[#E1E3DB] rounded-lg bg-[#F4F5F1] text-[#1B2A21]"
                             />
                             <button
                                 type="button"
                                 onClick={openOverallDiscountPicker}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                className="px-4 py-2 bg-[#2E6E52] text-white text-sm font-medium rounded-lg hover:bg-[#255842] shadow-sm transition-colors"
                             >
                                 Set
                             </button>
                         </div>
                         {overallDiscountAmount > 0 && subTotal > 0 && (
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-[#5C645D]">
                                 {((overallDiscountAmount / subTotal) * 100).toFixed(2)}% of subtotal
                             </p>
                         )}
@@ -551,17 +551,17 @@ const SalesForm = () => {
                 </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E3DB]">
                 <Link
                     to={`${BASE_PATH}sales`}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 border border-[#E1E3DB] text-stone-700 bg-white hover:bg-[#F4F5F1] rounded-lg transition-colors text-sm font-medium"
                 >
                     Cancel
                 </Link>
                 <button
                     type="submit"
                     disabled={saving || lines.length === 0}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
                 >
                     {saving ? 'Saving...' : isEditMode ? 'Update Sale' : 'Create Sale'}
                 </button>

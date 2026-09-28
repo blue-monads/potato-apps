@@ -115,28 +115,28 @@ const ListTxn = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl">
+        <div className="min-h-screen bg-[#F4F5F1] p-6 lg:p-8 font-sans">
+            <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3">
                             {filteredAccount && (
                                 <Link
                                     to={`${BASE_PATH}accounts`}
-                                    className="text-gray-600 hover:text-gray-900"
+                                    className="p-1.5 text-stone-600 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors"
                                 >
                                     <ArrowLeft className="w-5 h-5" />
                                 </Link>
                             )}
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-900">
-                                    {filteredAccount ? `Transactions - ${filteredAccount.name}` : 'Transactions'}
+                                <h1 className="text-2xl lg:text-3xl font-bold text-stone-900 font-display">
+                                    {filteredAccount ? `Transactions: ${filteredAccount.name}` : 'Transactions'}
                                 </h1>
-                                <p className="text-gray-600 mt-1">
+                                <p className="text-stone-500 mt-1 text-sm">
                                     {filteredAccount 
-                                        ? `All transactions for ${filteredAccount.name}`
-                                        : 'Manage your accounting transactions'
+                                        ? `All journal entries for ${filteredAccount.name}`
+                                        : 'Manage your accounting journal entries'
                                     }
                                 </p>
                             </div>
@@ -144,15 +144,15 @@ const ListTxn = () => {
                     </div>
                     <button
                         onClick={() => openTransactionForm()}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
                     >
-                        <Plus className="w-5 h-5" />
+                        <Plus className="w-4 h-4" />
                         New Transaction
                     </button>
                 </div>
 
                 {error && (
-                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                         {error}
                     </div>
                 )}
@@ -160,27 +160,27 @@ const ListTxn = () => {
                 {/* Transactions List */}
                 <div className="space-y-4">
                     {transactions.length === 0 ? (
-                        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                        <div className="bg-white rounded-xl border border-[#E1E3DB] shadow-sm p-12 text-center text-stone-500">
                             No transactions found. Create your first transaction to get started.
                         </div>
                     ) : (
                         transactions.map((txn) => (
-                            <div key={txn.id} className="bg-white rounded-lg shadow overflow-hidden">
+                            <div key={txn.id} className="bg-white rounded-xl border border-[#E1E3DB] shadow-sm overflow-hidden">
                                 <div className="p-6">
                                     <div className="flex items-start justify-between mb-4">
                                         <div>
-                                            <h3 className="text-lg font-semibold text-gray-900">
+                                            <h3 className="text-base font-bold text-stone-900 font-display">
                                                 {txn.title || `Transaction #${txn.id}`}
                                             </h3>
-                                            <p className="text-sm text-gray-500 mt-1">
+                                            <p className="text-xs text-stone-500 mt-1">
                                                 {new Date(txn.txn_date).toLocaleDateString()} • 
                                                 {txn.reference_id && ` Ref: ${txn.reference_id}`}
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1">
                                             <button
                                                 onClick={() => handleEdit(txn)}
-                                                className="text-indigo-600 hover:text-indigo-900 p-2"
+                                                className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
                                                 title="Edit transaction"
                                             >
                                                 <Edit className="w-4 h-4" />
@@ -188,7 +188,7 @@ const ListTxn = () => {
                                             {txn.is_editable && (
                                                 <button
                                                     onClick={() => handleDelete(txn.id)}
-                                                    className="text-red-600 hover:text-red-900 p-2"
+                                                    className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="Delete transaction"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -198,18 +198,18 @@ const ListTxn = () => {
                                     </div>
 
                                     {txn.notes && (
-                                        <p className="text-sm text-gray-600 mb-4">{txn.notes}</p>
+                                        <p className="text-sm text-stone-600 mb-4">{txn.notes}</p>
                                     )}
 
                                     {/* Transaction Lines */}
-                                    <div className="border-t pt-4">
-                                        <h4 className="text-sm font-medium text-gray-700 mb-2">Transaction Lines</h4>
+                                    <div className="border-t border-[#E1E3DB] pt-4">
+                                        <h4 className="text-xs font-semibold text-stone-600 uppercase tracking-wider mb-2">Transaction Lines</h4>
                                         <div className="space-y-2">
                                             {txn.lines && txn.lines.length > 0 ? (
                                                 txn.lines.map((line) => (
                                                     <div
                                                         key={line.id}
-                                                        className="flex items-center justify-between p-3 bg-gray-50 rounded"
+                                                        className="flex items-center justify-between p-3 bg-[#FAFBF9] border border-[#E1E3DB] rounded-lg"
                                                     >
                                                         <div className="flex-1">
                                                             <span className="text-sm font-medium text-gray-900">

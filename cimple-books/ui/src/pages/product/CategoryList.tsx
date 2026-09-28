@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, FolderTree } from 'lucide-react';
 import { listCategories, deleteCategory, type Category } from '../../lib/api';
 import { useModal } from '../../lib/shared/modal/modal';
 import CategoryForm from './CategoryForm';
@@ -55,7 +55,7 @@ const CategoryList = () => {
 
     const openCategoryForm = (category?: Category | null) => {
         openModal({
-            title: category ? 'Edit Category' : 'New Category',
+            title: category ? `Edit Category: ${category.name}` : 'Create New Category',
             content: (
                 <CategoryForm
                     category={category || null}
@@ -71,21 +71,29 @@ const CategoryList = () => {
         });
     };
 
+    const getProductClassLabel = (val: string) => {
+        const found = PRODUCT_CLASSES.find(c => c.value === val);
+        return found ? found.label : val;
+    };
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <div className="text-lg text-gray-500">Loading categories...</div>
+            <div className="flex items-center justify-center py-16">
+                <div className="text-base text-stone-500 font-sans">Loading categories...</div>
             </div>
         );
     }
 
     return (
-        <div>
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Categories</h2>
+        <div className="font-sans">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-stone-900 font-display">Categories</h2>
+                    <p className="text-xs text-stone-500 mt-0.5">Organize catalogue items by classification and category</p>
+                </div>
                 <button
                     onClick={() => openCategoryForm()}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     New Category
@@ -93,67 +101,84 @@ const CategoryList = () => {
             </div>
 
             {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                     {error}
                 </div>
             )}
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-xl border border-[#E1E3DB] shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-[#E1E3DB]">
+                        <thead className="bg-[#F8F9F6]">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ID
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                    Category
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Name
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                    Product Class
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Class
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                    Description
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Info
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-5 py-3.5 text-right text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white divide-y divide-[#E1E3DB]">
                             {categories.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                        No categories found. Create your first category to get started.
+                                    <td colSpan={4} className="px-6 py-12 text-center text-stone-500">
+                                        <FolderTree className="w-8 h-8 mx-auto mb-2 text-stone-300" />
+                                        No categories found. Click "New Category" to create one.
                                     </td>
                                 </tr>
                             ) : (
                                 categories.map((category) => (
-                                    <tr key={category.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {category.id}
+                                    <tr key={category.id} className="hover:bg-[#FAFBF9] transition-colors">
+                                        <td className="px-5 py-4 whitespace-nowrap">
+                                            <div className="flex items-center gap-3.5">
+                                                {category.image ? (
+                                                    <img
+                                                        src={category.image}
+                                                        alt={category.name}
+                                                        className="w-10 h-10 object-cover rounded-lg border border-[#E1E3DB]"
+                                                    />
+                                                ) : (
+                                                    <div className="w-10 h-10 rounded-lg bg-[#EEF0EA] border border-[#E1E3DB] flex items-center justify-center text-stone-400">
+                                                        <FolderTree className="w-5 h-5 text-stone-500" />
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div className="text-sm font-semibold text-stone-900">
+                                                        {category.name}
+                                                    </div>
+                                                    <div className="text-xs text-stone-400">
+                                                        ID #{category.id}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {category.name}
+                                        <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
+                                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F4F5F1] text-stone-700 border border-[#E1E3DB]">
+                                                {getProductClassLabel(category.product_class)}
+                                            </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {PRODUCT_CLASSES.find(c => c.value === category.product_class)?.label || category.product_class}
+                                        <td className="px-5 py-4 text-sm text-stone-500 max-w-xs truncate">
+                                            {category.info || '—'}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                                            {category.info || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => openCategoryForm(category)}
-                                                    className="text-indigo-600 hover:text-indigo-900 p-1"
+                                                    className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
                                                     title="Edit category"
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(category.id)}
-                                                    className="text-red-600 hover:text-red-900 p-1"
+                                                    className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
                                                     title="Delete category"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -172,4 +197,3 @@ const CategoryList = () => {
 };
 
 export default CategoryList;
-

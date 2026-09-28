@@ -4,49 +4,49 @@ import CategoryList from './CategoryList';
 import ProductList from './ProductList';
 
 const ProductManagement = () => {
-    const [activeTab, setActiveTab] = useState<'categories' | 'products'>('categories');
+    const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-7xl">
+        <div className="min-h-screen bg-[#F4F5F1] p-6 lg:p-8 font-sans">
+            <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold text-gray-900">Inventory</h1>
-                    <p className="text-gray-600 mt-1">Manage categories and products</p>
+                    <h1 className="text-2xl lg:text-3xl font-bold text-stone-900 font-display">Inventory & Catalogue</h1>
+                    <p className="text-stone-500 mt-1 text-sm">Manage products, variants, pricing, pictures, and categories</p>
                 </div>
 
                 {/* Tabs */}
-                <div className="bg-white rounded-lg shadow mb-6">
-                    <div className="border-b border-gray-200">
-                        <nav className="flex -mb-px">
-                            <button
-                                onClick={() => setActiveTab('categories')}
-                                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                                    activeTab === 'categories'
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                }`}
-                            >
-                                <FolderTree className="w-5 h-5" />
-                                Categories
-                            </button>
+                <div className="bg-white rounded-xl border border-[#E1E3DB] shadow-sm mb-6 overflow-hidden">
+                    <div className="border-b border-[#E1E3DB] bg-[#FAFBF9] px-6">
+                        <nav className="flex -mb-px gap-6">
                             <button
                                 onClick={() => setActiveTab('products')}
-                                className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                className={`flex items-center gap-2 py-4 text-sm font-semibold border-b-2 transition-colors ${
                                     activeTab === 'products'
-                                        ? 'border-blue-600 text-blue-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-[#2E6E52] text-[#2E6E52]'
+                                        : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
                                 }`}
                             >
-                                <Package className="w-5 h-5" />
-                                Products
+                                <Package className="w-4 h-4" />
+                                Products & Variants
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('categories')}
+                                className={`flex items-center gap-2 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                                    activeTab === 'categories'
+                                        ? 'border-[#2E6E52] text-[#2E6E52]'
+                                        : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
+                                }`}
+                            >
+                                <FolderTree className="w-4 h-4" />
+                                Categories
                             </button>
                         </nav>
                     </div>
 
                     {/* Tab Content */}
                     <div className="p-6">
-                        {activeTab === 'categories' ? <CategoryList /> : <ProductList />}
+                        {activeTab === 'products' ? <ProductList /> : <CategoryList />}
                     </div>
                 </div>
             </div>
@@ -55,4 +55,3 @@ const ProductManagement = () => {
 };
 
 export default ProductManagement;
-

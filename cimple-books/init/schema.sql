@@ -119,16 +119,29 @@ create table Products(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL DEFAULT '',
     info TEXT NOT NULL DEFAULT '',
-    variant_id TEXT NOT NULL DEFAULT '',
     catagory_id INTEGER NOT NULL DEFAULT 0,
-    price INTEGER NOT NULL DEFAULT 0,
-    parent_id INTEGER NOT NULL DEFAULT 0,
+    sales_price INTEGER NOT NULL DEFAULT 0,
     image TEXT NOT NULL DEFAULT '',
+    images TEXT NOT NULL DEFAULT '',
     alt_images TEXT NOT NULL DEFAULT '',
     epoch INTEGER NOT NULL DEFAULT 0, -- optimistic counter for stock count
     stock_count INTEGER NOT NULL DEFAULT 0, 
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+create table ProductVariants(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    sales_price INTEGER NOT NULL DEFAULT 0,
+    images TEXT NOT NULL DEFAULT '',
+    created_by INTEGER NOT NULL DEFAULT 0,
+    updated_by INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE

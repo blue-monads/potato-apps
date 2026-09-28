@@ -219,24 +219,38 @@ export const deleteCategory = async (categoryId: number): Promise<ApiResponse<{ 
     });
 };
 
-// Products API
+// Products & Variants API
+export interface ProductVariant {
+    id: number;
+    product_id: number;
+    name: string;
+    description: string;
+    sales_price: number;
+    images?: string;
+    created_by?: number;
+    updated_by?: number;
+    created_at?: string;
+    updated_at?: string;
+    is_deleted?: boolean;
+}
+
 export interface Product {
     id: number;
     name: string;
     info: string;
-    variant_id: string;
     catagory_id: number;
-    price: number;
-    parent_id: number;
-    image: string;
-    alt_images: string;
-    epoch: number;
+    sales_price: number;
+    image?: string;
+    images?: string;
+    alt_images?: string;
+    epoch?: number;
     stock_count: number;
-    created_by: number;
-    updated_by: number;
-    created_at: string;
-    updated_at: string;
-    is_deleted: boolean;
+    created_by?: number;
+    updated_by?: number;
+    created_at?: string;
+    updated_at?: string;
+    is_deleted?: boolean;
+    variants?: ProductVariant[];
 }
 
 export const listProducts = async (): Promise<ApiResponse<Product[]>> => {
@@ -245,6 +259,10 @@ export const listProducts = async (): Promise<ApiResponse<Product[]>> => {
         return resp;
     }
     return { ...resp, data: [] };
+};
+
+export const getProduct = async (productId: number): Promise<ApiResponse<Product>> => {
+    return apiRequest<Product>(`/products/${productId}`, { method: 'GET' });
 };
 
 export const createProduct = async (product: Partial<Product>): Promise<ApiResponse<Product>> => {
@@ -266,6 +284,65 @@ export const deleteProduct = async (productId: number): Promise<ApiResponse<{ me
         method: 'DELETE',
     });
 };
+
+export const listProductVariants = async (productId: number): Promise<ApiResponse<ProductVariant[]>> => {
+    const resp = await apiRequest<ProductVariant[]>(`/products/${productId}/variants`, { method: 'GET' });
+    if (resp.status === 200 && Array.isArray(resp.data)) {
+        return resp;
+    }
+    return { ...resp, data: [] };
+};
+
+export const createProductVariant = async (productId: number, variant: Partial<ProductVariant>): Promise<ApiResponse<ProductVariant>> => {
+    return apiRequest<ProductVariant>(`/products/${productId}/variants`, {
+        method: 'POST',
+        body: JSON.stringify(variant),
+    });
+};
+
+export const updateProductVariant = async (variantId: number, variant: Partial<ProductVariant>): Promise<ApiResponse<ProductVariant>> => {
+    return apiRequest<ProductVariant>(`/variants/${variantId}`, {
+        method: 'PUT',
+        body: JSON.stringify(variant),
+    });
+};
+
+export const deleteProductVariant = async (variantId: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/variants/${variantId}`, {
+        method: 'DELETE',
+    });
+};
+
+export const uploadProductImage = async (file: File): Promise<string> => {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('files', file);
+    formData.append('filename', file.name);
+
+    const url = new URL('/zz/api/core/space_file/upload', window.location.origin);
+    url.searchParams.set('path', 'cimple-books/products');
+
+    const headers: Record<string, string> = {};
+    if (token) {
+        headers['Authorization'] = token;
+    }
+
+    const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to upload image');
+    }
+
+    const data = await response.json();
+    const fileId = data.file_id || data.id || file.name;
+    const cleanId = typeof fileId === 'string' && fileId.startsWith('/') ? fileId.substring(1) : fileId;
+    return `/zz/api/core/space_file/preview/${cleanId}`;
+};
+
 
 // Taxes API
 export interface Tax {

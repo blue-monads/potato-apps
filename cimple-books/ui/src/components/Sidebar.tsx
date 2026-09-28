@@ -56,14 +56,18 @@ const Sidebar = () => {
     };
 
     return (
-        <aside className="fixed left-0 top-0 h-full w-32 md:w-48 bg-gray-100 text-gray-900 flex flex-col border-r border-gray-200">
-
-
-            <div className="pt-2 px-2">
-                <h1 className="text-lg font-semibold uppercase">Simple Books</h1>
+        <aside className="fixed left-0 top-0 h-full w-36 md:w-52 bg-[#EEF0EA] text-[#1C1E1A] flex flex-col border-r border-[#E1E3DB] z-10">
+            <div className="p-4 flex items-center gap-2.5 border-b border-[#E1E3DB]">
+                <div className="w-8 h-8 rounded-lg bg-[#2E6E52] text-white flex items-center justify-center font-bold shadow-xs">
+                    <i className="fa-solid fa-book-bookmark text-sm"></i>
+                </div>
+                <div>
+                    <h1 className="font-heading text-sm font-bold text-[#1C1E1A] leading-tight">Cimple Books</h1>
+                    <span className="text-[10px] font-semibold text-[#6B6E63] uppercase tracking-wider">Accounting</span>
+                </div>
             </div>
 
-            <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.path);
@@ -71,22 +75,25 @@ const Sidebar = () => {
                         <Link
                             key={item.path}
                             to={item.href}
-                            className={`flex items-center gap-1 px-2 py-2 rounded-lg transition-colors text-sm ${
+                            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all text-xs font-semibold ${
                                 active
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                                    ? 'bg-[#2E6E52] text-white shadow-xs'
+                                    : 'text-[#3E4139] hover:bg-[#E1EFE7] hover:text-[#205C41]'
                             }`}
                         >
-                            <Icon className="w-5 h-5" />
-                            <span className="font-medium">{item.label}</span>
+                            <Icon className="w-4 h-4 flex-shrink-0" />
+                            <span>{item.label}</span>
                         </Link>
                     );
                 })}
             </nav>
 
+            <div className="p-3 border-t border-[#E1E3DB] text-[11px] text-[#6B6E63] flex items-center justify-between">
+                <span className="font-mono">v26-7-alpha</span>
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
         </aside>
     );
 };
 
 export default Sidebar;
-

@@ -14,7 +14,6 @@ version: '0.0.1'
 special_pages:
   init_page: init.html
   update_page: update_1.html
-  seed_page: seed.html
 
 spaces:
   - namespace: cimple-books
@@ -35,6 +34,5 @@ developer:
     - 'ui/dist/**/*,public'
     - server.lua
     - 'init/init.html,public/init.html'
-    - 'init/seed.html,public/seed.html'
     - 'init/schema.sql,schema.sql'
   build_command: 'cd ui && { [ -d node_modules ] || bun install; } && bun run build'

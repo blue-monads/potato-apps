@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Layers } from 'lucide-react';
+import { Link } from 'react-router';
 import { listProducts, deleteProduct, listCategories, type Product, type Category } from '../../lib/api';
-import { useModal } from '../../lib/shared/modal/modal';
-import ProductForm from './ProductForm';
+import { BASE_PATH } from '../../lib/base';
 
 const ProductList = () => {
-    const { openModal, closeModal } = useModal();
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
@@ -56,25 +55,6 @@ const ProductList = () => {
         }
     };
 
-    const openProductForm = (product?: Product | null) => {
-        openModal({
-            title: product ? 'Edit Product' : 'New Product',
-            content: (
-                <ProductForm
-                    product={product || null}
-                    categories={categories}
-                    onSave={() => {
-                        closeModal();
-                        loadData();
-                    }}
-                />
-            ),
-            onClose: () => {
-                loadData();
-            },
-        });
-    };
-
     const getCategoryName = (categoryId: number) => {
         const category = categories.find(c => c.id === categoryId);
         return category?.name || `Category #${categoryId}`;
@@ -84,103 +64,150 @@ const ProductList = () => {
         return (price / 100).toFixed(2);
     };
 
+    const getProductThumbnail = (product: Product) => {
+        if (product.images) {
+            const list = product.images.split(',').map(s => s.trim()).filter(Boolean);
+            if (list.length > 0) return list[0];
+        }
+        return product.image || null;
+    };
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <div className="text-lg text-gray-500">Loading products...</div>
+            <div className="flex items-center justify-center py-16">
+                <div className="text-base text-stone-500 font-sans">Loading products...</div>
             </div>
         );
     }
 
     return (
-        <div>
-            <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Products</h2>
-                <button
-                    onClick={() => openProductForm()}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        <div className="font-sans">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-stone-900 font-display">Products</h2>
+                    <p className="text-xs text-stone-500 mt-0.5">Manage catalogue items, sales pricing, pictures, and variants</p>
+                </div>
+                <Link
+                    to={`${BASE_PATH}products/new`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     New Product
-                </button>
+                </Link>
             </div>
 
             {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                     {error}
                 </div>
             )}
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-xl border border-[#E1E3DB] shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-[#E1E3DB]">
+                        <thead className="bg-[#F8F9F6]">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    ID
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                    Product
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Name
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                     Category
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Price
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                    Sales Price
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                     Stock
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                    Variants
+                                </th>
+                                <th className="px-5 py-3.5 text-right text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white divide-y divide-[#E1E3DB]">
                             {products.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                                        No products found. Create your first product to get started.
+                                    <td colSpan={6} className="px-6 py-12 text-center text-stone-500">
+                                        <Package className="w-8 h-8 mx-auto mb-2 text-stone-300" />
+                                        No products found. Click "New Product" to get started.
                                     </td>
                                 </tr>
                             ) : (
-                                products.map((product) => (
-                                    <tr key={product.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {product.id}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {product.name}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {getCategoryName(product.catagory_id)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {formatPrice(product.price)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {product.stock_count}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => openProductForm(product)}
-                                                    className="text-indigo-600 hover:text-indigo-900 p-1"
-                                                    title="Edit product"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(product.id)}
-                                                    className="text-red-600 hover:text-red-900 p-1"
-                                                    title="Delete product"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                products.map((product) => {
+                                    const thumb = getProductThumbnail(product);
+                                    const variantCount = product.variants ? product.variants.length : 0;
+                                    return (
+                                        <tr key={product.id} className="hover:bg-[#FAFBF9] transition-colors">
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3.5">
+                                                    {thumb ? (
+                                                        <img
+                                                            src={thumb}
+                                                            alt={product.name}
+                                                            className="w-11 h-11 object-cover rounded-lg border border-[#E1E3DB]"
+                                                        />
+                                                    ) : (
+                                                        <div className="w-11 h-11 rounded-lg bg-[#EEF0EA] border border-[#E1E3DB] flex items-center justify-center text-stone-400">
+                                                            <Package className="w-5 h-5" />
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div className="text-sm font-semibold text-stone-900">
+                                                            {product.name}
+                                                        </div>
+                                                        <div className="text-xs text-stone-500 max-w-xs truncate">
+                                                            {product.info || 'No description'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
+                                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F4F5F1] text-stone-700 border border-[#E1E3DB]">
+                                                    {getCategoryName(product.catagory_id)}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-stone-900">
+                                                ${formatPrice(product.sales_price)}
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-700">
+                                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${product.stock_count > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
+                                                    {product.stock_count} in stock
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
+                                                {variantCount > 0 ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#EAF3EE] text-[#2E6E52] border border-[#2E6E52]/20">
+                                                        <Layers className="w-3 h-3" />
+                                                        {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-stone-400">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <Link
+                                                        to={`${BASE_PATH}products/${product.id}/edit`}
+                                                        className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                        title="Edit product & variants"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleDelete(product.id)}
+                                                        className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Delete product"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
@@ -191,4 +218,3 @@ const ProductList = () => {
 };
 
 export default ProductList;
-

@@ -9,6 +9,7 @@ import { ModalProvider } from "./lib/shared/modal/modal";
 
 const ListAccount = lazy(() => import("./pages/account/ListAccount"));
 const ProductManagement = lazy(() => import("./pages/product/ProductManagement"));
+const ProductFormPage = lazy(() => import("./pages/product/ProductFormPage"));
 const ListSales = lazy(() => import("./pages/sales/ListSales"));
 const SalesForm = lazy(() => import("./pages/sales/SalesForm"));
 const ListTxn = lazy(() => import("./pages/txn/ListTxn"));
@@ -55,7 +56,20 @@ const router = createBrowserRouter([
           },
           {
             path: "products",
-            element: <ProductManagement />,
+            children: [
+              {
+                index: true,
+                element: <ProductManagement />,
+              },
+              {
+                path: "new",
+                element: <ProductFormPage />,
+              },
+              {
+                path: ":id/edit",
+                element: <ProductFormPage />,
+              },
+            ],
           },
           {
             path: "sales",
