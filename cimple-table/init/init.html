@@ -4,37 +4,842 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/zz/static/libspace.js"></script>
-    <title>Init Cimple Books</title>
+    <title>Cimple Table - Setup & Initialization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/zz/static/fontawesome/css/all.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css';">
+    <style>
+        :root {
+            --bg: #F4F5F7;
+            --surface: #FFFFFF;
+            --surface-sunken: #EEF1F5;
+            --border: #DFE3E8;
+            --border-strong: #CBD2D9;
+            --ink-900: #0F172A;
+            --ink-700: #334155;
+            --ink-500: #64748B;
+            --ink-400: #94A3B8;
+            --ink-300: #CBD5E1;
+
+            --accent: #2563EB;
+            --accent-ink: #FFFFFF;
+            --accent-soft: #EFF6FF;
+            --accent-soft-ink: #1D4ED8;
+            --danger: #DC2626;
+            --danger-soft: #FEF2F2;
+
+            --shadow-1: 0 1px 3px rgba(15,23,42,0.06);
+            --shadow-2: 0 8px 24px rgba(15,23,42,0.08);
+            --radius-s: 6px;
+            --radius-m: 10px;
+            --radius-l: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--ink-900);
+            font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+            font-size: 14.5px;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, .font-heading {
+            font-family: "Space Grotesk", system-ui, sans-serif;
+        }
+
+        .container {
+            max-width: 860px;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-l);
+            box-shadow: var(--shadow-2);
+            padding: 36px;
+            transition: all 0.2s ease;
+        }
+
+        .header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent);
+            color: var(--accent-ink);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .header-title-wrap h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--ink-900);
+            letter-spacing: -0.02em;
+        }
+
+        .badge-version {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface-sunken);
+            border: 1px solid var(--border);
+            color: var(--ink-700);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-family: "IBM Plex Sans", monospace;
+        }
+
+        .subtitle {
+            color: var(--ink-500);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        /* Filter Controls */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .filter-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .filter-pill {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--surface-sunken);
+            border: 1px solid var(--border);
+            color: var(--ink-700);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .filter-pill:hover {
+            border-color: var(--border-strong);
+            background: #E2E6ED;
+        }
+
+        .filter-pill.active {
+            background: var(--accent);
+            color: var(--accent-ink);
+            border-color: var(--accent);
+        }
+
+        /* Template Selection Grid */
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .template-card {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-m);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .template-card:hover {
+            border-color: var(--border-strong);
+            background: #F8FAFC;
+        }
+
+        .template-card.active {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .template-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .template-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: #FFFFFF;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .template-card.active .template-icon {
+            background: var(--accent);
+            color: var(--accent-ink);
+            border-color: var(--accent);
+        }
+
+        .template-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--ink-900);
+            font-family: "Space Grotesk", sans-serif;
+            line-height: 1.3;
+        }
+
+        .template-card.active .template-name {
+            color: var(--accent-soft-ink);
+        }
+
+        .template-desc {
+            font-size: 0.82rem;
+            color: var(--ink-500);
+            line-height: 1.45;
+            margin-bottom: 12px;
+        }
+
+        .template-card.active .template-desc {
+            color: var(--accent-soft-ink);
+            opacity: 0.9;
+        }
+
+        .template-meta {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--ink-400);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .template-card.active .template-meta {
+            color: var(--accent-soft-ink);
+        }
+
+        .template-badge-rec {
+            position: absolute;
+            top: -9px;
+            right: 12px;
+            background: var(--accent);
+            color: #FFFFFF;
+            font-size: 9.5px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* Buttons & Actions */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        button {
+            padding: 12px 22px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            font-family: "Space Grotesk", sans-serif;
+        }
+
+        .btn-primary {
+            background-color: var(--accent);
+            color: var(--accent-ink);
+            flex: 1;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            filter: brightness(1.08);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-launch {
+            background-color: var(--accent);
+            color: #FFFFFF;
+            width: 100%;
+            font-size: 1.05rem;
+            padding: 14px;
+        }
+
+        .btn-launch:hover {
+            filter: brightness(1.08);
+        }
+
+        /* Status & Alert Box */
+        .status-box {
+            margin-top: 20px;
+            padding: 14px 16px;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            line-height: 1.45;
+            display: none;
+        }
+
+        .status-box.success {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background-color: var(--accent-soft);
+            border: 1px solid #BFDBFE;
+            color: var(--accent-soft-ink);
+        }
+
+        .status-box.error {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background-color: var(--danger-soft);
+            border: 1px solid #FECACA;
+            color: var(--danger);
+        }
+
+        /* Already Initialized State View */
+        .already-inited-view {
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: var(--accent-soft);
+            color: var(--accent-soft-ink);
+            border: 1px solid #BFDBFE;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .seed-option-card {
+            background: var(--surface-sunken);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-m);
+            padding: 14px 18px;
+            margin-bottom: 24px;
+            transition: all 0.15s ease;
+        }
+
+        .seed-option-card:hover {
+            border-color: var(--border-strong);
+        }
+
+        .seed-option-label {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .seed-option-label input[type="checkbox"] {
+            margin-top: 3px;
+            width: 17px;
+            height: 17px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .seed-option-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--ink-900);
+            font-family: "Space Grotesk", sans-serif;
+            margin-bottom: 2px;
+        }
+
+        .seed-option-desc {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--ink-500);
+            line-height: 1.4;
+        }
+
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 2px solid white;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
-    <h1>Init Cimple Books</h1>
-    <button id="runSchemaSqlButton" style="display: block;" onclick="runSchemaSql()">Run Schema SQL</button>
-    <button id="goHomeButton" style="display: none;" onclick="goHome()">Go Home</button>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="header-title-wrap">
+                    <div class="logo-icon">
+                        <i class="fa-solid fa-table-cells"></i>
+                    </div>
+                    <div>
+                        <h1>Cimple Table</h1>
+                        <span style="font-size: 13px; color: var(--ink-500);">Connected Relational Datatables & Sheets</span>
+                    </div>
+                </div>
+                <div class="badge-version">
+                    <i class="fa-solid fa-code-commit text-blue-600"></i>
+                    <span>INIT_VERSION: 26-7-alpha</span>
+                </div>
+            </div>
 
+            <!-- Loading View -->
+            <div id="loadingView" style="text-align: center; padding: 48px 0;">
+                <div class="spinner" style="border-top-color: var(--accent); border-color: rgba(37,99,235,0.2); width: 32px; height: 32px; margin: 0 auto 16px;"></div>
+                <p style="color: var(--ink-500); font-size: 0.9rem;">Checking system initialization status...</p>
+            </div>
+
+            <!-- Already Initialized View -->
+            <div id="alreadyInitedView" class="already-inited-view" style="display: none;">
+                <div class="status-pill">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>Already Initialized</span>
+                </div>
+                <h2 style="font-size: 1.45rem; font-weight: 700; color: var(--ink-900); margin-bottom: 10px;">
+                    Cimple Table is Ready
+                </h2>
+                <p class="subtitle" style="max-width: 540px; margin: 0 auto 28px;">
+                    This database instance has already been initialized and configured with schema and tables (version <strong>26-7-alpha</strong>).
+                </p>
+
+                <div style="background: var(--surface-sunken); border: 1px solid var(--border); border-radius: var(--radius-m); padding: 18px; margin-bottom: 28px; text-align: left;">
+                    <div style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase; color: var(--ink-500); margin-bottom: 8px;">System Status</div>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; color: var(--ink-700);">
+                        <div><i class="fa-solid fa-database text-blue-600"></i> Database: <strong>Online</strong></div>
+                        <div><i class="fa-solid fa-tag text-blue-600"></i> Version: <strong>26-7-alpha</strong></div>
+                        <div><i class="fa-solid fa-shield-halved text-blue-600"></i> Auth: <strong>Active</strong></div>
+                    </div>
+                </div>
+
+                <button class="btn-launch" onclick="goHome()">
+                    <span>Launch Cimple Table</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- Initialization Wizard View -->
+            <div id="wizardView" style="display: none;">
+                <p class="subtitle">
+                    Select a table group template below to initialize your database schema, interconnected tables, and relational columns, or start with a blank database.
+                </p>
+
+                <div class="filter-bar">
+                    <div class="filter-pills" id="filterPills">
+                        <button class="filter-pill active" onclick="filterCategory('All', this)">All</button>
+                        <button class="filter-pill" onclick="filterCategory('Education', this)">Education</button>
+                        <button class="filter-pill" onclick="filterCategory('Commerce', this)">Commerce</button>
+                        <button class="filter-pill" onclick="filterCategory('Productivity', this)">Productivity</button>
+                        <button class="filter-pill" onclick="filterCategory('Sales', this)">Sales</button>
+                        <button class="filter-pill" onclick="filterCategory('Operations', this)">Operations</button>
+                        <button class="filter-pill" onclick="filterCategory('Healthcare', this)">Healthcare</button>
+                    </div>
+                </div>
+
+                <div class="template-grid" id="templateGrid">
+                    <!-- Student & School Management -->
+                    <div class="template-card active" data-category="Education" onclick="selectTemplate('school-attendance', this)">
+                        <div class="template-badge-rec">Recommended</div>
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                                <div class="template-name">Student & School</div>
+                            </div>
+                            <div class="template-desc">
+                                Track students, subjects, daily attendance logs, and term exam grades in one connected system.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Relational Refs
+                        </div>
+                    </div>
+
+                    <!-- E-Commerce & Orders -->
+                    <div class="template-card" data-category="Commerce" onclick="selectTemplate('ecommerce-orders', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                                <div class="template-name">E-Commerce & Orders</div>
+                            </div>
+                            <div class="template-desc">
+                                Product catalogs, customer directory, purchase orders, and item line subtotals.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Orders & Products
+                        </div>
+                    </div>
+
+                    <!-- Project Management & Sprints -->
+                    <div class="template-card" data-category="Productivity" onclick="selectTemplate('project-tasks', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-kanban"></i></div>
+                                <div class="template-name">Project Management</div>
+                            </div>
+                            <div class="template-desc">
+                                Initiatives, milestones, actionable tasks, and team member assignments.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Sprints & Tasks
+                        </div>
+                    </div>
+
+                    <!-- CRM & Sales Pipeline -->
+                    <div class="template-card" data-category="Sales" onclick="selectTemplate('crm-pipeline', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-handshake"></i></div>
+                                <div class="template-name">CRM & Sales Pipeline</div>
+                            </div>
+                            <div class="template-desc">
+                                Target corporate accounts, client contacts, deals pipeline, and sales activity logs.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Deals & Accounts
+                        </div>
+                    </div>
+
+                    <!-- HR & Employee Directory -->
+                    <div class="template-card" data-category="Productivity" onclick="selectTemplate('hr-directory', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-id-badge"></i></div>
+                                <div class="template-name">HR & Employees</div>
+                            </div>
+                            <div class="template-desc">
+                                Staff directory, departmental units, time-off leave requests, and performance reviews.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Staff & Leaves
+                        </div>
+                    </div>
+
+                    <!-- Warehouse & Logistics -->
+                    <div class="template-card" data-category="Operations" onclick="selectTemplate('warehouse-inventory', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-warehouse"></i></div>
+                                <div class="template-name">Warehouse & Logistics</div>
+                            </div>
+                            <div class="template-desc">
+                                Physical SKU items with scannable barcodes, multi-warehouse stock levels, and transfer manifests.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Barcodes & Stock
+                        </div>
+                    </div>
+
+                    <!-- Property & Rental Management -->
+                    <div class="template-card" data-category="Operations" onclick="selectTemplate('property-rentals', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-city"></i></div>
+                                <div class="template-name">Property & Rentals</div>
+                            </div>
+                            <div class="template-desc">
+                                Real estate complexes, rental units, tenant lease terms, and maintenance repair requests.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Leases & Units
+                        </div>
+                    </div>
+
+                    <!-- Clinic & Patient Care -->
+                    <div class="template-card" data-category="Healthcare" onclick="selectTemplate('clinic-patients', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-hospital"></i></div>
+                                <div class="template-name">Clinic & Patients</div>
+                            </div>
+                            <div class="template-desc">
+                                Patient medical records, attending physicians, appointment visits, and prescriptions.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Patients & Doctors
+                        </div>
+                    </div>
+
+                    <!-- Event & Conference Planning -->
+                    <div class="template-card" data-category="Productivity" onclick="selectTemplate('events-conference', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-calendar-days"></i></div>
+                                <div class="template-name">Events & Planning</div>
+                            </div>
+                            <div class="template-desc">
+                                Conference agendas, keynote speakers, session timetables, and attendee badge registrations.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 4 Tables • Sessions & Events
+                        </div>
+                    </div>
+
+                    <!-- IT Asset & Helpdesk -->
+                    <div class="template-card" data-category="Operations" onclick="selectTemplate('it-helpdesk', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-laptop-code"></i></div>
+                                <div class="template-name">IT Asset & Helpdesk</div>
+                            </div>
+                            <div class="template-desc">
+                                Hardware asset serials, software SaaS licenses, and employee triage support tickets.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> 3 Tables • Hardware & Tickets
+                        </div>
+                    </div>
+
+                    <!-- Blank Database -->
+                    <div class="template-card" data-category="All" onclick="selectTemplate('blank', this)">
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-cube"></i></div>
+                                <div class="template-name">Blank Database</div>
+                            </div>
+                            <div class="template-desc">
+                                Fresh start: creates all empty database schema tables without any sample tables.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-file"></i> Pure Schema Only
+                        </div>
+                    </div>
+                </div>
+
+                <div class="seed-option-card" id="seedOptionWrap">
+                    <label class="seed-option-label" for="seedDataCheckbox">
+                        <input type="checkbox" id="seedDataCheckbox" checked>
+                        <div class="seed-option-text">
+                            <span class="seed-option-title">
+                                <i class="fa-solid fa-database text-blue-600"></i>
+                                <span>Seed with sample data</span>
+                            </span>
+                            <span class="seed-option-desc">
+                                Pre-populate tables with realistic interconnected records and relational links (&lt; 20 rows per table).
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="btn-group">
+                    <button id="initBtn" class="btn-primary" onclick="runInit()">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Initialize System</span>
+                    </button>
+                    <button id="launchBtn" class="btn-primary" style="display: none; background-color: var(--accent);" onclick="goHome()">
+                        <span>Launch Cimple Table</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div id="statusBox" class="status-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedTemplate = 'school-attendance';
+
+        // Check authentication
+        if (!window.spaceGetToken('cimple-table')) {
+            window.spaceRedirrectToAuth('/zz/space/cimple-table', 'init.html');
+        }
+
+        function goHome() {
+            window.location.href = '/zz/space/cimple-table';
+        }
+
+        function selectTemplate(templateKey, el) {
+            selectedTemplate = templateKey;
+            document.querySelectorAll('.template-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            el.classList.add('active');
+
+            const seedWrap = document.getElementById('seedOptionWrap');
+            if (seedWrap) {
+                if (templateKey === 'blank') {
+                    seedWrap.style.display = 'none';
+                } else {
+                    seedWrap.style.display = 'block';
+                }
+            }
+        }
+
+        function filterCategory(category, el) {
+            document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+
+            document.querySelectorAll('.template-card').forEach(card => {
+                const cardCat = card.getAttribute('data-category');
+                if (category === 'All' || cardCat === category || cardCat === 'All') {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function showStatus(message, isError) {
+            const box = document.getElementById('statusBox');
+            box.className = 'status-box ' + (isError ? 'error' : 'success');
+            box.innerHTML = (isError ? '<i class="fa-solid fa-circle-exclamation"></i>' : '<i class="fa-solid fa-circle-check"></i>') + '<div>' + message + '</div>';
+            box.style.display = 'flex';
+        }
+
+        // On page load, verify SpaceKV init status
+        function checkStatus() {
+            fetch('/zz/api/space/cimple-table/init_status', {
+                method: 'GET',
+                headers: {
+                    'Authorization': window.spaceGetToken('cimple-table') || '',
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loadingView').style.display = 'none';
+                if (data.initialized) {
+                    document.getElementById('alreadyInitedView').style.display = 'block';
+                } else {
+                    document.getElementById('wizardView').style.display = 'block';
+                }
+            })
+            .catch(err => {
+                // If init_status error or not inited, fallback to wizard
+                document.getElementById('loadingView').style.display = 'none';
+                document.getElementById('wizardView').style.display = 'block';
+            });
+        }
+
+        function runInit() {
+            const initBtn = document.getElementById('initBtn');
+            const launchBtn = document.getElementById('launchBtn');
+            const seedCheckbox = document.getElementById('seedDataCheckbox');
+            const shouldSeed = selectedTemplate !== 'blank' && seedCheckbox && seedCheckbox.checked;
+            
+            initBtn.disabled = true;
+            initBtn.innerHTML = '<span class="spinner"></span> <span>' + (shouldSeed ? 'Initializing & Seeding Data...' : 'Initializing Schema...') + '</span>';
+
+            fetch('/zz/api/space/cimple-table/init_app', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': window.spaceGetToken('cimple-table') || '',
+                },
+                body: JSON.stringify({
+                    template: selectedTemplate,
+                    seed_data: shouldSeed
+                })
+            })
+            .then(res => res.json().then(data => ({ status: res.status, data })))
+            .then(({ status, data }) => {
+                initBtn.disabled = false;
+                initBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Initialize System</span>';
+
+                if (status >= 200 && status < 300 && (data.success || data.initialized)) {
+                    showStatus('<strong>Success!</strong> ' + (data.message || 'Cimple Table initialized successfully with version: 26-7-alpha.'), false);
+                    initBtn.style.display = 'none';
+                    launchBtn.style.display = 'inline-flex';
+                } else {
+                    showStatus('<strong>Initialization error:</strong> ' + (data.error || data.message || 'Failed to initialize.'), true);
+                }
+            })
+            .catch(err => {
+                initBtn.disabled = false;
+                initBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Initialize System</span>';
+                showStatus('<strong>Network Error:</strong> ' + err.message, true);
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', checkStatus);
+    </script>
 </body>
-
-<script>
-    if (!window.spaceGetToken('cimple-table')) {
-        window.spaceRedirrectToAuth('/zz/space/cimple-table', 'init.html');
-    }
-
-    function goHome() {
-        window.location.href = '/zz/space/cimple-table';
-    }
-
-    function runSchemaSql() {
-        fetch('/zz/api/space/cimple-table/run_schema_sql', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': window.spaceGetToken('cimple-table'),
-            },
-        }).then(data => {
-            document.getElementById('runSchemaSqlButton').style.display = 'none';
-            document.getElementById('goHomeButton').style.display = 'block';
-        });
-    }
-
-
-</script>
 </html>

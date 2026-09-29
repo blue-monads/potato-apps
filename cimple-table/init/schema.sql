@@ -1,5 +1,4 @@
-
-create table Datatables(
+CREATE TABLE IF NOT EXISTS Datatables (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL DEFAULT '',
     info TEXT NOT NULL DEFAULT '',
@@ -10,7 +9,7 @@ create table Datatables(
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-create table DatatableColumns(
+CREATE TABLE IF NOT EXISTS DatatableColumns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_id INTEGER NOT NULL,
     name TEXT NOT NULL DEFAULT '',
@@ -27,7 +26,7 @@ create table DatatableColumns(
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table DatatableRows(
+CREATE TABLE IF NOT EXISTS DatatableRows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_id INTEGER NOT NULL,
     row_data TEXT NOT NULL DEFAULT '',
@@ -35,7 +34,7 @@ create table DatatableRows(
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table DatatableCells(
+CREATE TABLE IF NOT EXISTS DatatableCells (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_id INTEGER NOT NULL,
     row_id INTEGER NOT NULL,
@@ -47,38 +46,38 @@ create table DatatableCells(
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table AutoDash(
+CREATE TABLE IF NOT EXISTS AutoDash (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name text not null,
-    base_prompt text not null,
+    name TEXT NOT NULL,
+    base_prompt TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table AutoDashItem(
+CREATE TABLE IF NOT EXISTS AutoDashItem (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auto_dash_id INTEGER NOT NULL,
-    role text not null default 'user',
-    content text not null,
-    html_content text,
+    role TEXT NOT NULL DEFAULT 'user',
+    content TEXT NOT NULL,
+    html_content TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table AutoForm(
+CREATE TABLE IF NOT EXISTS AutoForm (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name text not null,
-    base_prompt text not null,
+    name TEXT NOT NULL,
+    base_prompt TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-create table AutoFormItem(
+CREATE TABLE IF NOT EXISTS AutoFormItem (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auto_form_id INTEGER NOT NULL,
-    role text not null default 'user',
-    content text not null,
-    html_content text,
+    role TEXT NOT NULL DEFAULT 'user',
+    content TEXT NOT NULL,
+    html_content TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

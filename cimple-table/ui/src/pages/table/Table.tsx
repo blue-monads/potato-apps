@@ -45,12 +45,7 @@ import {
 import { getTableColorConfig } from "../../lib/tableColors";
 import AutoDashPanel from "../autodash/AutoDashPanel";
 import AutoFormPanel from "../autoform/AutoFormPanel";
-import {
-    createTableGroup,
-    type TableGroupTemplate,
-    type TableInGroupTemplate,
-} from "../../lib/templates";
-import GroupTemplatesView from "./sub/GroupTemplatesView";
+import { type TableInGroupTemplate } from "../../lib/templates";
 
 type SortState = { columnId: number; dir: 'asc' | 'desc' } | null;
 
@@ -97,8 +92,6 @@ const Table = () => {
     const [autodashSelectedDashId, setAutodashSelectedDashId] = useState<number | null>(null);
     const [autoformSidebarOpen, setAutoformSidebarOpen] = useState(false);
     const [autoformSelectedFormId, setAutoformSelectedFormId] = useState<number | null>(null);
-    const [isCreatingGroup, setIsCreatingGroup] = useState<boolean>(false);
-    const [groupCreationProgress, setGroupCreationProgress] = useState<string>("");
     const [targetRowOffset, setTargetRowOffset] = useState<number | null>(null);
     const [loadedLastUpdated, setLoadedLastUpdated] = useState<string | null>(null);
     const [hasRemoteChanges, setHasRemoteChanges] = useState<boolean>(false);
@@ -489,25 +482,6 @@ const Table = () => {
                 />
             ),
         });
-    };
-
-    const handleCreateGroupDirect = async (group: TableGroupTemplate) => {
-        setIsCreatingGroup(true);
-        setGroupCreationProgress(`Creating ${group.name}...`);
-        try {
-            const res = await createTableGroup(group, (cur, total, msg) => {
-                setGroupCreationProgress(`${msg} (${cur}/${total})`);
-            });
-            if (res.firstTableId) {
-                await loadDatatables();
-                navigate(`${BASE_PATH}table/${res.firstTableId}`);
-            } else if (res.error) {
-                alert(`Error creating table group: ${res.error}`);
-            }
-        } finally {
-            setIsCreatingGroup(false);
-            setGroupCreationProgress("");
-        }
     };
 
     const handleEditTable = (table: Datatable) => {
@@ -1223,22 +1197,11 @@ const Table = () => {
                         </div>
                     )}
                 </>
-            ) : datatables.length === 0 ? (
-                <div className="flex-1 overflow-y-auto bg-surface-50">
-                    <GroupTemplatesView
-                        onSelectSingleTable={(table) => handleCreateTable(table)}
-                        onAddGroup={handleCreateGroupDirect}
-                        onStartBlank={() => handleCreateTable(null)}
-                        isCreatingGroup={isCreatingGroup}
-                        creationProgress={groupCreationProgress}
-                        isModal={false}
-                    />
-                </div>
             ) : (
                 <EmptyState
                     icon="cubes"
-                    title="Select a Table"
-                    body="Pick a table from the tabs above to start exploring, or create a new one to get going."
+                    title={datatables.length === 0 ? "No Tables Created" : "Select a Table"}
+                    body={datatables.length === 0 ? "Get started by creating your first custom table." : "Pick a table from the tabs above to start exploring, or create a new one to get going."}
                     actionLabel="Create New Table"
                     onAction={() => handleCreateTable(null)}
                 />

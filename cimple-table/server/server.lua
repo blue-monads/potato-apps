@@ -11,39 +11,63 @@ function get_user_id(req)
     return userId
 end
 
-function run_schema_sql(ctx)
+local function space_kv_get(group, key)
+    if potato.kv ~= nil then
+        if type(potato.kv.kv_get) == "function" then
+            local ok, res = pcall(potato.kv.kv_get, group, key)
+            if ok and res ~= nil then return res end
+        elseif type(potato.kv.get) == "function" then
+            local ok, res = pcall(potato.kv.get, group, key)
+            if ok and res ~= nil then return res end
+        end
+    end
+    return nil
+end
+
+local function space_kv_upsert(group, key, data)
+    if potato.kv ~= nil then
+        if type(potato.kv.kv_upsert) == "function" then
+            pcall(potato.kv.kv_upsert, group, key, data)
+        elseif type(potato.kv.upsert) == "function" then
+            pcall(potato.kv.upsert, group, key, data)
+        end
+    end
+end
+
+function get_init_status(ctx)
     local req = ctx.request()
     local userId = get_user_id(req)
-
     if userId == nil then return end
 
-    local tables = potato.db.list_tables()
-    if tables ~= nil and #tables > 0 then
+    local inited = false
+    local version = nil
+
+    local kv = space_kv_get("SYSTEM", "INIT_VERSION")
+    if kv ~= nil and (kv.value == "26-7-alpha" or kv.Value == "26-7-alpha") then
+        inited = true
+        version = kv.value or kv.Value
+    end
+
+    if not inited then
+        local kv2 = space_kv_get("", "INIT_VERSION")
+        if kv2 ~= nil and (kv2.value == "26-7-alpha" or kv2.Value == "26-7-alpha") then
+            inited = true
+            version = kv2.value or kv2.Value
+        end
+    end
+
+    if inited then
         req.json(200, {
-            message = "Tables already exist"
+            initialized = true,
+            version = version,
+            message = "Cimple Table has already been initialized (version: 26-7-alpha)."
         })
-        return
-    end
-    
-    local schema, err = potato.core.read_package_file("schema.sql")
-    if err ~= nil then
-        req.json(500, {
-            message = "Failed to read schema.sql: " .. err
+    else
+        req.json(200, {
+            initialized = false,
+            message = "System not initialized."
         })
-        return
     end
-
-    local _, ddlerr = potato.db.run_ddl(schema)
-    if ddlerr ~= nil then
-        req.json(500, {
-            message = "Failed to apply schema: " .. ddlerr
-        })
-        return
-    end
-
-    req.json(200, {
-        message = "Schema applied"
-    })
 end
 
 -- HELPER FUNCTIONS FOR DDL & PHYSICAL TABLES
@@ -125,6 +149,245 @@ local function generate_column_slug(table_id, name)
         candidate = slug .. "_" .. tostring(suffix)
     end
     return candidate
+end
+
+local function seed_table_group(userId, group, with_seed)
+    if group == nil or group.tables == nil or #group.tables == 0 then
+        return
+    end
+
+    local created_map = {}
+    local created_cols = {}
+
+    -- Pass 1: Create all datatables and their physical Actual<id> tables
+    for _, tbl in ipairs(group.tables) do
+        local datatable = {
+            name = tbl.name or "",
+            info = tbl.description or tbl.info or "",
+            icon = tbl.icon or "table",
+            color = tbl.color or group.color or "blue",
+            is_deleted = 0
+        }
+        local id, err = potato.db.insert("Datatables", datatable)
+        if id ~= nil then
+            if tbl.id ~= nil then
+                created_map[tbl.id] = id
+            end
+            created_map[tbl.name] = id
+
+            local table_name = "Actual" .. tostring(id)
+            local ddl = string.format([[
+                CREATE TABLE IF NOT EXISTS %s (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+            ]], table_name)
+            potato.db.run_ddl(ddl)
+            potato.db.run_ddl(string.format("CREATE INDEX IF NOT EXISTS idx_%s_updated_at ON %s (updated_at);", table_name, table_name))
+        end
+    end
+
+    -- Pass 2: Create columns and wire up relational references
+    for _, tbl in ipairs(group.tables) do
+        local table_id = created_map[tbl.id] or created_map[tbl.name]
+        if table_id ~= nil and tbl.columns ~= nil then
+            created_cols[table_id] = {}
+            for col_idx, col in ipairs(tbl.columns) do
+                local slug = generate_column_slug(table_id, col.name)
+                local options = col.options or ""
+
+                if (col.column_type == "ref" or col.column_type == "multiref") and col.target_group_table then
+                    local target_id = created_map[col.target_group_table]
+                    if target_id ~= nil then
+                        local target_col = col.target_column or "name"
+                        options = string.format('{"target_table_id":%d,"identity_column":"%s"}', target_id, target_col)
+                    end
+                end
+
+                local col_data = {
+                    table_id = table_id,
+                    name = col.name or "",
+                    slug = slug,
+                    column_type = col.column_type or "text",
+                    icon = col.icon or "",
+                    order_index = col_idx,
+                    info = col.info or "",
+                    required = (col.required == true or col.required == 1) and 1 or 0,
+                    options = options
+                }
+
+                potato.db.insert("DatatableColumns", col_data)
+
+                if col.column_type ~= "reverse_ref" then
+                    local col_type_sql = sql_type_for_column(col.column_type)
+                    local ddl = string.format("ALTER TABLE Actual%s ADD COLUMN %s %s", tostring(table_id), slug, col_type_sql)
+                    potato.db.run_ddl(ddl)
+                end
+
+                table.insert(created_cols[table_id], {
+                    name = col.name,
+                    slug = slug,
+                    column_type = col.column_type,
+                    target_group_table = col.target_group_table
+                })
+            end
+        end
+    end
+
+    -- Pass 3: Static seed data insertion with relational reference resolution
+    if with_seed == true then
+        local created_row_ids = {}
+        for _, tbl in ipairs(group.tables) do
+            if tbl.id ~= nil then
+                created_row_ids[tbl.id] = {}
+            end
+            created_row_ids[tbl.name] = {}
+        end
+
+        local now_ts = os.date("!%Y-%m-%d %H:%M:%SZ")
+
+        for _, tbl in ipairs(group.tables) do
+            local table_id = created_map[tbl.id] or created_map[tbl.name]
+            local cols = (table_id and created_cols[table_id]) or {}
+
+            if table_id ~= nil and tbl.rows ~= nil and type(tbl.rows) == "table" then
+                for _, seed_row in ipairs(tbl.rows) do
+                    local new_row = {
+                        created_at = now_ts,
+                        updated_at = now_ts
+                    }
+
+                    for _, col in ipairs(cols) do
+                        if col.column_type ~= "reverse_ref" and col.slug and col.slug ~= "" then
+                            local raw_val = nil
+                            if seed_row[col.name] ~= nil then
+                                raw_val = seed_row[col.name]
+                            elseif seed_row[col.slug] ~= nil then
+                                raw_val = seed_row[col.slug]
+                            end
+
+                            if raw_val ~= nil then
+                                if col.column_type == "ref" and col.target_group_table ~= nil then
+                                    local target_ref_list = created_row_ids[col.target_group_table]
+                                    local ref_idx = tonumber(raw_val)
+                                    if ref_idx ~= nil and target_ref_list ~= nil and target_ref_list[ref_idx] ~= nil then
+                                        raw_val = target_ref_list[ref_idx]
+                                    end
+                                elseif col.column_type == "multiref" and col.target_group_table ~= nil then
+                                    local target_ref_list = created_row_ids[col.target_group_table]
+                                    if target_ref_list ~= nil then
+                                        if type(raw_val) == "table" then
+                                            local resolved = {}
+                                            for _, item in ipairs(raw_val) do
+                                                local ref_idx = tonumber(item)
+                                                if ref_idx ~= nil and target_ref_list[ref_idx] ~= nil then
+                                                    table.insert(resolved, tostring(target_ref_list[ref_idx]))
+                                                else
+                                                    table.insert(resolved, tostring(item))
+                                                end
+                                            end
+                                            raw_val = table.concat(resolved, ",")
+                                        elseif type(raw_val) == "number" and target_ref_list[raw_val] ~= nil then
+                                            raw_val = tostring(target_ref_list[raw_val])
+                                        end
+                                    end
+                                end
+
+                                if col.column_type == "checkbox" then
+                                    new_row[col.slug] = (raw_val == true or raw_val == 1 or raw_val == "1") and 1 or 0
+                                else
+                                    new_row[col.slug] = format_column_value(col, raw_val)
+                                end
+                            end
+                        end
+                    end
+
+                    local row_id, _ = potato.db.insert("Actual" .. tostring(table_id), new_row)
+                    if row_id ~= nil then
+                        if tbl.id ~= nil and created_row_ids[tbl.id] ~= nil then
+                            table.insert(created_row_ids[tbl.id], row_id)
+                        end
+                        if created_row_ids[tbl.name] ~= nil then
+                            table.insert(created_row_ids[tbl.name], row_id)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function init_app(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    -- Check if already initialized in SpaceKV
+    local inited = false
+    local kv = space_kv_get("SYSTEM", "INIT_VERSION")
+    if kv ~= nil and (kv.value == "26-7-alpha" or kv.Value == "26-7-alpha") then
+        inited = true
+    end
+    if not inited then
+        local kv2 = space_kv_get("", "INIT_VERSION")
+        if kv2 ~= nil and (kv2.value == "26-7-alpha" or kv2.Value == "26-7-alpha") then
+            inited = true
+        end
+    end
+
+    if inited then
+        req.json(200, {
+            success = true,
+            initialized = true,
+            version = "26-7-alpha",
+            message = "Cimple Table has already been initialized (version: 26-7-alpha)."
+        })
+        return
+    end
+
+    -- Run DDL schema
+    local schema, err = potato.core.read_package_file("schema.sql")
+    if err ~= nil or schema == nil then
+        req.json(500, {
+            error = "Failed to read schema.sql: " .. tostring(err)
+        })
+        return
+    end
+
+    local ddlerr = potato.db.run_ddl(schema)
+    if ddlerr ~= nil then
+        print("DDL notice: " .. tostring(ddlerr))
+    end
+
+    local body = req.bind_json() or {}
+    local template_key = body.template or "school-attendance"
+    local with_seed = (body.seed_data == true or body.seed == true or body.seed_with_data == true)
+
+    if template_key ~= "blank" then
+        local templates_mod = require("./server/templates")
+        local group = body.group or templates_mod.get_template(template_key)
+        if group ~= nil then
+            seed_table_group(userId, group, with_seed)
+        end
+    end
+
+    -- Record initialization in spacekv
+    space_kv_upsert("SYSTEM", "INIT_VERSION", { value = "26-7-alpha" })
+    space_kv_upsert("", "INIT_VERSION", { value = "26-7-alpha" })
+
+    req.json(200, {
+        success = true,
+        initialized = true,
+        version = "26-7-alpha",
+        template = template_key,
+        seeded = with_seed,
+        message = "Cimple Table initialized successfully with template: " .. template_key
+    })
+end
+
+function run_schema_sql(ctx)
+    return init_app(ctx)
 end
 
 local function get_existing_table_columns(table_name)
@@ -1440,6 +1703,15 @@ function on_http(ctx)
 
     local userId = get_user_id(req)
     if userId == nil then return end
+
+    -- Initialization routes
+    if path == "/init_status" and method == "GET" then
+        return get_init_status(ctx)
+    end
+
+    if path == "/init_app" and method == "POST" then
+        return init_app(ctx)
+    end
 
     -- AutoDash routes
     if string.sub(path, 1, 9) == "/autodash" then
