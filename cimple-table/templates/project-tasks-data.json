@@ -1,0 +1,282 @@
+{
+  "id": "project-tasks",
+  "name": "Project Management & Sprints",
+  "description": "Coordinate team projects, milestones, tasks, and member assignments",
+  "category": "Productivity",
+  "icon": "kanban",
+  "color": "indigo",
+  "tables": [
+    {
+      "id": "projects",
+      "name": "Projects",
+      "description": "Initiatives, timelines, and overall status",
+      "icon": "folder-tree",
+      "color": "indigo",
+      "columns": [
+        {
+          "name": "Project Name",
+          "column_type": "text",
+          "info": "Project title",
+          "required": true
+        },
+        {
+          "name": "Key Code",
+          "column_type": "text",
+          "info": "Short code e.g. PRJ"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Lifecycle status",
+          "options": "Planning, In Progress, On Hold, Completed"
+        },
+        {
+          "name": "Start Date",
+          "column_type": "date",
+          "info": "Project kickoff"
+        },
+        {
+          "name": "Target Date",
+          "column_type": "date",
+          "info": "Target completion"
+        },
+        {
+          "name": "Budget",
+          "column_type": "number",
+          "info": "Allocated budget"
+        }
+      ],
+      "rows": [
+        {
+          "Project Name": "Mobile App Redesign v2",
+          "Key Code": "MAR",
+          "Status": "In Progress",
+          "Start Date": "2026-08-01",
+          "Target Date": "2026-11-30",
+          "Budget": 75000
+        },
+        {
+          "Project Name": "Infrastructure Cloud Migration",
+          "Key Code": "ICM",
+          "Status": "In Progress",
+          "Start Date": "2026-07-15",
+          "Target Date": "2026-10-15",
+          "Budget": 120000
+        },
+        {
+          "Project Name": "Design System & UI Kit",
+          "Key Code": "DSK",
+          "Status": "Completed",
+          "Start Date": "2026-05-01",
+          "Target Date": "2026-08-31",
+          "Budget": 40000
+        }
+      ]
+    },
+    {
+      "id": "team-members",
+      "name": "Team Members",
+      "description": "Team roster, departments, and roles",
+      "icon": "user-group",
+      "color": "cyan",
+      "columns": [
+        {
+          "name": "Member Name",
+          "column_type": "text",
+          "info": "Full name",
+          "required": true
+        },
+        {
+          "name": "Role",
+          "column_type": "text",
+          "info": "Job title"
+        },
+        {
+          "name": "Department",
+          "column_type": "dropdown",
+          "info": "Department",
+          "options": "Engineering, Product, Design, QA, Marketing"
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Work email"
+        }
+      ],
+      "rows": [
+        {
+          "Member Name": "Alex Rivera",
+          "Role": "Lead Architect",
+          "Department": "Engineering",
+          "Email": "alex.r@company.io"
+        },
+        {
+          "Member Name": "Priya Patel",
+          "Role": "Senior Product Manager",
+          "Department": "Product",
+          "Email": "priya.p@company.io"
+        },
+        {
+          "Member Name": "Chen Wei",
+          "Role": "Lead UI/UX Designer",
+          "Department": "Design",
+          "Email": "chen.w@company.io"
+        },
+        {
+          "Member Name": "Maya Lin",
+          "Role": "Full Stack Engineer",
+          "Department": "Engineering",
+          "Email": "maya.l@company.io"
+        }
+      ]
+    },
+    {
+      "id": "milestones",
+      "name": "Milestones",
+      "description": "Key project deliverables and deadlines",
+      "icon": "flag-checkered",
+      "color": "rose",
+      "columns": [
+        {
+          "name": "Milestone",
+          "column_type": "text",
+          "info": "Milestone title",
+          "required": true
+        },
+        {
+          "name": "Project",
+          "column_type": "ref",
+          "info": "Belongs to project",
+          "target_group_table": "projects",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Due Date",
+          "column_type": "date",
+          "info": "Target due date"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Status",
+          "options": "Not Started, On Track, At Risk, Achieved"
+        }
+      ],
+      "rows": [
+        {
+          "Milestone": "User Testing & Wireframe Approval",
+          "Project": 1,
+          "Due Date": "2026-09-15",
+          "Status": "Achieved"
+        },
+        {
+          "Milestone": "Core Database Cluster Migration",
+          "Project": 2,
+          "Due Date": "2026-09-30",
+          "Status": "On Track"
+        },
+        {
+          "Milestone": "React Native Beta Release",
+          "Project": 1,
+          "Due Date": "2026-10-25",
+          "Status": "On Track"
+        },
+        {
+          "Milestone": "Figma Component Library Publish",
+          "Project": 3,
+          "Due Date": "2026-08-20",
+          "Status": "Achieved"
+        }
+      ]
+    },
+    {
+      "id": "tasks",
+      "name": "Tasks",
+      "description": "Actionable tasks with assignees and priority",
+      "icon": "list-check",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Task Title",
+          "column_type": "text",
+          "info": "Task description",
+          "required": true
+        },
+        {
+          "name": "Project",
+          "column_type": "ref",
+          "info": "Project",
+          "target_group_table": "projects",
+          "target_column": "name"
+        },
+        {
+          "name": "Assignee",
+          "column_type": "ref",
+          "info": "Assigned team member",
+          "target_group_table": "team-members",
+          "target_column": "name"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Progress state",
+          "options": "Backlog, Todo, In Progress, In Review, Done"
+        },
+        {
+          "name": "Priority",
+          "column_type": "dropdown",
+          "info": "Urgency",
+          "options": "Low, Medium, High, Urgent"
+        },
+        {
+          "name": "Due Date",
+          "column_type": "date",
+          "info": "Due date"
+        }
+      ],
+      "rows": [
+        {
+          "Task Title": "Implement Biometric Auth Flow",
+          "Project": 1,
+          "Assignee": 4,
+          "Status": "In Progress",
+          "Priority": "High",
+          "Due Date": "2026-10-05"
+        },
+        {
+          "Task Title": "Terraform Script Setup for VPC",
+          "Project": 2,
+          "Assignee": 1,
+          "Status": "Done",
+          "Priority": "Urgent",
+          "Due Date": "2026-09-20"
+        },
+        {
+          "Task Title": "Review Mobile Checkout UX",
+          "Project": 1,
+          "Assignee": 2,
+          "Status": "In Review",
+          "Priority": "Medium",
+          "Due Date": "2026-09-28"
+        },
+        {
+          "Task Title": "Design Accessible Color Palette",
+          "Project": 3,
+          "Assignee": 3,
+          "Status": "Done",
+          "Priority": "Medium",
+          "Due Date": "2026-08-15"
+        },
+        {
+          "Task Title": "Load Testing on Staging Cluster",
+          "Project": 2,
+          "Assignee": 4,
+          "Status": "Todo",
+          "Priority": "High",
+          "Due Date": "2026-10-10"
+        }
+      ]
+    }
+  ]
+}

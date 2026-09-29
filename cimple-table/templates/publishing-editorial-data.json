@@ -1,0 +1,174 @@
+{
+  "id": "publishing-editorial",
+  "name": "Editorial & Content Publishing",
+  "description": "Editorial pipeline for articles, author directory, publication channels, and tasks",
+  "category": "Media",
+  "icon": "newspaper",
+  "color": "violet",
+  "tables": [
+    {
+      "id": "articles",
+      "name": "Articles",
+      "description": "Drafts, editorial review stages, and publication schedules",
+      "icon": "feather-pointed",
+      "color": "violet",
+      "columns": [
+        {
+          "name": "Headline",
+          "column_type": "text",
+          "info": "Article headline",
+          "required": true
+        },
+        {
+          "name": "Topic Section",
+          "column_type": "dropdown",
+          "info": "Section",
+          "options": "Technology, Politics, Culture, Business, Science, Lifestyle"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Editorial workflow",
+          "options": "Pitch, In Writing, Editor Review, Ready to Publish, Published"
+        },
+        {
+          "name": "Publish Date",
+          "column_type": "date",
+          "info": "Scheduled date"
+        },
+        {
+          "name": "Word Count",
+          "column_type": "number",
+          "info": "Article length"
+        }
+      ],
+      "rows": [
+        {
+          "Headline": "The Future of Distributed Local-First Applications",
+          "Topic Section": "Technology",
+          "Status": "Published",
+          "Publish Date": "2026-09-20",
+          "Word Count": 1850
+        },
+        {
+          "Headline": "Design Systems in Practice: Consistency at Scale",
+          "Topic Section": "Technology",
+          "Status": "Editor Review",
+          "Publish Date": "2026-10-02",
+          "Word Count": 2400
+        },
+        {
+          "Headline": "How Autonomous Code Assistants Reshape Engineering Teams",
+          "Topic Section": "Business",
+          "Status": "Ready to Publish",
+          "Publish Date": "2026-09-30",
+          "Word Count": 1600
+        }
+      ]
+    },
+    {
+      "id": "authors",
+      "name": "Authors & Writers",
+      "description": "Contributors, staff journalists, and freelancer roster",
+      "icon": "pen-nib",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Author Name",
+          "column_type": "text",
+          "info": "Byline name",
+          "required": true
+        },
+        {
+          "name": "Role Type",
+          "column_type": "dropdown",
+          "info": "Contributor type",
+          "options": "Staff Writer, Columnist, Freelancer, Guest"
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Email address"
+        }
+      ],
+      "rows": [
+        {
+          "Author Name": "Jordan Lee",
+          "Role Type": "Staff Writer",
+          "Email": "jordan.l@publication.io"
+        },
+        {
+          "Author Name": "Samira Khan",
+          "Role Type": "Columnist",
+          "Email": "samira.k@publication.io"
+        },
+        {
+          "Author Name": "Lucas Vance",
+          "Role Type": "Freelancer",
+          "Email": "lucas.v@freelance.net"
+        }
+      ]
+    },
+    {
+      "id": "editorial-tasks",
+      "name": "Editorial Checklist",
+      "description": "Fact checking, photo permissions, copyediting, and SEO tasks",
+      "icon": "list-check",
+      "color": "amber",
+      "columns": [
+        {
+          "name": "Article",
+          "column_type": "ref",
+          "info": "Target article",
+          "target_group_table": "articles",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Checklist Item",
+          "column_type": "dropdown",
+          "info": "Task type",
+          "options": "Fact Check, Copyedit, Graphic / Header Image, SEO Audit, Legal Review"
+        },
+        {
+          "name": "Assigned To",
+          "column_type": "ref",
+          "info": "Assignee",
+          "target_group_table": "authors",
+          "target_column": "name"
+        },
+        {
+          "name": "Complete",
+          "column_type": "checkbox",
+          "info": "Is verified"
+        }
+      ],
+      "rows": [
+        {
+          "Article": 1,
+          "Checklist Item": "Fact Check",
+          "Assigned To": 1,
+          "Complete": true
+        },
+        {
+          "Article": 1,
+          "Checklist Item": "SEO Audit",
+          "Assigned To": 2,
+          "Complete": true
+        },
+        {
+          "Article": 2,
+          "Checklist Item": "Copyedit",
+          "Assigned To": 2,
+          "Complete": false
+        },
+        {
+          "Article": 3,
+          "Checklist Item": "Graphic / Header Image",
+          "Assigned To": 3,
+          "Complete": true
+        }
+      ]
+    }
+  ]
+}

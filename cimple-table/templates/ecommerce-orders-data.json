@@ -1,0 +1,294 @@
+{
+  "id": "ecommerce-orders",
+  "name": "E-Commerce & Orders",
+  "description": "Manage product catalogs, customer accounts, orders, and line items",
+  "category": "Commerce",
+  "icon": "cart-shopping",
+  "color": "emerald",
+  "tables": [
+    {
+      "id": "products",
+      "name": "Products",
+      "description": "Product inventory, pricing, and stock status",
+      "icon": "box",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Product Name",
+          "column_type": "text",
+          "info": "Name of item",
+          "required": true
+        },
+        {
+          "name": "SKU",
+          "column_type": "text",
+          "info": "Stock keeping unit"
+        },
+        {
+          "name": "Category",
+          "column_type": "dropdown",
+          "info": "Product category",
+          "options": "Electronics, Apparel, Home & Kitchen, Health, Books"
+        },
+        {
+          "name": "Unit Price",
+          "column_type": "number",
+          "info": "Price in USD"
+        },
+        {
+          "name": "Stock Quantity",
+          "column_type": "number",
+          "info": "Current inventory count"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Availability",
+          "options": "In Stock, Low Stock, Backordered, Discontinued"
+        }
+      ],
+      "rows": [
+        {
+          "Product Name": "Noise-Canceling Wireless Headphones",
+          "SKU": "AUD-100",
+          "Category": "Electronics",
+          "Unit Price": 199.99,
+          "Stock Quantity": 45,
+          "Status": "In Stock"
+        },
+        {
+          "Product Name": "Ergonomic Mechanical Keyboard",
+          "SKU": "KEY-200",
+          "Category": "Electronics",
+          "Unit Price": 129.5,
+          "Stock Quantity": 30,
+          "Status": "In Stock"
+        },
+        {
+          "Product Name": "Organic Cotton Crewneck T-Shirt",
+          "SKU": "APP-300",
+          "Category": "Apparel",
+          "Unit Price": 29.99,
+          "Stock Quantity": 110,
+          "Status": "In Stock"
+        },
+        {
+          "Product Name": "Ceramic Pour-Over Coffee Maker",
+          "SKU": "HOM-400",
+          "Category": "Home & Kitchen",
+          "Unit Price": 38.0,
+          "Stock Quantity": 18,
+          "Status": "Low Stock"
+        }
+      ]
+    },
+    {
+      "id": "customers",
+      "name": "Customers",
+      "description": "Customer directory, contact information, and tiers",
+      "icon": "users",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Customer Name",
+          "column_type": "text",
+          "info": "Full name",
+          "required": true
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Contact email"
+        },
+        {
+          "name": "Phone",
+          "column_type": "text",
+          "info": "Phone number"
+        },
+        {
+          "name": "City",
+          "column_type": "text",
+          "info": "Customer city"
+        },
+        {
+          "name": "Tier",
+          "column_type": "dropdown",
+          "info": "Loyalty tier",
+          "options": "Standard, Silver, Gold, VIP"
+        }
+      ],
+      "rows": [
+        {
+          "Customer Name": "Sarah Jenkins",
+          "Email": "sarah.j@example.com",
+          "Phone": "+1-555-0192",
+          "City": "Seattle",
+          "Tier": "Gold"
+        },
+        {
+          "Customer Name": "Marcus Vance",
+          "Email": "marcus.v@example.com",
+          "Phone": "+1-555-0143",
+          "City": "Austin",
+          "Tier": "VIP"
+        },
+        {
+          "Customer Name": "Elena Rostova",
+          "Email": "elena.r@example.com",
+          "Phone": "+1-555-0188",
+          "City": "New York",
+          "Tier": "Standard"
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "name": "Orders",
+      "description": "Customer purchase orders, payment, and shipping status",
+      "icon": "receipt",
+      "color": "amber",
+      "columns": [
+        {
+          "name": "Order Number",
+          "column_type": "text",
+          "info": "Order ID #",
+          "required": true
+        },
+        {
+          "name": "Customer",
+          "column_type": "ref",
+          "info": "Placing customer",
+          "target_group_table": "customers",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Order Date",
+          "column_type": "date",
+          "info": "Date placed"
+        },
+        {
+          "name": "Total Amount",
+          "column_type": "number",
+          "info": "Total order sum"
+        },
+        {
+          "name": "Payment Status",
+          "column_type": "dropdown",
+          "info": "Payment status",
+          "options": "Pending, Paid, Refunded, Failed"
+        },
+        {
+          "name": "Fulfillment",
+          "column_type": "dropdown",
+          "info": "Shipping status",
+          "options": "Unfulfilled, Processing, Shipped, Delivered, Returned"
+        }
+      ],
+      "rows": [
+        {
+          "Order Number": "ORD-2026-001",
+          "Customer": 1,
+          "Order Date": "2026-09-18",
+          "Total Amount": 229.98,
+          "Payment Status": "Paid",
+          "Fulfillment": "Delivered"
+        },
+        {
+          "Order Number": "ORD-2026-002",
+          "Customer": 2,
+          "Order Date": "2026-09-20",
+          "Total Amount": 129.5,
+          "Payment Status": "Paid",
+          "Fulfillment": "Shipped"
+        },
+        {
+          "Order Number": "ORD-2026-003",
+          "Customer": 3,
+          "Order Date": "2026-09-23",
+          "Total Amount": 67.99,
+          "Payment Status": "Pending",
+          "Fulfillment": "Processing"
+        }
+      ]
+    },
+    {
+      "id": "order-items",
+      "name": "Order Items",
+      "description": "Individual products and quantities tied to orders",
+      "icon": "list-check",
+      "color": "purple",
+      "columns": [
+        {
+          "name": "Order",
+          "column_type": "ref",
+          "info": "Related order",
+          "target_group_table": "orders",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Product",
+          "column_type": "ref",
+          "info": "Ordered product",
+          "target_group_table": "products",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Quantity",
+          "column_type": "number",
+          "info": "Item quantity",
+          "required": true
+        },
+        {
+          "name": "Unit Price",
+          "column_type": "number",
+          "info": "Price per unit"
+        },
+        {
+          "name": "Subtotal",
+          "column_type": "number",
+          "info": "Line total"
+        }
+      ],
+      "rows": [
+        {
+          "Order": 1,
+          "Product": 1,
+          "Quantity": 1,
+          "Unit Price": 199.99,
+          "Subtotal": 199.99
+        },
+        {
+          "Order": 1,
+          "Product": 3,
+          "Quantity": 1,
+          "Unit Price": 29.99,
+          "Subtotal": 29.99
+        },
+        {
+          "Order": 2,
+          "Product": 2,
+          "Quantity": 1,
+          "Unit Price": 129.5,
+          "Subtotal": 129.5
+        },
+        {
+          "Order": 3,
+          "Product": 4,
+          "Quantity": 1,
+          "Unit Price": 38.0,
+          "Subtotal": 38.0
+        },
+        {
+          "Order": 3,
+          "Product": 3,
+          "Quantity": 1,
+          "Unit Price": 29.99,
+          "Subtotal": 29.99
+        }
+      ]
+    }
+  ]
+}

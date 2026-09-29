@@ -1,0 +1,319 @@
+{
+  "id": "school-attendance",
+  "name": "Student & School Management",
+  "description": "Track students, subjects, daily attendance, and exam grades in one connected system",
+  "category": "Education",
+  "icon": "graduation-cap",
+  "color": "blue",
+  "tables": [
+    {
+      "id": "students",
+      "name": "Students",
+      "description": "Student roster, enrollment details, and parent contact",
+      "icon": "user-graduate",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Full Name",
+          "column_type": "text",
+          "info": "Student's full name",
+          "required": true
+        },
+        {
+          "name": "Roll Number",
+          "column_type": "text",
+          "info": "Unique student ID or roll number"
+        },
+        {
+          "name": "Grade Class",
+          "column_type": "dropdown",
+          "info": "Class or grade level",
+          "options": "Grade 9, Grade 10, Grade 11, Grade 12"
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Student or parent email"
+        },
+        {
+          "name": "Date of Birth",
+          "column_type": "date",
+          "info": "Birthday"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Enrollment status",
+          "options": "Active, Inactive, Graduated, Suspended"
+        }
+      ],
+      "rows": [
+        {
+          "Full Name": "Alice Smith",
+          "Roll Number": "R-101",
+          "Grade Class": "Grade 10",
+          "Email": "alice.smith@school.edu",
+          "Date of Birth": "2009-04-12",
+          "Status": "Active"
+        },
+        {
+          "Full Name": "Bob Johnson",
+          "Roll Number": "R-102",
+          "Grade Class": "Grade 10",
+          "Email": "bob.j@school.edu",
+          "Date of Birth": "2009-08-25",
+          "Status": "Active"
+        },
+        {
+          "Full Name": "Charlie Brown",
+          "Roll Number": "R-103",
+          "Grade Class": "Grade 11",
+          "Email": "charlie.b@school.edu",
+          "Date of Birth": "2008-11-03",
+          "Status": "Active"
+        },
+        {
+          "Full Name": "Diana Prince",
+          "Roll Number": "R-104",
+          "Grade Class": "Grade 11",
+          "Email": "diana.p@school.edu",
+          "Date of Birth": "2008-02-18",
+          "Status": "Active"
+        }
+      ]
+    },
+    {
+      "id": "subjects",
+      "name": "Subjects",
+      "description": "Curriculum courses, subject codes, and assigned teachers",
+      "icon": "book-open",
+      "color": "indigo",
+      "columns": [
+        {
+          "name": "Subject Name",
+          "column_type": "text",
+          "info": "Course name",
+          "required": true
+        },
+        {
+          "name": "Code",
+          "column_type": "text",
+          "info": "Subject identifier code"
+        },
+        {
+          "name": "Department",
+          "column_type": "dropdown",
+          "info": "Academic department",
+          "options": "Mathematics, Science, Humanities, Arts, Languages"
+        },
+        {
+          "name": "Teacher",
+          "column_type": "text",
+          "info": "Primary instructor"
+        },
+        {
+          "name": "Credits",
+          "column_type": "number",
+          "info": "Credit hours"
+        }
+      ],
+      "rows": [
+        {
+          "Subject Name": "Advanced Mathematics",
+          "Code": "MATH-201",
+          "Department": "Mathematics",
+          "Teacher": "Dr. Alan Turing",
+          "Credits": 4
+        },
+        {
+          "Subject Name": "General Physics",
+          "Code": "PHYS-101",
+          "Department": "Science",
+          "Teacher": "Prof. Marie Curie",
+          "Credits": 4
+        },
+        {
+          "Subject Name": "English Literature",
+          "Code": "ENG-105",
+          "Department": "Languages",
+          "Teacher": "Ms. Jane Austen",
+          "Credits": 3
+        },
+        {
+          "Subject Name": "World History",
+          "Code": "HIST-110",
+          "Department": "Humanities",
+          "Teacher": "Mr. Howard Zinn",
+          "Credits": 3
+        }
+      ]
+    },
+    {
+      "id": "attendance",
+      "name": "Attendance",
+      "description": "Daily student class attendance logs and status",
+      "icon": "clipboard-user",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Student",
+          "column_type": "ref",
+          "info": "Enrolled student",
+          "target_group_table": "students",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Subject",
+          "column_type": "ref",
+          "info": "Attended subject",
+          "target_group_table": "subjects",
+          "target_column": "name"
+        },
+        {
+          "name": "Date",
+          "column_type": "date",
+          "info": "Date of session",
+          "required": true
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Attendance status",
+          "options": "Present, Absent, Late, Excused"
+        },
+        {
+          "name": "Remarks",
+          "column_type": "text",
+          "info": "Notes or reason"
+        }
+      ],
+      "rows": [
+        {
+          "Student": 1,
+          "Subject": 1,
+          "Date": "2026-09-21",
+          "Status": "Present",
+          "Remarks": "On time"
+        },
+        {
+          "Student": 2,
+          "Subject": 1,
+          "Date": "2026-09-21",
+          "Status": "Late",
+          "Remarks": "Arrived 10 mins late"
+        },
+        {
+          "Student": 3,
+          "Subject": 2,
+          "Date": "2026-09-21",
+          "Status": "Present",
+          "Remarks": "Lab completed"
+        },
+        {
+          "Student": 4,
+          "Subject": 3,
+          "Date": "2026-09-22",
+          "Status": "Present",
+          "Remarks": "Active participant"
+        },
+        {
+          "Student": 1,
+          "Subject": 2,
+          "Date": "2026-09-22",
+          "Status": "Excused",
+          "Remarks": "Doctor note provided"
+        }
+      ]
+    },
+    {
+      "id": "grades",
+      "name": "Grades & Exams",
+      "description": "Term assessment scores, exam types, and final grades",
+      "icon": "award",
+      "color": "violet",
+      "columns": [
+        {
+          "name": "Student",
+          "column_type": "ref",
+          "info": "Student",
+          "target_group_table": "students",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Subject",
+          "column_type": "ref",
+          "info": "Subject",
+          "target_group_table": "subjects",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Exam Term",
+          "column_type": "dropdown",
+          "info": "Assessment cycle",
+          "options": "Midterm Exam, Final Exam, Quiz 1, Quiz 2, Project"
+        },
+        {
+          "name": "Score",
+          "column_type": "number",
+          "info": "Obtained marks"
+        },
+        {
+          "name": "Max Score",
+          "column_type": "number",
+          "info": "Total possible marks"
+        },
+        {
+          "name": "Grade",
+          "column_type": "dropdown",
+          "info": "Letter grade",
+          "options": "A+, A, B+, B, C, D, F"
+        }
+      ],
+      "rows": [
+        {
+          "Student": 1,
+          "Subject": 1,
+          "Exam Term": "Midterm Exam",
+          "Score": 96,
+          "Max Score": 100,
+          "Grade": "A+"
+        },
+        {
+          "Student": 2,
+          "Subject": 1,
+          "Exam Term": "Midterm Exam",
+          "Score": 84,
+          "Max Score": 100,
+          "Grade": "B+"
+        },
+        {
+          "Student": 3,
+          "Subject": 2,
+          "Exam Term": "Quiz 1",
+          "Score": 48,
+          "Max Score": 50,
+          "Grade": "A"
+        },
+        {
+          "Student": 4,
+          "Subject": 3,
+          "Exam Term": "Project",
+          "Score": 91,
+          "Max Score": 100,
+          "Grade": "A-"
+        },
+        {
+          "Student": 1,
+          "Subject": 4,
+          "Exam Term": "Midterm Exam",
+          "Score": 88,
+          "Max Score": 100,
+          "Grade": "B+"
+        }
+      ]
+    }
+  ]
+}

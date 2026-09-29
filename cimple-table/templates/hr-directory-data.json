@@ -1,0 +1,277 @@
+{
+  "id": "hr-directory",
+  "name": "HR & Employee Directory",
+  "description": "Manage staff directory, department structures, leave requests, and performance",
+  "category": "HR",
+  "icon": "id-badge",
+  "color": "teal",
+  "tables": [
+    {
+      "id": "departments",
+      "name": "Departments",
+      "description": "Organizational units and department heads",
+      "icon": "sitemap",
+      "color": "teal",
+      "columns": [
+        {
+          "name": "Department Name",
+          "column_type": "text",
+          "info": "Department name",
+          "required": true
+        },
+        {
+          "name": "Department Head",
+          "column_type": "text",
+          "info": "Leader name"
+        },
+        {
+          "name": "Budget",
+          "column_type": "number",
+          "info": "Annual budget"
+        },
+        {
+          "name": "Office Floor",
+          "column_type": "text",
+          "info": "Location"
+        }
+      ],
+      "rows": [
+        {
+          "Department Name": "Core Engineering",
+          "Department Head": "David Miller",
+          "Budget": 950000,
+          "Office Floor": "Floor 4"
+        },
+        {
+          "Department Name": "Product Management",
+          "Department Head": "Sarah Chen",
+          "Budget": 420000,
+          "Office Floor": "Floor 3"
+        },
+        {
+          "Department Name": "People Operations",
+          "Department Head": "Jessica Morales",
+          "Budget": 310000,
+          "Office Floor": "Floor 2"
+        }
+      ]
+    },
+    {
+      "id": "employees",
+      "name": "Employees",
+      "description": "Staff roster, employee IDs, and employment details",
+      "icon": "user-tie",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Full Name",
+          "column_type": "text",
+          "info": "Employee name",
+          "required": true
+        },
+        {
+          "name": "Employee ID",
+          "column_type": "text",
+          "info": "Work ID number"
+        },
+        {
+          "name": "Department",
+          "column_type": "ref",
+          "info": "Assigned department",
+          "target_group_table": "departments",
+          "target_column": "name"
+        },
+        {
+          "name": "Job Title",
+          "column_type": "text",
+          "info": "Official designation"
+        },
+        {
+          "name": "Work Email",
+          "column_type": "email",
+          "info": "Work email"
+        },
+        {
+          "name": "Employment Type",
+          "column_type": "dropdown",
+          "info": "Contract type",
+          "options": "Full-Time, Part-Time, Contractor, Intern"
+        },
+        {
+          "name": "Join Date",
+          "column_type": "date",
+          "info": "Hire date"
+        }
+      ],
+      "rows": [
+        {
+          "Full Name": "David Miller",
+          "Employee ID": "EMP-001",
+          "Department": 1,
+          "Job Title": "Director of Engineering",
+          "Work Email": "david.m@corp.local",
+          "Employment Type": "Full-Time",
+          "Join Date": "2023-03-01"
+        },
+        {
+          "Full Name": "Sarah Chen",
+          "Employee ID": "EMP-002",
+          "Department": 2,
+          "Job Title": "Head of Product",
+          "Work Email": "sarah.c@corp.local",
+          "Employment Type": "Full-Time",
+          "Join Date": "2023-06-15"
+        },
+        {
+          "Full Name": "Marcus Brody",
+          "Employee ID": "EMP-003",
+          "Department": 1,
+          "Job Title": "Senior Backend Developer",
+          "Work Email": "marcus.b@corp.local",
+          "Employment Type": "Full-Time",
+          "Join Date": "2024-01-10"
+        },
+        {
+          "Full Name": "Jessica Morales",
+          "Employee ID": "EMP-004",
+          "Department": 3,
+          "Job Title": "HR Manager",
+          "Work Email": "jessica.m@corp.local",
+          "Employment Type": "Full-Time",
+          "Join Date": "2023-08-01"
+        }
+      ]
+    },
+    {
+      "id": "leave-requests",
+      "name": "Leave Requests",
+      "description": "Time-off submissions, approvals, and vacation tracking",
+      "icon": "calendar-check",
+      "color": "amber",
+      "columns": [
+        {
+          "name": "Employee",
+          "column_type": "ref",
+          "info": "Requesting employee",
+          "target_group_table": "employees",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Leave Type",
+          "column_type": "dropdown",
+          "info": "Category",
+          "options": "Paid Vacation, Sick Leave, Personal Day, Parental Leave, Unpaid"
+        },
+        {
+          "name": "Start Date",
+          "column_type": "date",
+          "info": "First day off",
+          "required": true
+        },
+        {
+          "name": "End Date",
+          "column_type": "date",
+          "info": "Last day off"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Approval status",
+          "options": "Submitted, Approved, Rejected, Cancelled"
+        }
+      ],
+      "rows": [
+        {
+          "Employee": 3,
+          "Leave Type": "Paid Vacation",
+          "Start Date": "2026-10-12",
+          "End Date": "2026-10-16",
+          "Status": "Approved"
+        },
+        {
+          "Employee": 2,
+          "Leave Type": "Personal Day",
+          "Start Date": "2026-09-25",
+          "End Date": "2026-09-25",
+          "Status": "Approved"
+        },
+        {
+          "Employee": 1,
+          "Leave Type": "Sick Leave",
+          "Start Date": "2026-09-10",
+          "End Date": "2026-09-11",
+          "Status": "Approved"
+        },
+        {
+          "Employee": 3,
+          "Leave Type": "Paid Vacation",
+          "Start Date": "2026-12-24",
+          "End Date": "2026-12-31",
+          "Status": "Submitted"
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "name": "Performance Reviews",
+      "description": "Periodic evaluations, feedback, and rating scorecards",
+      "icon": "star",
+      "color": "purple",
+      "columns": [
+        {
+          "name": "Employee",
+          "column_type": "ref",
+          "info": "Reviewed employee",
+          "target_group_table": "employees",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Review Cycle",
+          "column_type": "dropdown",
+          "info": "Cycle period",
+          "options": "Q1 Review, Q2 Review, Q3 Review, Q4 Review, Annual Review"
+        },
+        {
+          "name": "Rating",
+          "column_type": "rating",
+          "info": "Score 1-5"
+        },
+        {
+          "name": "Reviewer",
+          "column_type": "text",
+          "info": "Manager conducting review"
+        },
+        {
+          "name": "Key Strengths",
+          "column_type": "textarea",
+          "info": "Notable strengths"
+        }
+      ],
+      "rows": [
+        {
+          "Employee": 3,
+          "Review Cycle": "Q2 Review",
+          "Rating": 5,
+          "Reviewer": "David Miller",
+          "Key Strengths": "Architected real-time notification engine with zero downtime."
+        },
+        {
+          "Employee": 2,
+          "Review Cycle": "Q2 Review",
+          "Rating": 4,
+          "Reviewer": "Executive Team",
+          "Key Strengths": "Strong leadership during mobile launch and clear sprint roadmaps."
+        },
+        {
+          "Employee": 1,
+          "Review Cycle": "Annual Review",
+          "Rating": 5,
+          "Reviewer": "VP Technology",
+          "Key Strengths": "Exceptional team scaling and mentoring junior engineers."
+        }
+      ]
+    }
+  ]
+}

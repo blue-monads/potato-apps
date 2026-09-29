@@ -1,0 +1,243 @@
+{
+  "id": "clinic-patients",
+  "name": "Clinic & Patient Care",
+  "description": "Patient records, attending physicians, appointment visits, and prescriptions",
+  "category": "Healthcare",
+  "icon": "hospital",
+  "color": "red",
+  "tables": [
+    {
+      "id": "patients",
+      "name": "Patients",
+      "description": "Patient demographics, medical IDs, and emergency contacts",
+      "icon": "user-injured",
+      "color": "red",
+      "columns": [
+        {
+          "name": "Patient Name",
+          "column_type": "text",
+          "info": "Full legal name",
+          "required": true
+        },
+        {
+          "name": "Medical Record #",
+          "column_type": "text",
+          "info": "MRN ID"
+        },
+        {
+          "name": "Date of Birth",
+          "column_type": "date",
+          "info": "Birth date"
+        },
+        {
+          "name": "Blood Type",
+          "column_type": "dropdown",
+          "info": "Blood group",
+          "options": "A+, A-, B+, B-, AB+, AB-, O+, O-"
+        },
+        {
+          "name": "Phone",
+          "column_type": "text",
+          "info": "Contact phone"
+        }
+      ],
+      "rows": [
+        {
+          "Patient Name": "Jonathan Reed",
+          "Medical Record #": "MRN-8821",
+          "Date of Birth": "1985-06-14",
+          "Blood Type": "O+",
+          "Phone": "+1-555-0321"
+        },
+        {
+          "Patient Name": "Emily Watson",
+          "Medical Record #": "MRN-8822",
+          "Date of Birth": "1992-11-28",
+          "Blood Type": "A-",
+          "Phone": "+1-555-0322"
+        },
+        {
+          "Patient Name": "Robert Takahashi",
+          "Medical Record #": "MRN-8823",
+          "Date of Birth": "1978-03-04",
+          "Blood Type": "B+",
+          "Phone": "+1-555-0323"
+        },
+        {
+          "Patient Name": "Maria Hernandez",
+          "Medical Record #": "MRN-8824",
+          "Date of Birth": "2001-09-19",
+          "Blood Type": "AB+",
+          "Phone": "+1-555-0324"
+        }
+      ]
+    },
+    {
+      "id": "physicians",
+      "name": "Doctors & Staff",
+      "description": "Medical specialists, clinic rooms, and licenses",
+      "icon": "user-doctor",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Doctor Name",
+          "column_type": "text",
+          "info": "Physician name",
+          "required": true
+        },
+        {
+          "name": "Specialty",
+          "column_type": "dropdown",
+          "info": "Medical field",
+          "options": "General Practice, Pediatrics, Cardiology, Orthopedics, Dermatology"
+        },
+        {
+          "name": "Office Room",
+          "column_type": "text",
+          "info": "Clinic room number"
+        }
+      ],
+      "rows": [
+        {
+          "Doctor Name": "Dr. Gregory Vance",
+          "Specialty": "General Practice",
+          "Office Room": "Room 101"
+        },
+        {
+          "Doctor Name": "Dr. Allison Becker",
+          "Specialty": "Cardiology",
+          "Office Room": "Room 205"
+        },
+        {
+          "Doctor Name": "Dr. James Wilson",
+          "Specialty": "Pediatrics",
+          "Office Room": "Room 108"
+        }
+      ]
+    },
+    {
+      "id": "appointments",
+      "name": "Appointments",
+      "description": "Scheduled patient visits, consultation dates, and triage",
+      "icon": "calendar-plus",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Patient",
+          "column_type": "ref",
+          "info": "Visiting patient",
+          "target_group_table": "patients",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Doctor",
+          "column_type": "ref",
+          "info": "Attending doctor",
+          "target_group_table": "physicians",
+          "target_column": "name"
+        },
+        {
+          "name": "Date",
+          "column_type": "date",
+          "info": "Consultation date",
+          "required": true
+        },
+        {
+          "name": "Time",
+          "column_type": "time",
+          "info": "Time of day"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Visit state",
+          "options": "Scheduled, Checked-In, In Consultation, Completed, Cancelled"
+        }
+      ],
+      "rows": [
+        {
+          "Patient": 1,
+          "Doctor": 1,
+          "Date": "2026-09-28",
+          "Time": "10:00",
+          "Status": "Completed"
+        },
+        {
+          "Patient": 2,
+          "Doctor": 2,
+          "Date": "2026-09-28",
+          "Time": "11:30",
+          "Status": "Completed"
+        },
+        {
+          "Patient": 3,
+          "Doctor": 1,
+          "Date": "2026-09-29",
+          "Time": "09:00",
+          "Status": "Scheduled"
+        },
+        {
+          "Patient": 4,
+          "Doctor": 3,
+          "Date": "2026-09-29",
+          "Time": "14:15",
+          "Status": "Scheduled"
+        }
+      ]
+    },
+    {
+      "id": "prescriptions",
+      "name": "Prescriptions",
+      "description": "Prescribed medicines, dosages, and treatment instructions",
+      "icon": "pills",
+      "color": "purple",
+      "columns": [
+        {
+          "name": "Patient",
+          "column_type": "ref",
+          "info": "Patient",
+          "target_group_table": "patients",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Medication Name",
+          "column_type": "text",
+          "info": "Drug name",
+          "required": true
+        },
+        {
+          "name": "Dosage",
+          "column_type": "text",
+          "info": "Dose e.g. 500mg twice daily"
+        },
+        {
+          "name": "Duration",
+          "column_type": "text",
+          "info": "Duration e.g. 7 days"
+        }
+      ],
+      "rows": [
+        {
+          "Patient": 1,
+          "Medication Name": "Amoxicillin 500mg",
+          "Dosage": "1 capsule every 8 hours",
+          "Duration": "7 days"
+        },
+        {
+          "Patient": 2,
+          "Medication Name": "Atorvastatin 20mg",
+          "Dosage": "1 tablet daily before bedtime",
+          "Duration": "30 days"
+        },
+        {
+          "Patient": 3,
+          "Medication Name": "Lisinopril 10mg",
+          "Dosage": "1 tablet once daily in morning",
+          "Duration": "90 days"
+        }
+      ]
+    }
+  ]
+}

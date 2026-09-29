@@ -1,0 +1,261 @@
+{
+  "id": "warehouse-inventory",
+  "name": "Warehouse & Logistics",
+  "description": "Multi-warehouse stock levels, SKU items, and internal transfer manifests",
+  "category": "Operations",
+  "icon": "warehouse",
+  "color": "orange",
+  "tables": [
+    {
+      "id": "items",
+      "name": "Inventory Items",
+      "description": "Physical items, barcodes, and master specifications",
+      "icon": "barcode",
+      "color": "orange",
+      "columns": [
+        {
+          "name": "Item Name",
+          "column_type": "text",
+          "info": "Product title",
+          "required": true
+        },
+        {
+          "name": "Barcode",
+          "column_type": "barcode",
+          "info": "Scannable barcode"
+        },
+        {
+          "name": "SKU",
+          "column_type": "text",
+          "info": "Inventory code"
+        },
+        {
+          "name": "Category",
+          "column_type": "dropdown",
+          "info": "Type",
+          "options": "Raw Materials, Finished Goods, Packaging, Spare Parts"
+        },
+        {
+          "name": "Unit of Measure",
+          "column_type": "dropdown",
+          "info": "UOM",
+          "options": "Pieces, Boxes, Kilograms, Liters, Pallets"
+        }
+      ],
+      "rows": [
+        {
+          "Item Name": "M8 Stainless Steel Fasteners",
+          "Barcode": "890123450001",
+          "SKU": "FAST-M8-SS",
+          "Category": "Spare Parts",
+          "Unit of Measure": "Boxes"
+        },
+        {
+          "Item Name": "Lithium Battery Module 48V",
+          "Barcode": "890123450002",
+          "SKU": "BAT-48V-5K",
+          "Category": "Finished Goods",
+          "Unit of Measure": "Pieces"
+        },
+        {
+          "Item Name": "Reinforced Shipping Cartons (XL)",
+          "Barcode": "890123450003",
+          "SKU": "PKG-BOX-XL",
+          "Category": "Packaging",
+          "Unit of Measure": "Pallets"
+        },
+        {
+          "Item Name": "Optical Temperature Sensor",
+          "Barcode": "890123450004",
+          "SKU": "SNS-OPT-01",
+          "Category": "Raw Materials",
+          "Unit of Measure": "Pieces"
+        }
+      ]
+    },
+    {
+      "id": "warehouses",
+      "name": "Warehouses",
+      "description": "Storage facilities, distribution centers, and managers",
+      "icon": "building-shield",
+      "color": "slate",
+      "columns": [
+        {
+          "name": "Facility Name",
+          "column_type": "text",
+          "info": "Warehouse name",
+          "required": true
+        },
+        {
+          "name": "Facility Code",
+          "column_type": "text",
+          "info": "Code e.g. WH-EAST"
+        },
+        {
+          "name": "City",
+          "column_type": "text",
+          "info": "Location city"
+        },
+        {
+          "name": "Manager",
+          "column_type": "text",
+          "info": "Facility supervisor"
+        }
+      ],
+      "rows": [
+        {
+          "Facility Name": "Central Logistics Hub",
+          "Facility Code": "WH-CENTRAL",
+          "City": "Dallas",
+          "Manager": "Arthur Pendelton"
+        },
+        {
+          "Facility Name": "West Coast Fulfillment",
+          "Facility Code": "WH-WEST",
+          "City": "Reno",
+          "Manager": "Evelyn Wu"
+        },
+        {
+          "Facility Name": "East Harbor Depot",
+          "Facility Code": "WH-EAST",
+          "City": "Newark",
+          "Manager": "Carlos Santos"
+        }
+      ]
+    },
+    {
+      "id": "stock-levels",
+      "name": "Stock Levels",
+      "description": "Current on-hand stock and reorder thresholds per warehouse",
+      "icon": "boxes-stacked",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Item",
+          "column_type": "ref",
+          "info": "Inventory item",
+          "target_group_table": "items",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Warehouse",
+          "column_type": "ref",
+          "info": "Storage site",
+          "target_group_table": "warehouses",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Quantity On Hand",
+          "column_type": "number",
+          "info": "Current stock"
+        },
+        {
+          "name": "Reorder Point",
+          "column_type": "number",
+          "info": "Restock trigger quantity"
+        }
+      ],
+      "rows": [
+        {
+          "Item": 1,
+          "Warehouse": 1,
+          "Quantity On Hand": 450,
+          "Reorder Point": 100
+        },
+        {
+          "Item": 2,
+          "Warehouse": 1,
+          "Quantity On Hand": 65,
+          "Reorder Point": 20
+        },
+        {
+          "Item": 2,
+          "Warehouse": 2,
+          "Quantity On Hand": 40,
+          "Reorder Point": 15
+        },
+        {
+          "Item": 4,
+          "Warehouse": 3,
+          "Quantity On Hand": 180,
+          "Reorder Point": 50
+        }
+      ]
+    },
+    {
+      "id": "transfers",
+      "name": "Stock Transfers",
+      "description": "Inter-facility transfer shipments and movement logs",
+      "icon": "truck-ramp-box",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Transfer Code",
+          "column_type": "text",
+          "info": "Manifest ID",
+          "required": true
+        },
+        {
+          "name": "Item",
+          "column_type": "ref",
+          "info": "Item shipped",
+          "target_group_table": "items",
+          "target_column": "name"
+        },
+        {
+          "name": "From Warehouse",
+          "column_type": "ref",
+          "info": "Source",
+          "target_group_table": "warehouses",
+          "target_column": "name"
+        },
+        {
+          "name": "To Warehouse",
+          "column_type": "ref",
+          "info": "Destination",
+          "target_group_table": "warehouses",
+          "target_column": "name"
+        },
+        {
+          "name": "Quantity",
+          "column_type": "number",
+          "info": "Transfer count"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Transfer state",
+          "options": "Draft, Picked, In Transit, Delivered, Cancelled"
+        }
+      ],
+      "rows": [
+        {
+          "Transfer Code": "TRF-2026-081",
+          "Item": 2,
+          "From Warehouse": 1,
+          "To Warehouse": 2,
+          "Quantity": 20,
+          "Status": "Delivered"
+        },
+        {
+          "Transfer Code": "TRF-2026-082",
+          "Item": 1,
+          "From Warehouse": 1,
+          "To Warehouse": 3,
+          "Quantity": 100,
+          "Status": "In Transit"
+        },
+        {
+          "Transfer Code": "TRF-2026-083",
+          "Item": 4,
+          "From Warehouse": 3,
+          "To Warehouse": 1,
+          "Quantity": 50,
+          "Status": "Picked"
+        }
+      ]
+    }
+  ]
+}

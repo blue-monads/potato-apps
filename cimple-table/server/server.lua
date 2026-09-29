@@ -1754,6 +1754,25 @@ function on_http(ctx)
         return init_app(ctx)
     end
 
+    if path == "/templates" and method == "GET" then
+        local templates_mod = require("./server/templates")
+        local idx = templates_mod.get_template_index()
+        req.json_array(200, idx)
+        return
+    end
+
+    local tpl_match = string.match(path, "^/templates/([%w%-_]+)$")
+    if tpl_match and method == "GET" then
+        local templates_mod = require("./server/templates")
+        local tpl = templates_mod.get_template(tpl_match)
+        if tpl ~= nil then
+            req.json(200, tpl)
+        else
+            req.json(404, { error = "Template not found" })
+        end
+        return
+    end
+
     -- AutoDash routes
     if string.sub(path, 1, 9) == "/autodash" then
         local autodash = require("./server/autodash/autodash")

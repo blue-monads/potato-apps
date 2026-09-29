@@ -1,0 +1,244 @@
+{
+  "id": "events-conference",
+  "name": "Event & Conference Planning",
+  "description": "Coordinate event agendas, guest speakers, sessions, and ticket registrations",
+  "category": "Events",
+  "icon": "calendar-days",
+  "color": "rose",
+  "tables": [
+    {
+      "id": "events",
+      "name": "Events",
+      "description": "Conferences, summits, and venue details",
+      "icon": "landmark",
+      "color": "rose",
+      "columns": [
+        {
+          "name": "Event Title",
+          "column_type": "text",
+          "info": "Official event name",
+          "required": true
+        },
+        {
+          "name": "Event Type",
+          "column_type": "dropdown",
+          "info": "Format",
+          "options": "In-Person Conference, Virtual Summit, Workshop, Gala Dinner"
+        },
+        {
+          "name": "Start Date",
+          "column_type": "date",
+          "info": "Opening date"
+        },
+        {
+          "name": "End Date",
+          "column_type": "date",
+          "info": "Closing date"
+        },
+        {
+          "name": "Venue",
+          "column_type": "text",
+          "info": "Location or platform"
+        },
+        {
+          "name": "Capacity",
+          "column_type": "number",
+          "info": "Max attendees"
+        }
+      ],
+      "rows": [
+        {
+          "Event Title": "Global Tech Summit 2026",
+          "Event Type": "In-Person Conference",
+          "Start Date": "2026-11-10",
+          "End Date": "2026-11-12",
+          "Venue": "Metropolitan Convention Center",
+          "Capacity": 1500
+        },
+        {
+          "Event Title": "AI Developers Forum",
+          "Event Type": "Virtual Summit",
+          "Start Date": "2026-12-05",
+          "End Date": "2026-12-06",
+          "Venue": "Online Virtual Stage",
+          "Capacity": 3000
+        }
+      ]
+    },
+    {
+      "id": "speakers",
+      "name": "Speakers",
+      "description": "Keynote and session presenters directory",
+      "icon": "bullhorn",
+      "color": "violet",
+      "columns": [
+        {
+          "name": "Speaker Name",
+          "column_type": "text",
+          "info": "Presenter name",
+          "required": true
+        },
+        {
+          "name": "Organization",
+          "column_type": "text",
+          "info": "Affiliated company"
+        },
+        {
+          "name": "Bio",
+          "column_type": "textarea",
+          "info": "Short biography"
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Contact email"
+        }
+      ],
+      "rows": [
+        {
+          "Speaker Name": "Dr. Aris Thorne",
+          "Organization": "Deep Learning Labs",
+          "Bio": "Pioneer in distributed inference systems.",
+          "Email": "aris@example.com"
+        },
+        {
+          "Speaker Name": "Linda Zhao",
+          "Organization": "HyperScale Cloud",
+          "Bio": "VP of Cloud Architecture and Kubernetes contributor.",
+          "Email": "lzhao@example.com"
+        },
+        {
+          "Speaker Name": "David Kim",
+          "Organization": "NextGen Robotics",
+          "Bio": "Autonomous edge robotics lead engineer.",
+          "Email": "dkim@example.com"
+        }
+      ]
+    },
+    {
+      "id": "sessions",
+      "name": "Sessions Agenda",
+      "description": "Scheduled talks, workshops, and breakout panels",
+      "icon": "clock",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Session Title",
+          "column_type": "text",
+          "info": "Talk title",
+          "required": true
+        },
+        {
+          "name": "Event",
+          "column_type": "ref",
+          "info": "Belongs to event",
+          "target_group_table": "events",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Speaker",
+          "column_type": "ref",
+          "info": "Speaker",
+          "target_group_table": "speakers",
+          "target_column": "name"
+        },
+        {
+          "name": "Start Time",
+          "column_type": "time",
+          "info": "Session start"
+        },
+        {
+          "name": "Room",
+          "column_type": "text",
+          "info": "Hall / Room"
+        }
+      ],
+      "rows": [
+        {
+          "Session Title": "Opening Keynote: Distributed AI Horizons",
+          "Event": 1,
+          "Speaker": 1,
+          "Start Time": "09:30",
+          "Room": "Grand Ballroom"
+        },
+        {
+          "Session Title": "Zero Downtime Cloud Migrations",
+          "Event": 1,
+          "Speaker": 2,
+          "Start Time": "11:15",
+          "Room": "Tech Hall A"
+        },
+        {
+          "Session Title": "Edge Robotics & Real-time Vision",
+          "Event": 2,
+          "Speaker": 3,
+          "Start Time": "14:00",
+          "Room": "Virtual Track 1"
+        }
+      ]
+    },
+    {
+      "id": "registrations",
+      "name": "Attendee Registrations",
+      "description": "Ticket orders and attendee check-in status",
+      "icon": "ticket",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Attendee Name",
+          "column_type": "text",
+          "info": "Guest name",
+          "required": true
+        },
+        {
+          "name": "Event",
+          "column_type": "ref",
+          "info": "Registered event",
+          "target_group_table": "events",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Ticket Tier",
+          "column_type": "dropdown",
+          "info": "Pass type",
+          "options": "General Admission, VIP Pass, Early Bird, Student"
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Ticket confirmation email"
+        },
+        {
+          "name": "Checked In",
+          "column_type": "checkbox",
+          "info": "Badge printed / scanned"
+        }
+      ],
+      "rows": [
+        {
+          "Attendee Name": "Jonathan Miller",
+          "Event": 1,
+          "Ticket Tier": "VIP Pass",
+          "Email": "jmiller@techcorp.com",
+          "Checked In": true
+        },
+        {
+          "Attendee Name": "Sofia Rossi",
+          "Event": 1,
+          "Ticket Tier": "General Admission",
+          "Email": "srossi@startup.io",
+          "Checked In": false
+        },
+        {
+          "Attendee Name": "Kenji Sato",
+          "Event": 2,
+          "Ticket Tier": "Early Bird",
+          "Email": "kenji@research.org",
+          "Checked In": true
+        }
+      ]
+    }
+  ]
+}

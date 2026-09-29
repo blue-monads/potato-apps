@@ -1,0 +1,266 @@
+{
+  "id": "crm-pipeline",
+  "name": "CRM & Sales Pipeline",
+  "description": "Track company accounts, sales leads, deals, and engagement activities",
+  "category": "Sales",
+  "icon": "handshake",
+  "color": "violet",
+  "tables": [
+    {
+      "id": "accounts",
+      "name": "Accounts",
+      "description": "Target companies and corporate clients",
+      "icon": "building",
+      "color": "violet",
+      "columns": [
+        {
+          "name": "Company Name",
+          "column_type": "text",
+          "info": "Organization name",
+          "required": true
+        },
+        {
+          "name": "Industry",
+          "column_type": "dropdown",
+          "info": "Industry sector",
+          "options": "SaaS & Tech, Healthcare, Finance, Retail, Manufacturing"
+        },
+        {
+          "name": "Website",
+          "column_type": "link",
+          "info": "Company website"
+        },
+        {
+          "name": "Annual Revenue",
+          "column_type": "number",
+          "info": "Estimated revenue"
+        },
+        {
+          "name": "Location",
+          "column_type": "text",
+          "info": "Headquarters city"
+        }
+      ],
+      "rows": [
+        {
+          "Company Name": "Apex Cloud Services",
+          "Industry": "SaaS & Tech",
+          "Website": "https://apexcloud.example",
+          "Annual Revenue": 15000000,
+          "Location": "San Francisco"
+        },
+        {
+          "Company Name": "BioGen Health Systems",
+          "Industry": "Healthcare",
+          "Website": "https://biogen.example",
+          "Annual Revenue": 42000000,
+          "Location": "Boston"
+        },
+        {
+          "Company Name": "Nordic Retail Holdings",
+          "Industry": "Retail",
+          "Website": "https://nordicretail.example",
+          "Annual Revenue": 28000000,
+          "Location": "Chicago"
+        }
+      ]
+    },
+    {
+      "id": "contacts",
+      "name": "Contacts",
+      "description": "Stakeholders and decision makers at client accounts",
+      "icon": "address-card",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Contact Name",
+          "column_type": "text",
+          "info": "Person's name",
+          "required": true
+        },
+        {
+          "name": "Company",
+          "column_type": "ref",
+          "info": "Associated company",
+          "target_group_table": "accounts",
+          "target_column": "name"
+        },
+        {
+          "name": "Job Title",
+          "column_type": "text",
+          "info": "Position"
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Direct email"
+        },
+        {
+          "name": "Phone",
+          "column_type": "text",
+          "info": "Direct phone"
+        },
+        {
+          "name": "Stage",
+          "column_type": "dropdown",
+          "info": "Contact status",
+          "options": "Lead, Prospect, Customer, Churned"
+        }
+      ],
+      "rows": [
+        {
+          "Contact Name": "Liam Vance",
+          "Company": 1,
+          "Job Title": "VP of Engineering",
+          "Email": "lvance@apexcloud.example",
+          "Phone": "+1-415-555-0182",
+          "Stage": "Customer"
+        },
+        {
+          "Contact Name": "Dr. Evelyn Ross",
+          "Company": 2,
+          "Job Title": "Chief Medical Officer",
+          "Email": "eross@biogen.example",
+          "Phone": "+1-617-555-0144",
+          "Stage": "Prospect"
+        },
+        {
+          "Contact Name": "Henrik Lindqvist",
+          "Company": 3,
+          "Job Title": "Director of Supply Chain",
+          "Email": "henrik@nordicretail.example",
+          "Phone": "+1-312-555-0199",
+          "Stage": "Lead"
+        },
+        {
+          "Contact Name": "Clara Oswald",
+          "Company": 1,
+          "Job Title": "Procurement Manager",
+          "Email": "coswald@apexcloud.example",
+          "Phone": "+1-415-555-0128",
+          "Stage": "Customer"
+        }
+      ]
+    },
+    {
+      "id": "deals",
+      "name": "Deals Pipeline",
+      "description": "Sales opportunities, deal stages, and expected revenue",
+      "icon": "funnel-dollar",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Deal Name",
+          "column_type": "text",
+          "info": "Opportunity title",
+          "required": true
+        },
+        {
+          "name": "Account",
+          "column_type": "ref",
+          "info": "Client company",
+          "target_group_table": "accounts",
+          "target_column": "name"
+        },
+        {
+          "name": "Value",
+          "column_type": "number",
+          "info": "Contract value"
+        },
+        {
+          "name": "Stage",
+          "column_type": "dropdown",
+          "info": "Sales stage",
+          "options": "Prospecting, Qualification, Proposal Sent, Negotiation, Closed Won, Closed Lost"
+        },
+        {
+          "name": "Target Close",
+          "column_type": "date",
+          "info": "Target close date"
+        }
+      ],
+      "rows": [
+        {
+          "Deal Name": "Apex Enterprise Platform License",
+          "Account": 1,
+          "Value": 85000,
+          "Stage": "Closed Won",
+          "Target Close": "2026-08-30"
+        },
+        {
+          "Deal Name": "BioGen HIPAA Compliance Suite",
+          "Account": 2,
+          "Value": 140000,
+          "Stage": "Proposal Sent",
+          "Target Close": "2026-10-15"
+        },
+        {
+          "Deal Name": "Nordic POS Data Integration",
+          "Account": 3,
+          "Value": 65000,
+          "Stage": "Qualification",
+          "Target Close": "2026-11-01"
+        }
+      ]
+    },
+    {
+      "id": "activities",
+      "name": "Sales Activities",
+      "description": "Calls, demos, emails, and meetings logged with clients",
+      "icon": "phone-volume",
+      "color": "amber",
+      "columns": [
+        {
+          "name": "Deal",
+          "column_type": "ref",
+          "info": "Related deal",
+          "target_group_table": "deals",
+          "target_column": "name"
+        },
+        {
+          "name": "Activity Type",
+          "column_type": "dropdown",
+          "info": "Type of touchpoint",
+          "options": "Call, Discovery Meeting, Product Demo, Email Followup, Lunch"
+        },
+        {
+          "name": "Date",
+          "column_type": "date",
+          "info": "Date of activity",
+          "required": true
+        },
+        {
+          "name": "Summary Notes",
+          "column_type": "textarea",
+          "info": "Key takeaways"
+        }
+      ],
+      "rows": [
+        {
+          "Deal": 1,
+          "Activity Type": "Call",
+          "Date": "2026-08-15",
+          "Summary Notes": "Reviewed security architecture and finalized license terms with Liam."
+        },
+        {
+          "Deal": 2,
+          "Activity Type": "Product Demo",
+          "Date": "2026-09-12",
+          "Summary Notes": "Walkthrough of audit log compliance with Dr. Ross and security team."
+        },
+        {
+          "Deal": 2,
+          "Activity Type": "Discovery Meeting",
+          "Date": "2026-09-20",
+          "Summary Notes": "Discussed data residency requirements and custom API connectors."
+        },
+        {
+          "Deal": 3,
+          "Activity Type": "Discovery Meeting",
+          "Date": "2026-09-24",
+          "Summary Notes": "Initial intro with Henrik on inventory sync requirements."
+        }
+      ]
+    }
+  ]
+}

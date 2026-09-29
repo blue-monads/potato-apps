@@ -1,0 +1,221 @@
+{
+  "id": "restaurant-orders",
+  "name": "Restaurant & Table Bookings",
+  "description": "Menu catalog, table reservations, and live dining orders",
+  "category": "Hospitality",
+  "icon": "utensils",
+  "color": "amber",
+  "tables": [
+    {
+      "id": "menu-items",
+      "name": "Menu Items",
+      "description": "Dishes, drinks, pricing, and allergen details",
+      "icon": "bowl-food",
+      "color": "amber",
+      "columns": [
+        {
+          "name": "Dish Name",
+          "column_type": "text",
+          "info": "Item name",
+          "required": true
+        },
+        {
+          "name": "Category",
+          "column_type": "dropdown",
+          "info": "Course category",
+          "options": "Appetizers, Mains, Desserts, Cocktails, Non-Alcoholic"
+        },
+        {
+          "name": "Price",
+          "column_type": "number",
+          "info": "Menu price"
+        },
+        {
+          "name": "Dietary",
+          "column_type": "multiselect",
+          "info": "Dietary badges",
+          "options": "Vegetarian, Vegan, Gluten-Free, Nut-Free, Halal"
+        },
+        {
+          "name": "Available",
+          "column_type": "checkbox",
+          "info": "In kitchen stock"
+        }
+      ],
+      "rows": [
+        {
+          "Dish Name": "Truffle Mushroom Risotto",
+          "Category": "Mains",
+          "Price": 26.5,
+          "Dietary": "Vegetarian, Gluten-Free",
+          "Available": true
+        },
+        {
+          "Dish Name": "Grilled Prime Ribeye (12oz)",
+          "Category": "Mains",
+          "Price": 42.0,
+          "Dietary": "Gluten-Free, Halal",
+          "Available": true
+        },
+        {
+          "Dish Name": "Crispy Calamari Fritti",
+          "Category": "Appetizers",
+          "Price": 16.0,
+          "Dietary": "Nut-Free",
+          "Available": true
+        },
+        {
+          "Dish Name": "Matcha Lava Cake",
+          "Category": "Desserts",
+          "Price": 12.0,
+          "Dietary": "Vegetarian",
+          "Available": true
+        },
+        {
+          "Dish Name": "Smoked Rosemary Old Fashioned",
+          "Category": "Cocktails",
+          "Price": 15.0,
+          "Dietary": "Vegan",
+          "Available": true
+        }
+      ]
+    },
+    {
+      "id": "reservations",
+      "name": "Table Reservations",
+      "description": "Guest bookings, party sizes, and scheduled times",
+      "icon": "calendar-check",
+      "color": "rose",
+      "columns": [
+        {
+          "name": "Guest Name",
+          "column_type": "text",
+          "info": "Primary diner",
+          "required": true
+        },
+        {
+          "name": "Party Size",
+          "column_type": "number",
+          "info": "Number of guests",
+          "required": true
+        },
+        {
+          "name": "Reservation Date",
+          "column_type": "date",
+          "info": "Date"
+        },
+        {
+          "name": "Seating Time",
+          "column_type": "time",
+          "info": "Reservation time"
+        },
+        {
+          "name": "Table Number",
+          "column_type": "number",
+          "info": "Assigned table"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Booking state",
+          "options": "Confirmed, Seated, Completed, Cancelled, No-Show"
+        }
+      ],
+      "rows": [
+        {
+          "Guest Name": "James Peterson",
+          "Party Size": 4,
+          "Reservation Date": "2026-09-28",
+          "Seating Time": "19:00",
+          "Table Number": 5,
+          "Status": "Completed"
+        },
+        {
+          "Guest Name": "Sophia Laurent",
+          "Party Size": 2,
+          "Reservation Date": "2026-09-28",
+          "Seating Time": "20:30",
+          "Table Number": 12,
+          "Status": "Seated"
+        },
+        {
+          "Guest Name": "Liam O'Connor",
+          "Party Size": 6,
+          "Reservation Date": "2026-09-29",
+          "Seating Time": "18:30",
+          "Table Number": 8,
+          "Status": "Confirmed"
+        }
+      ]
+    },
+    {
+      "id": "kitchen-orders",
+      "name": "Dining Orders",
+      "description": "Tickets sent to kitchen and table billing",
+      "icon": "receipt",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Reservation",
+          "column_type": "ref",
+          "info": "Table booking",
+          "target_group_table": "reservations",
+          "target_column": "name"
+        },
+        {
+          "name": "Server",
+          "column_type": "text",
+          "info": "Assigned server"
+        },
+        {
+          "name": "Ordered Dish",
+          "column_type": "ref",
+          "info": "Menu item",
+          "target_group_table": "menu-items",
+          "target_column": "name"
+        },
+        {
+          "name": "Quantity",
+          "column_type": "number",
+          "info": "Serving count"
+        },
+        {
+          "name": "Order Status",
+          "column_type": "dropdown",
+          "info": "Preparation status",
+          "options": "Received, Cooking, Plated, Served, Paid"
+        }
+      ],
+      "rows": [
+        {
+          "Reservation": 1,
+          "Server": "Marco",
+          "Ordered Dish": 1,
+          "Quantity": 2,
+          "Order Status": "Paid"
+        },
+        {
+          "Reservation": 1,
+          "Server": "Marco",
+          "Ordered Dish": 5,
+          "Quantity": 4,
+          "Order Status": "Paid"
+        },
+        {
+          "Reservation": 2,
+          "Server": "Chloe",
+          "Ordered Dish": 2,
+          "Quantity": 2,
+          "Order Status": "Cooking"
+        },
+        {
+          "Reservation": 2,
+          "Server": "Chloe",
+          "Ordered Dish": 4,
+          "Quantity": 1,
+          "Order Status": "Received"
+        }
+      ]
+    }
+  ]
+}

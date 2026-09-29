@@ -775,6 +775,60 @@
             box.style.display = 'flex';
         }
 
+        async function loadDynamicTemplates() {
+            try {
+                const token = window.spaceGetToken ? window.spaceGetToken('cimple-table') : '';
+                const headers = token ? { 'Authorization': token } : {};
+                const res = await fetch('/zz/api/space/cimple-table/templates', { headers });
+                if (res.ok) {
+                    const templates = await res.json();
+                    if (Array.isArray(templates) && templates.length > 0) {
+                        renderTemplates(templates);
+                    }
+                }
+            } catch (e) {
+                console.log('Using static template list fallback:', e);
+            }
+        }
+
+        function renderTemplates(templates) {
+            const grid = document.getElementById('templateGrid');
+            if (!grid) return;
+            let html = '';
+            templates.forEach((t, i) => {
+                const isRec = i === 0;
+                const isActive = t.id === selectedTemplate;
+                html += `
+                    <div class="template-card ${isActive ? 'active' : ''}" data-category="${t.category || 'General'}" onclick="selectTemplate('${t.id}', this)">
+                        ${isRec ? '<div class="template-badge-rec">Recommended</div>' : ''}
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon"><i class="fa-solid fa-${t.icon || 'table'}"></i></div>
+                                <div class="template-name">${t.name}</div>
+                            </div>
+                            <div class="template-desc">${t.description}</div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-layer-group"></i> ${t.tables_count || ''} Tables • Pre-seeded
+                        </div>
+                    </div>
+                `;
+            });
+            html += `
+                <div class="template-card ${selectedTemplate === 'blank' ? 'active' : ''}" data-category="All" onclick="selectTemplate('blank', this)">
+                    <div>
+                        <div class="template-header">
+                            <div class="template-icon"><i class="fa-solid fa-cube"></i></div>
+                            <div class="template-name">Blank Database</div>
+                        </div>
+                        <div class="template-desc">Fresh start: creates all empty database schema tables without any sample tables.</div>
+                    </div>
+                    <div class="template-meta"><i class="fa-solid fa-file"></i> Pure Schema Only</div>
+                </div>
+            `;
+            grid.innerHTML = html;
+        }
+
         // On page load, verify SpaceKV init status
         function checkStatus() {
             fetch('/zz/api/space/cimple-table/init_status', {
@@ -790,12 +844,14 @@
                     document.getElementById('alreadyInitedView').style.display = 'block';
                 } else {
                     document.getElementById('wizardView').style.display = 'block';
+                    loadDynamicTemplates();
                 }
             })
             .catch(err => {
                 // If init_status error or not inited, fallback to wizard
                 document.getElementById('loadingView').style.display = 'none';
                 document.getElementById('wizardView').style.display = 'block';
+                loadDynamicTemplates();
             });
         }
 

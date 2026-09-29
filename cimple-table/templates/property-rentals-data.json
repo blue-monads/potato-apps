@@ -1,0 +1,254 @@
+{
+  "id": "property-rentals",
+  "name": "Property & Rental Management",
+  "description": "Manage buildings, rental units, tenant leases, and repair requests",
+  "category": "Real Estate",
+  "icon": "city",
+  "color": "emerald",
+  "tables": [
+    {
+      "id": "properties",
+      "name": "Properties",
+      "description": "Real estate complexes, addresses, and property managers",
+      "icon": "building",
+      "color": "emerald",
+      "columns": [
+        {
+          "name": "Property Name",
+          "column_type": "text",
+          "info": "Building title",
+          "required": true
+        },
+        {
+          "name": "Street Address",
+          "column_type": "text",
+          "info": "Street address"
+        },
+        {
+          "name": "Property Type",
+          "column_type": "dropdown",
+          "info": "Category",
+          "options": "Apartment Building, Office Tower, Retail Plaza, Residential Complex"
+        },
+        {
+          "name": "Total Units",
+          "column_type": "number",
+          "info": "Number of units"
+        }
+      ],
+      "rows": [
+        {
+          "Property Name": "Oakwood Luxury Residences",
+          "Street Address": "742 Evergreen Terrace",
+          "Property Type": "Apartment Building",
+          "Total Units": 48
+        },
+        {
+          "Property Name": "Highland Commercial Plaza",
+          "Street Address": "1200 Market Street",
+          "Property Type": "Retail Plaza",
+          "Total Units": 16
+        },
+        {
+          "Property Name": "Riverside Lofts",
+          "Street Address": "350 Waterway Blvd",
+          "Property Type": "Residential Complex",
+          "Total Units": 24
+        }
+      ]
+    },
+    {
+      "id": "units",
+      "name": "Rental Units",
+      "description": "Apartments, monthly rent rates, and occupancy status",
+      "icon": "door-open",
+      "color": "blue",
+      "columns": [
+        {
+          "name": "Unit Number",
+          "column_type": "text",
+          "info": "Unit e.g. Apt 4B",
+          "required": true
+        },
+        {
+          "name": "Property",
+          "column_type": "ref",
+          "info": "Belongs to building",
+          "target_group_table": "properties",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Bedrooms",
+          "column_type": "number",
+          "info": "Bedroom count"
+        },
+        {
+          "name": "Monthly Rent",
+          "column_type": "number",
+          "info": "Rent amount in USD"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Occupancy",
+          "options": "Vacant, Leased, Maintenance, Reserved"
+        }
+      ],
+      "rows": [
+        {
+          "Unit Number": "Apt 201",
+          "Property": 1,
+          "Bedrooms": 2,
+          "Monthly Rent": 2800,
+          "Status": "Leased"
+        },
+        {
+          "Unit Number": "Apt 202",
+          "Property": 1,
+          "Bedrooms": 1,
+          "Monthly Rent": 2100,
+          "Status": "Vacant"
+        },
+        {
+          "Unit Number": "Suite 104",
+          "Property": 2,
+          "Bedrooms": 0,
+          "Monthly Rent": 4500,
+          "Status": "Leased"
+        },
+        {
+          "Unit Number": "Loft 3B",
+          "Property": 3,
+          "Bedrooms": 2,
+          "Monthly Rent": 3200,
+          "Status": "Leased"
+        }
+      ]
+    },
+    {
+      "id": "tenants",
+      "name": "Tenants & Leases",
+      "description": "Lease agreements, tenant contact, and security deposits",
+      "icon": "file-signature",
+      "color": "amber",
+      "columns": [
+        {
+          "name": "Tenant Name",
+          "column_type": "text",
+          "info": "Primary lessee",
+          "required": true
+        },
+        {
+          "name": "Unit",
+          "column_type": "ref",
+          "info": "Rented unit",
+          "target_group_table": "units",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Email",
+          "column_type": "email",
+          "info": "Tenant email"
+        },
+        {
+          "name": "Phone",
+          "column_type": "text",
+          "info": "Phone"
+        },
+        {
+          "name": "Lease Start",
+          "column_type": "date",
+          "info": "Start date"
+        },
+        {
+          "name": "Lease End",
+          "column_type": "date",
+          "info": "Expiration date"
+        }
+      ],
+      "rows": [
+        {
+          "Tenant Name": "Benjamin Hayes",
+          "Unit": 1,
+          "Email": "bhayes@example.com",
+          "Phone": "+1-555-0812",
+          "Lease Start": "2026-01-01",
+          "Lease End": "2026-12-31"
+        },
+        {
+          "Tenant Name": "Artisan Bakery LLC",
+          "Unit": 3,
+          "Email": "contact@artisanbakery.com",
+          "Phone": "+1-555-0899",
+          "Lease Start": "2025-06-01",
+          "Lease End": "2028-05-31"
+        },
+        {
+          "Tenant Name": "Claire Dupont",
+          "Unit": 4,
+          "Email": "cdupont@example.com",
+          "Phone": "+1-555-0744",
+          "Lease Start": "2026-04-01",
+          "Lease End": "2027-03-31"
+        }
+      ]
+    },
+    {
+      "id": "maintenance",
+      "name": "Maintenance Requests",
+      "description": "Tenant repair tickets, urgency, and contractor dispatch",
+      "icon": "screwdriver-wrench",
+      "color": "rose",
+      "columns": [
+        {
+          "name": "Unit",
+          "column_type": "ref",
+          "info": "Affected unit",
+          "target_group_table": "units",
+          "target_column": "name",
+          "required": true
+        },
+        {
+          "name": "Issue Summary",
+          "column_type": "text",
+          "info": "Problem description",
+          "required": true
+        },
+        {
+          "name": "Priority",
+          "column_type": "dropdown",
+          "info": "Urgency",
+          "options": "Routine, Medium, Urgent, Emergency"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Resolution",
+          "options": "New, Scheduled, Parts On Order, Completed"
+        }
+      ],
+      "rows": [
+        {
+          "Unit": 1,
+          "Issue Summary": "Dishwasher leaking water from front door seal",
+          "Priority": "Medium",
+          "Status": "Scheduled"
+        },
+        {
+          "Unit": 3,
+          "Issue Summary": "HVAC unit blowing warm air during afternoon peak",
+          "Priority": "Urgent",
+          "Status": "Parts On Order"
+        },
+        {
+          "Unit": 4,
+          "Issue Summary": "Bathroom vanity cold water faucet dripping",
+          "Priority": "Routine",
+          "Status": "Completed"
+        }
+      ]
+    }
+  ]
+}

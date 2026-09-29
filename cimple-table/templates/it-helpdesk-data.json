@@ -1,0 +1,196 @@
+{
+  "id": "it-helpdesk",
+  "name": "IT Asset & Helpdesk",
+  "description": "Track hardware assets, software licenses, tickets, and maintenance",
+  "category": "IT",
+  "icon": "laptop-code",
+  "color": "cyan",
+  "tables": [
+    {
+      "id": "hardware",
+      "name": "Hardware Assets",
+      "description": "Laptops, monitors, workstations, and serial tags",
+      "icon": "laptop",
+      "color": "cyan",
+      "columns": [
+        {
+          "name": "Asset Tag",
+          "column_type": "text",
+          "info": "Unique asset serial",
+          "required": true
+        },
+        {
+          "name": "Device Model",
+          "column_type": "text",
+          "info": "Model e.g. MacBook Pro M3"
+        },
+        {
+          "name": "Device Type",
+          "column_type": "dropdown",
+          "info": "Category",
+          "options": "Laptop, Desktop, Display, Mobile Phone, Server"
+        },
+        {
+          "name": "Assigned User",
+          "column_type": "text",
+          "info": "Current user"
+        },
+        {
+          "name": "Warranty Expire",
+          "column_type": "date",
+          "info": "Warranty expiration"
+        }
+      ],
+      "rows": [
+        {
+          "Asset Tag": "HW-MBP-101",
+          "Device Model": "MacBook Pro 16\" M3 Max",
+          "Device Type": "Laptop",
+          "Assigned User": "Alex Rivera",
+          "Warranty Expire": "2027-01-15"
+        },
+        {
+          "Asset Tag": "HW-XPS-202",
+          "Device Model": "Dell XPS 15 9530",
+          "Device Type": "Laptop",
+          "Assigned User": "Priya Patel",
+          "Warranty Expire": "2026-11-20"
+        },
+        {
+          "Asset Tag": "HW-MON-303",
+          "Device Model": "LG UltraFine 27\" 4K",
+          "Device Type": "Display",
+          "Assigned User": "Chen Wei",
+          "Warranty Expire": "2026-08-30"
+        },
+        {
+          "Asset Tag": "HW-SVR-404",
+          "Device Model": "Dell PowerEdge R760",
+          "Device Type": "Server",
+          "Assigned User": "Infrastructure Team",
+          "Warranty Expire": "2028-05-10"
+        }
+      ]
+    },
+    {
+      "id": "software",
+      "name": "Software Licenses",
+      "description": "SaaS subscriptions, seat counts, and annual renewals",
+      "icon": "certificate",
+      "color": "indigo",
+      "columns": [
+        {
+          "name": "Software Name",
+          "column_type": "text",
+          "info": "Tool name",
+          "required": true
+        },
+        {
+          "name": "Vendor",
+          "column_type": "text",
+          "info": "Publisher"
+        },
+        {
+          "name": "Seats Purchased",
+          "column_type": "number",
+          "info": "Total seats"
+        },
+        {
+          "name": "Renewal Date",
+          "column_type": "date",
+          "info": "Renewal deadline"
+        },
+        {
+          "name": "Annual Cost",
+          "column_type": "number",
+          "info": "Cost in USD"
+        }
+      ],
+      "rows": [
+        {
+          "Software Name": "Slack Enterprise Grid",
+          "Vendor": "Salesforce",
+          "Seats Purchased": 250,
+          "Renewal Date": "2027-03-01",
+          "Annual Cost": 36000
+        },
+        {
+          "Software Name": "Figma Enterprise",
+          "Vendor": "Figma Inc",
+          "Seats Purchased": 45,
+          "Renewal Date": "2026-12-15",
+          "Annual Cost": 18900
+        },
+        {
+          "Software Name": "GitHub Enterprise Cloud",
+          "Vendor": "Microsoft",
+          "Seats Purchased": 180,
+          "Renewal Date": "2027-05-01",
+          "Annual Cost": 45000
+        }
+      ]
+    },
+    {
+      "id": "tickets",
+      "name": "Support Tickets",
+      "description": "Employee IT issues, triage priority, and resolutions",
+      "icon": "ticket-simple",
+      "color": "rose",
+      "columns": [
+        {
+          "name": "Ticket Subject",
+          "column_type": "text",
+          "info": "Issue title",
+          "required": true
+        },
+        {
+          "name": "Requester",
+          "column_type": "text",
+          "info": "Employee name"
+        },
+        {
+          "name": "Related Hardware",
+          "column_type": "ref",
+          "info": "Troubled device",
+          "target_group_table": "hardware",
+          "target_column": "name"
+        },
+        {
+          "name": "Priority",
+          "column_type": "dropdown",
+          "info": "Urgency",
+          "options": "Low, Medium, High, Critical"
+        },
+        {
+          "name": "Status",
+          "column_type": "dropdown",
+          "info": "Resolution progress",
+          "options": "New, Assigned, In Progress, Waiting for User, Resolved"
+        }
+      ],
+      "rows": [
+        {
+          "Ticket Subject": "External display flickering over Thunderbolt",
+          "Requester": "Chen Wei",
+          "Related Hardware": 3,
+          "Priority": "Medium",
+          "Status": "In Progress"
+        },
+        {
+          "Ticket Subject": "Battery draining abnormally fast after update",
+          "Requester": "Alex Rivera",
+          "Related Hardware": 1,
+          "Priority": "High",
+          "Status": "Assigned"
+        },
+        {
+          "Ticket Subject": "Memory upgrade request for local virtualization",
+          "Requester": "Priya Patel",
+          "Related Hardware": 2,
+          "Priority": "Low",
+          "Status": "Resolved"
+        }
+      ]
+    }
+  ]
+}

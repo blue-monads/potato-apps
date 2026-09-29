@@ -1,0 +1,122 @@
+[
+  {
+    "id": "school-attendance",
+    "name": "Student & School Management",
+    "description": "Track students, subjects, daily attendance, and exam grades in one connected system",
+    "category": "Education",
+    "icon": "graduation-cap",
+    "color": "blue",
+    "tables_count": 4,
+    "file": "school-attendance-data.json"
+  },
+  {
+    "id": "ecommerce-orders",
+    "name": "E-Commerce & Orders",
+    "description": "Manage product catalogs, customer accounts, orders, and line items",
+    "category": "Commerce",
+    "icon": "cart-shopping",
+    "color": "emerald",
+    "tables_count": 4,
+    "file": "ecommerce-orders-data.json"
+  },
+  {
+    "id": "project-tasks",
+    "name": "Project Management & Sprints",
+    "description": "Coordinate team projects, milestones, tasks, and member assignments",
+    "category": "Productivity",
+    "icon": "kanban",
+    "color": "indigo",
+    "tables_count": 4,
+    "file": "project-tasks-data.json"
+  },
+  {
+    "id": "crm-pipeline",
+    "name": "CRM & Sales Pipeline",
+    "description": "Track company accounts, sales leads, deals, and engagement activities",
+    "category": "Sales",
+    "icon": "handshake",
+    "color": "violet",
+    "tables_count": 4,
+    "file": "crm-pipeline-data.json"
+  },
+  {
+    "id": "hr-directory",
+    "name": "HR & Employee Directory",
+    "description": "Manage staff directory, department structures, leave requests, and performance",
+    "category": "HR",
+    "icon": "id-badge",
+    "color": "teal",
+    "tables_count": 4,
+    "file": "hr-directory-data.json"
+  },
+  {
+    "id": "events-conference",
+    "name": "Event & Conference Planning",
+    "description": "Coordinate event agendas, guest speakers, sessions, and ticket registrations",
+    "category": "Events",
+    "icon": "calendar-days",
+    "color": "rose",
+    "tables_count": 4,
+    "file": "events-conference-data.json"
+  },
+  {
+    "id": "restaurant-orders",
+    "name": "Restaurant & Table Bookings",
+    "description": "Menu catalog, table reservations, and live dining orders",
+    "category": "Hospitality",
+    "icon": "utensils",
+    "color": "amber",
+    "tables_count": 3,
+    "file": "restaurant-orders-data.json"
+  },
+  {
+    "id": "warehouse-inventory",
+    "name": "Warehouse & Logistics",
+    "description": "Multi-warehouse stock levels, SKU items, and internal transfer manifests",
+    "category": "Operations",
+    "icon": "warehouse",
+    "color": "orange",
+    "tables_count": 4,
+    "file": "warehouse-inventory-data.json"
+  },
+  {
+    "id": "it-helpdesk",
+    "name": "IT Asset & Helpdesk",
+    "description": "Track hardware assets, software licenses, tickets, and maintenance",
+    "category": "IT",
+    "icon": "laptop-code",
+    "color": "cyan",
+    "tables_count": 3,
+    "file": "it-helpdesk-data.json"
+  },
+  {
+    "id": "property-rentals",
+    "name": "Property & Rental Management",
+    "description": "Manage buildings, rental units, tenant leases, and repair requests",
+    "category": "Real Estate",
+    "icon": "city",
+    "color": "emerald",
+    "tables_count": 4,
+    "file": "property-rentals-data.json"
+  },
+  {
+    "id": "clinic-patients",
+    "name": "Clinic & Patient Care",
+    "description": "Patient records, attending physicians, appointment visits, and prescriptions",
+    "category": "Healthcare",
+    "icon": "hospital",
+    "color": "red",
+    "tables_count": 4,
+    "file": "clinic-patients-data.json"
+  },
+  {
+    "id": "publishing-editorial",
+    "name": "Editorial & Content Publishing",
+    "description": "Editorial pipeline for articles, author directory, publication channels, and tasks",
+    "category": "Media",
+    "icon": "newspaper",
+    "color": "violet",
+    "tables_count": 3,
+    "file": "publishing-editorial-data.json"
+  }
+]
