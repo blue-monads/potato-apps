@@ -74,6 +74,28 @@ end
 
 local _unpack = table.unpack or unpack
 
+local function normalize_timestamp(val)
+    if val == nil then return "" end
+    local t = type(val)
+    if t == "string" then
+        if string.sub(val, 1, 7) == "table: " then
+            return ""
+        end
+        return val
+    elseif t == "number" then
+        return os.date("!%Y-%m-%d %H:%M:%SZ", val)
+    elseif t == "table" then
+        if val.year and val.month and val.day then
+            return string.format("%04d-%02d-%02d %02d:%02d:%02d",
+                val.year, val.month, val.day,
+                val.hour or 0, val.min or 0, val.sec or 0)
+        end
+        return ""
+    end
+    return ""
+end
+
+
 local function sql_type_for_column(col_type)
     if col_type == "number" or col_type == "ref" or col_type == "percent" or col_type == "rating" or col_type == "duration" then
         return "NUMERIC DEFAULT NULL"
@@ -446,8 +468,8 @@ local function get_table_rows(table_id, cols_array)
     for _, arow in ipairs(actual_list) do
         local r = {
             id = tonumber(arow.id) or arow.id,
-            created_at = arow.created_at or "",
-            updated_at = arow.updated_at or ""
+            created_at = normalize_timestamp(arow.created_at),
+            updated_at = normalize_timestamp(arow.updated_at)
         }
         for _, col in ipairs(cols_array) do
             if col.slug and col.slug ~= "" then
@@ -477,6 +499,12 @@ function list_datatables(ctx)
             error = tostring(err)
         })
         return
+    end
+    if datatables ~= nil and type(datatables) == "table" then
+        for _, dt in ipairs(datatables) do
+            dt.created_at = normalize_timestamp(dt.created_at)
+            dt.updated_at = normalize_timestamp(dt.updated_at)
+        end
     end
     req.json_array(200, datatables)
 end
@@ -523,6 +551,10 @@ function create_datatable(ctx)
         datatable.id = id
         result = datatable
     end
+    if result ~= nil then
+        result.created_at = normalize_timestamp(result.created_at)
+        result.updated_at = normalize_timestamp(result.updated_at)
+    end
     req.json(200, result)
 end
 
@@ -552,6 +584,9 @@ function get_datatable(ctx, table_id)
         })
         return
     end
+
+    datatable.created_at = normalize_timestamp(datatable.created_at)
+    datatable.updated_at = normalize_timestamp(datatable.updated_at)
 
     -- Get columns
     local columns, cols_err = potato.db.find_all_by_cond("DatatableColumns", {
@@ -1001,8 +1036,8 @@ function query_datatable(ctx, table_id)
         for _, arow in ipairs(query_rows) do
             local r = {
                 id = tonumber(arow.id) or arow.id,
-                created_at = arow.created_at or "",
-                updated_at = arow.updated_at or ""
+                created_at = normalize_timestamp(arow.created_at),
+                updated_at = normalize_timestamp(arow.updated_at)
             }
             for _, col in ipairs(cols_array) do
                 if col.slug and col.slug ~= "" then
@@ -1021,13 +1056,16 @@ function query_datatable(ctx, table_id)
     end
 
     local last_updated = ""
-    local last_res, _ = potato.db.run_query_one("SELECT MAX(updated_at) as last_updated FROM " .. actual_tbl)
+    local last_res, _ = potato.db.run_query_one("SELECT CAST(COALESCE(MAX(updated_at), '') AS TEXT) as last_updated FROM " .. actual_tbl)
     if last_res ~= nil and last_res.last_updated ~= nil then
-        last_updated = tostring(last_res.last_updated)
+        last_updated = normalize_timestamp(last_res.last_updated)
     end
-    local dt_meta, _ = potato.db.find_by_id("Datatables", n_tid)
-    if dt_meta ~= nil and dt_meta.updated_at ~= nil and tostring(dt_meta.updated_at) > last_updated then
-        last_updated = tostring(dt_meta.updated_at)
+    local meta_res, _ = potato.db.run_query_one("SELECT CAST(COALESCE(updated_at, '') AS TEXT) as updated_at FROM Datatables WHERE id = ?", n_tid)
+    if meta_res ~= nil and meta_res.updated_at ~= nil then
+        local meta_updated = normalize_timestamp(meta_res.updated_at)
+        if meta_updated > last_updated then
+            last_updated = meta_updated
+        end
     end
 
     req.json(200, {
@@ -1055,14 +1093,17 @@ function get_table_last_updated(ctx, table_id)
     local actual_tbl = "Actual" .. tostring(n_tid)
 
     local last_updated = ""
-    local last_res, _ = potato.db.run_query_one("SELECT MAX(updated_at) as last_updated FROM " .. actual_tbl)
+    local last_res, _ = potato.db.run_query_one("SELECT CAST(COALESCE(MAX(updated_at), '') AS TEXT) as last_updated FROM " .. actual_tbl)
     if last_res ~= nil and last_res.last_updated ~= nil then
-        last_updated = tostring(last_res.last_updated)
+        last_updated = normalize_timestamp(last_res.last_updated)
     end
 
-    local dt_meta, _ = potato.db.find_by_id("Datatables", n_tid)
-    if dt_meta ~= nil and dt_meta.updated_at ~= nil and tostring(dt_meta.updated_at) > last_updated then
-        last_updated = tostring(dt_meta.updated_at)
+    local meta_res, _ = potato.db.run_query_one("SELECT CAST(COALESCE(updated_at, '') AS TEXT) as updated_at FROM Datatables WHERE id = ?", n_tid)
+    if meta_res ~= nil and meta_res.updated_at ~= nil then
+        local meta_updated = normalize_timestamp(meta_res.updated_at)
+        if meta_updated > last_updated then
+            last_updated = meta_updated
+        end
     end
 
     req.json(200, {
@@ -1136,8 +1177,8 @@ function resolve_ref_ids(ctx, table_id)
         for _, arow in ipairs(query_rows) do
             local r = {
                 id = tonumber(arow.id) or arow.id,
-                created_at = arow.created_at or "",
-                updated_at = arow.updated_at or ""
+                created_at = normalize_timestamp(arow.created_at),
+                updated_at = normalize_timestamp(arow.updated_at)
             }
             for _, col in ipairs(cols_array) do
                 r[col.slug] = arow[col.slug] or ""
@@ -1464,8 +1505,8 @@ function create_row(ctx)
 
     local result = {
         id = tonumber(actual_rec.id) or actual_rec.id,
-        created_at = actual_rec.created_at or "",
-        updated_at = actual_rec.updated_at or ""
+        created_at = normalize_timestamp(actual_rec.created_at),
+        updated_at = normalize_timestamp(actual_rec.updated_at)
     }
     for _, col in ipairs(columns) do
         if col.slug and col.slug ~= "" then
@@ -1547,8 +1588,8 @@ function update_row(ctx, row_id)
 
     local result = {
         id = tonumber(actual_rec.id) or actual_rec.id,
-        created_at = actual_rec.created_at or "",
-        updated_at = actual_rec.updated_at or ""
+        created_at = normalize_timestamp(actual_rec.created_at),
+        updated_at = normalize_timestamp(actual_rec.updated_at)
     }
     for _, col in ipairs(columns) do
         if col.slug and col.slug ~= "" then
