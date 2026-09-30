@@ -859,7 +859,6 @@ end
 -- DATATABLE ROWS CRUD
 
 function query_datatable(ctx, table_id)
-    ensure_schema_migrations()
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
