@@ -231,7 +231,7 @@ create table Tax(
     ttype TEXT NOT NULL DEFAULT 'sales', -- sales, purchase
     info TEXT NOT NULL DEFAULT '',
     rate INTEGER NOT NULL DEFAULT 0,
-    "strict" BOOLEAN NOT NULL DEFAULT FALSE,
+    "strict" BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
