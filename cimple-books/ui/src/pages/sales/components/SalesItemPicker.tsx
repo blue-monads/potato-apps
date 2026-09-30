@@ -7,6 +7,7 @@ interface SalesItemLine {
     info: string;
     qty: number;
     product_id: number;
+    variant_id?: number;
     price: number;
     amount: number; // discounted price per unit
     discount_amount: number;
@@ -70,6 +71,7 @@ const SalesItemPicker = ({ onSave }: SalesItemPickerProps) => {
             info,
             qty,
             product_id: selectedProduct.id,
+            variant_id: selectedVariant?.id,
             price,
             amount,
             discount_amount,

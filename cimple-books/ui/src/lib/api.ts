@@ -394,6 +394,7 @@ export interface SalesLine {
     qty: number;
     sale_id: number;
     product_id: number;
+    variant_id?: number;
     price: number;
     tax_amount: number;
     discount_amount: number;

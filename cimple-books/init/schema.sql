@@ -126,6 +126,13 @@ create table Products(
     alt_images TEXT NOT NULL DEFAULT '',
     epoch INTEGER NOT NULL DEFAULT 0, -- optimistic counter for stock count
     stock_count INTEGER NOT NULL DEFAULT 0, 
+
+    -- track_inventory BOOLEAN NOT NULL DEFAULT TRUE,
+    -- sales_account_id INTEGER,
+    -- purchase_account_id INTEGER,
+    -- tax_id INTEGER,
+
+
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -139,6 +146,8 @@ create table ProductVariants(
     name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     sales_price INTEGER NOT NULL DEFAULT 0,
+    -- stock_count INTEGER NOT NULL DEFAULT 0, 
+    
     images TEXT NOT NULL DEFAULT '',
     created_by INTEGER NOT NULL DEFAULT 0,
     updated_by INTEGER NOT NULL DEFAULT 0,
@@ -202,6 +211,9 @@ create table Sales(
     invalidated_reason TEXT NOT NULL DEFAULT '',
     payment_status TEXT NOT NULL DEFAULT 'unpaid', -- unpaid, paid, partially_paid, refunded
 
+    -- reference_id TEXT ,
+    -- reference_type TEXT , -- extern_id
+
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -211,13 +223,17 @@ create table SalesLines(
     info TEXT NOT NULL DEFAULT '',
     qty INTEGER NOT NULL DEFAULT 0,    
     sale_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL DEFAULT 0,
+    product_id INTEGER,
+    variant_id INTEGER,
 
     price INTEGER NOT NULL DEFAULT 0, -- original item price
     tax_amount INTEGER NOT NULL DEFAULT 0,
     discount_amount INTEGER NOT NULL DEFAULT 0,
 
     total_amount INTEGER NOT NULL DEFAULT 0, -- total_amount = item_price + item_tax_amount - discount_amount
+    -- reference_id TEXT ,
+    -- reference_type TEXT , -- extern_id
+
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

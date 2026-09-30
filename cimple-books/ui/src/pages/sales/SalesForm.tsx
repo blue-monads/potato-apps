@@ -12,6 +12,7 @@ interface SalesLine {
     info: string;
     qty: number;
     product_id: number;
+    variant_id?: number;
     price: number;
     amount: number; // discounted price per unit
     tax_amount: number;
@@ -78,6 +79,7 @@ const SalesForm = () => {
                     info: line.info || '',
                     qty: line.qty || 0,
                     product_id: line.product_id || 0,
+                    variant_id: line.variant_id || 0,
                     price: line.price || 0,
                     amount: line.price - (line.discount_amount || 0), // Calculate discounted price
                     tax_amount: line.tax_amount || 0,
@@ -188,6 +190,7 @@ const SalesForm = () => {
                     info: line.info,
                     qty: line.qty,
                     product_id: line.product_id,
+                    variant_id: line.variant_id || 0,
                     price: line.price,
                     tax_amount: line.tax_amount,
                     discount_amount: line.discount_amount || (line.price - line.amount) * line.qty,
