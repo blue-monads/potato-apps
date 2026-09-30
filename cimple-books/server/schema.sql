@@ -6,7 +6,7 @@ create table Accounts(
     name TEXT NOT NULL DEFAULT '',
     info TEXT NOT NULL DEFAULT '',
     acc_type TEXT NOT NULL DEFAULT 'expenses', -- expenses, revenue, assets, liabilities, equity
-    parent_id INTEGER NOT NULL DEFAULT 0,
+    parent_id INTEGER,
     total_debit INTEGER NOT NULL DEFAULT 0,
     total_credit INTEGER NOT NULL DEFAULT 0,
     contact_id INTEGER NOT NULL DEFAULT 0,
@@ -22,6 +22,7 @@ create table Transactions(
     notes TEXT NOT NULL DEFAULT '',
     txn_type TEXT NOT NULL DEFAULT 'normal', -- manual, sales, stockin
     reference_id TEXT NOT NULL DEFAULT '',
+    reference_type TEXT NOT NULL DEFAULT 'external', -- external, internal
     attachments TEXT NOT NULL DEFAULT '',
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
@@ -48,52 +49,6 @@ create table TransactionLines(
 
 
 
--- Estimates has not direct link to Txn, it will be used as template to create actual sales
-
--- z_1_Estimates
-create table Estimates(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL DEFAULT '',
-    client_id INTEGER NOT NULL DEFAULT 0,
-    client_name TEXT NOT NULL DEFAULT '',
-
-    notes TEXT NOT NULL DEFAULT '',
-    attachments TEXT NOT NULL DEFAULT '',
-
-    total_item_price INTEGER NOT NULL DEFAULT 0,
-    total_item_tax_amount INTEGER NOT NULL DEFAULT 0,
-    total_item_discount_amount INTEGER NOT NULL DEFAULT 0,
-
-    sub_total INTEGER NOT NULL DEFAULT 0, -- total_item_price + total_item_tax_amount - total_item_discount_amount
-
-    overall_discount_amount INTEGER NOT NULL DEFAULT 0,
-    overall_tax_amount INTEGER NOT NULL DEFAULT 0,
-    
-    total INTEGER NOT NULL DEFAULT 0, -- sub_total +  overall_tax_amount - overall_discount_amount
-    created_by INTEGER NOT NULL,
-    updated_by INTEGER NOT NULL,    
-    sales_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-create table EstimateLines(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    info TEXT NOT NULL DEFAULT '',
-    qty INTEGER NOT NULL DEFAULT 0,    
-    estimate_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL DEFAULT 0,
-
-    price INTEGER NOT NULL DEFAULT 0, -- original item price
-    tax_amount INTEGER NOT NULL DEFAULT 0,
-    discount_amount INTEGER NOT NULL DEFAULT 0,
-
-    total_amount INTEGER NOT NULL DEFAULT 0, -- total_amount = item_price + item_tax_amount - discount_amount
-    created_by INTEGER NOT NULL,
-    updated_by INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
 
 
 
@@ -290,3 +245,49 @@ create table Tax(
 
 
 
+-- Estimates has not direct link to Txn, it will be used as template to create actual sales
+
+-- z_1_Estimates
+create table Estimates(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL DEFAULT '',
+    client_id INTEGER NOT NULL DEFAULT 0,
+    client_name TEXT NOT NULL DEFAULT '',
+
+    notes TEXT NOT NULL DEFAULT '',
+    attachments TEXT NOT NULL DEFAULT '',
+
+    total_item_price INTEGER NOT NULL DEFAULT 0,
+    total_item_tax_amount INTEGER NOT NULL DEFAULT 0,
+    total_item_discount_amount INTEGER NOT NULL DEFAULT 0,
+
+    sub_total INTEGER NOT NULL DEFAULT 0, -- total_item_price + total_item_tax_amount - total_item_discount_amount
+
+    overall_discount_amount INTEGER NOT NULL DEFAULT 0,
+    overall_tax_amount INTEGER NOT NULL DEFAULT 0,
+    
+    total INTEGER NOT NULL DEFAULT 0, -- sub_total +  overall_tax_amount - overall_discount_amount
+    created_by INTEGER NOT NULL,
+    updated_by INTEGER NOT NULL,    
+    sales_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+create table EstimateLines(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    info TEXT NOT NULL DEFAULT '',
+    qty INTEGER NOT NULL DEFAULT 0,    
+    estimate_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL DEFAULT 0,
+
+    price INTEGER NOT NULL DEFAULT 0, -- original item price
+    tax_amount INTEGER NOT NULL DEFAULT 0,
+    discount_amount INTEGER NOT NULL DEFAULT 0,
+
+    total_amount INTEGER NOT NULL DEFAULT 0, -- total_amount = item_price + item_tax_amount - discount_amount
+    created_by INTEGER NOT NULL,
+    updated_by INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
