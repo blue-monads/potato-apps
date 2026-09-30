@@ -32,8 +32,8 @@ developer:
   output_zip_file: package.spk.zip
   include_files:
     - 'ui/dist/**/*,public'
-    - server.lua
-    - 'init/init.html,public/init.html'
-    - 'init/schema.sql,schema.sql'
+    - 'server/server.lua,server.lua'
+    - 'server/spages/init.html,public/init.html'
+    - 'server/schema.sql,schema.sql'
     - 'public/seed/**/*.json,public/seed'
   build_command: 'cd ui && { [ -d node_modules ] || bun install; } && bun run build'
