@@ -942,6 +942,190 @@ function delete_category(ctx, category_id)
     })
 end
 
+-- CONTACTS
+
+--- @param ctx HttpContext
+function list_contacts(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local contacts, err = potato.db.find_all_by_cond("Contacts", {
+        is_deleted = 0
+    })
+    if err ~= nil then
+        req.json(400, {
+            error = tostring(err)
+        })
+        return
+    end
+
+    table.sort(contacts or {}, function(a, b)
+        return (a.id or 0) > (b.id or 0)
+    end)
+
+    req.json_array(200, contacts or {})
+end
+
+--- @param ctx HttpContext
+--- @param contact_id number
+function get_contact(ctx, contact_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if contact_id == nil then
+        req.json(400, {
+            error = "contact_id is required"
+        })
+        return
+    end
+
+    local contact, err = potato.db.find_by_id("Contacts", contact_id)
+    if err ~= nil or contact == nil or contact.is_deleted == 1 then
+        req.json(404, {
+            error = "Contact not found"
+        })
+        return
+    end
+
+    req.json(200, contact)
+end
+
+--- @param ctx HttpContext
+function create_contact(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local data = req.bind_json()
+    if data.name == nil or data.name == "" then
+        req.json(400, {
+            error = "name is required"
+        })
+        return
+    end
+
+    local record = {
+        name = data.name or "",
+        parent_contact_id = data.parent_contact_id and tonumber(data.parent_contact_id) or nil,
+        info = data.info or "",
+        images = data.images or data.image or "",
+        contact_type = data.contact_type or "individual",
+        relation_type = data.relation_type or "customer",
+        primary_email = data.primary_email or "",
+        primary_phone = data.primary_phone or "",
+        primary_address = data.primary_address or "",
+        notes = data.notes or "",
+        extra_data = data.extra_data or "{}",
+        created_by = userId,
+        updated_by = userId,
+        is_deleted = 0
+    }
+
+    local id, err = potato.db.insert("Contacts", record)
+    if err ~= nil then
+        req.json(400, {
+            error = tostring(err)
+        })
+        return
+    end
+
+    local created, err = potato.db.find_by_id("Contacts", id)
+    if err ~= nil then
+        req.json(400, {
+            error = tostring(err)
+        })
+        return
+    end
+
+    req.json(200, created)
+end
+
+--- @param ctx HttpContext
+--- @param contact_id number
+function update_contact(ctx, contact_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if contact_id == nil then
+        req.json(400, {
+            error = "contact_id is required"
+        })
+        return
+    end
+
+    local existing, err = potato.db.find_by_id("Contacts", contact_id)
+    if err ~= nil or existing == nil or existing.is_deleted == 1 then
+        req.json(404, {
+            error = "Contact not found"
+        })
+        return
+    end
+
+    local data = req.bind_json()
+    local update_data = {
+        updated_by = userId
+    }
+
+    if data.name ~= nil then update_data.name = data.name end
+    if data.parent_contact_id ~= nil then
+        update_data.parent_contact_id = tonumber(data.parent_contact_id) or nil
+    end
+    if data.info ~= nil then update_data.info = data.info end
+    if data.images ~= nil then update_data.images = data.images
+    elseif data.image ~= nil then update_data.images = data.image end
+    if data.contact_type ~= nil then update_data.contact_type = data.contact_type end
+    if data.relation_type ~= nil then update_data.relation_type = data.relation_type end
+    if data.primary_email ~= nil then update_data.primary_email = data.primary_email end
+    if data.primary_phone ~= nil then update_data.primary_phone = data.primary_phone end
+    if data.primary_address ~= nil then update_data.primary_address = data.primary_address end
+    if data.notes ~= nil then update_data.notes = data.notes end
+    if data.extra_data ~= nil then update_data.extra_data = data.extra_data end
+
+    local update_err = potato.db.update_by_id("Contacts", contact_id, update_data)
+    if update_err ~= nil then
+        req.json(400, {
+            error = tostring(update_err)
+        })
+        return
+    end
+
+    local updated, _ = potato.db.find_by_id("Contacts", contact_id)
+    req.json(200, updated)
+end
+
+--- @param ctx HttpContext
+--- @param contact_id number
+function delete_contact(ctx, contact_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if contact_id == nil then
+        req.json(400, {
+            error = "contact_id is required"
+        })
+        return
+    end
+
+    local err = potato.db.update_by_id("Contacts", contact_id, {
+        is_deleted = 1,
+        updated_by = userId
+    })
+    if err ~= nil then
+        req.json(400, {
+            error = tostring(err)
+        })
+        return
+    end
+
+    req.json(200, {
+        message = "Contact deleted"
+    })
+end
+
 -- PRODUCTS
 
 local function calculate_product_stocks(products, variants)
@@ -956,20 +1140,30 @@ local function calculate_product_stocks(products, variants)
         end
     end
 
-    -- Query stockin lines for inventory tracking
+    -- Query stockin lines for inventory tracking (only active, non-deleted stockins)
+    local active_stockins, _ = potato.db.find_all_by_cond("ProductStockIn", { is_deleted = 0 })
+    local active_sid_map = {}
+    if active_stockins ~= nil then
+        for _, s in ipairs(active_stockins) do
+            active_sid_map[s.id] = true
+        end
+    end
+
     local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
     local stock_by_product = {}
     local stock_by_variant = {}
     if stockin_lines ~= nil then
         for _, line in ipairs(stockin_lines) do
-            local pid = line.product_id
-            local vid = line.variant_id or 0
-            local q = line.qty or 0
-            if pid ~= nil then
-                stock_by_product[pid] = (stock_by_product[pid] or 0) + q
-            end
-            if vid ~= nil and vid > 0 then
-                stock_by_variant[vid] = (stock_by_variant[vid] or 0) + q
+            if active_sid_map[line.product_stockin_id] then
+                local pid = line.product_id
+                local vid = line.variant_id or 0
+                local q = line.qty or 0
+                if pid ~= nil then
+                    stock_by_product[pid] = (stock_by_product[pid] or 0) + q
+                end
+                if vid ~= nil and vid > 0 then
+                    stock_by_variant[vid] = (stock_by_variant[vid] or 0) + q
+                end
             end
         end
     end
@@ -1456,10 +1650,28 @@ function list_stockin(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local stockins, err = potato.db.find_all_by_cond("ProductStockIn", {})
+    local stockins, err = potato.db.find_all_by_cond("ProductStockIn", {
+        is_deleted = 0
+    })
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
+    end
+
+    local all_prods, _ = potato.db.find_all_by_cond("Products", {})
+    local prod_map = {}
+    if all_prods ~= nil then
+        for _, p in ipairs(all_prods) do
+            prod_map[p.id] = p.name
+        end
+    end
+
+    local all_vars, _ = potato.db.find_all_by_cond("ProductVariants", {})
+    local var_map = {}
+    if all_vars ~= nil then
+        for _, v in ipairs(all_vars) do
+            var_map[v.id] = v.name
+        end
     end
 
     local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
@@ -1470,6 +1682,10 @@ function list_stockin(ctx)
             if lines_by_stockin[sid] == nil then
                 lines_by_stockin[sid] = {}
             end
+            l.product_name = prod_map[l.product_id] or ("Product #" .. tostring(l.product_id))
+            if l.variant_id ~= nil and l.variant_id > 0 then
+                l.variant_name = var_map[l.variant_id] or ("Variant #" .. tostring(l.variant_id))
+            end
             table.insert(lines_by_stockin[sid], l)
         end
     end
@@ -1477,6 +1693,10 @@ function list_stockin(ctx)
     for _, s in ipairs(stockins or {}) do
         s.lines = lines_by_stockin[s.id] or {}
     end
+
+    table.sort(stockins or {}, function(a, b)
+        return (a.id or 0) > (b.id or 0)
+    end)
 
     req.json_array(200, stockins or {})
 end
@@ -1489,23 +1709,54 @@ function create_stockin(ctx)
 
     local data = req.bind_json()
     local lines = data.lines or {}
-    data.lines = nil
-    data.created_by = userId
-    data.updated_by = userId
+    
+    local total_amount = 0
+    for _, line in ipairs(lines) do
+        local q = tonumber(line.qty) or 0
+        local p = tonumber(line.price) or 0
+        local amt = tonumber(line.amount)
+        if amt == nil or amt == 0 then
+            amt = q * p
+        end
+        total_amount = total_amount + amt
+    end
 
-    local id, err = potato.db.insert("ProductStockIn", data)
+    if (total_amount == 0) and data.amount ~= nil then
+        total_amount = tonumber(data.amount) or 0
+    end
+
+    local stockin_data = {
+        info = data.info or "",
+        amount = total_amount,
+        vendor_id = tonumber(data.vendor_id) or 0,
+        vendor_name = data.vendor_name or "",
+        stockin_date = data.stockin_date or os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        created_by = userId,
+        updated_by = userId,
+        is_deleted = 0
+    }
+
+    local id, err = potato.db.insert("ProductStockIn", stockin_data)
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
     end
 
     for _, line in ipairs(lines) do
+        local q = tonumber(line.qty) or 0
+        local p = tonumber(line.price) or 0
+        local amt = tonumber(line.amount)
+        if amt == nil or amt == 0 then
+            amt = q * p
+        end
+
         local line_data = {
             product_stockin_id = id,
-            product_id = line.product_id or 0,
-            variant_id = line.variant_id or 0,
-            qty = line.qty or 0,
-            amount = line.amount or 0,
+            product_id = tonumber(line.product_id) or 0,
+            variant_id = tonumber(line.variant_id) or 0,
+            qty = q,
+            price = p,
+            amount = amt,
             info = line.info or "",
             created_by = userId,
             updated_by = userId
@@ -1536,16 +1787,115 @@ function get_stockin(ctx, stockin_id)
     end
 
     local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
-    if err ~= nil or stockin == nil then
+    if err ~= nil or stockin == nil or stockin.is_deleted == 1 then
         req.json(404, { error = "StockIn not found" })
         return
+    end
+
+    local all_prods, _ = potato.db.find_all_by_cond("Products", {})
+    local prod_map = {}
+    if all_prods ~= nil then
+        for _, p in ipairs(all_prods) do
+            prod_map[p.id] = p.name
+        end
+    end
+
+    local all_vars, _ = potato.db.find_all_by_cond("ProductVariants", {})
+    local var_map = {}
+    if all_vars ~= nil then
+        for _, v in ipairs(all_vars) do
+            var_map[v.id] = v.name
+        end
     end
 
     local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
         product_stockin_id = stockin_id
     })
+    for _, l in ipairs(lines or {}) do
+        l.product_name = prod_map[l.product_id] or ("Product #" .. tostring(l.product_id))
+        if l.variant_id ~= nil and l.variant_id > 0 then
+            l.variant_name = var_map[l.variant_id] or ("Variant #" .. tostring(l.variant_id))
+        end
+    end
     stockin.lines = lines or {}
     req.json(200, stockin)
+end
+
+--- @param ctx HttpContext
+--- @param stockin_id number
+function update_stockin(ctx, stockin_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if stockin_id == nil then
+        req.json(400, { error = "stockin_id is required" })
+        return
+    end
+
+    local existing, err = potato.db.find_by_id("ProductStockIn", stockin_id)
+    if err ~= nil or existing == nil or existing.is_deleted == 1 then
+        req.json(404, { error = "StockIn not found" })
+        return
+    end
+
+    local data = req.bind_json()
+    local update_data = {
+        updated_by = userId
+    }
+
+    if data.info ~= nil then update_data.info = data.info end
+    if data.vendor_id ~= nil then update_data.vendor_id = tonumber(data.vendor_id) or 0 end
+    if data.vendor_name ~= nil then update_data.vendor_name = data.vendor_name end
+    if data.stockin_date ~= nil then update_data.stockin_date = data.stockin_date end
+
+    local lines = data.lines
+    if lines ~= nil and type(lines) == "table" then
+        local total_amount = 0
+        potato.db.delete_by_cond("ProductStockInLines", {
+            product_stockin_id = stockin_id
+        })
+        for _, line in ipairs(lines) do
+            local q = tonumber(line.qty) or 0
+            local p = tonumber(line.price) or 0
+            local amt = tonumber(line.amount)
+            if amt == nil or amt == 0 then
+                amt = q * p
+            end
+            total_amount = total_amount + amt
+
+            local line_data = {
+                product_stockin_id = stockin_id,
+                product_id = tonumber(line.product_id) or 0,
+                variant_id = tonumber(line.variant_id) or 0,
+                qty = q,
+                price = p,
+                amount = amt,
+                info = line.info or "",
+                created_by = userId,
+                updated_by = userId
+            }
+            potato.db.insert("ProductStockInLines", line_data)
+        end
+        update_data.amount = total_amount
+    elseif data.amount ~= nil then
+        update_data.amount = tonumber(data.amount) or 0
+    end
+
+    local update_err = potato.db.update_by_id("ProductStockIn", stockin_id, update_data)
+    if update_err ~= nil then
+        req.json(400, { error = tostring(update_err) })
+        return
+    end
+
+    local updated, _ = potato.db.find_by_id("ProductStockIn", stockin_id)
+    local updated_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
+        product_stockin_id = stockin_id
+    })
+    if updated ~= nil then
+        updated.lines = updated_lines or {}
+    end
+    req.json(200, updated)
 end
 
 --- @param ctx HttpContext
@@ -1560,14 +1910,18 @@ function delete_stockin(ctx, stockin_id)
         return
     end
 
-    potato.db.delete_by_cond("ProductStockInLines", {
-        product_stockin_id = stockin_id
+    local err = potato.db.update_by_id("ProductStockIn", stockin_id, {
+        is_deleted = 1,
+        updated_by = userId
     })
-    local err = potato.db.delete_by_id("ProductStockIn", stockin_id)
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
     end
+
+    potato.db.delete_by_cond("ProductStockInLines", {
+        product_stockin_id = stockin_id
+    })
 
     req.json(200, { message = "StockIn deleted" })
 end
@@ -2204,6 +2558,29 @@ function on_http(ctx)
         end
     end
 
+    -- Contacts routes
+    if path == "/contacts" and method == "GET" then
+        return list_contacts(ctx)
+    end
+
+    if path == "/contacts" and method == "POST" then
+        return create_contact(ctx)
+    end
+
+    local contact_id_match = string.match(path, "^/contacts/(%d+)$")
+    if contact_id_match then
+        local contact_id = tonumber(contact_id_match)
+        if contact_id ~= nil then
+            if method == "GET" then
+                return get_contact(ctx, contact_id)
+            elseif method == "PUT" or method == "PATCH" or method == "POST" then
+                return update_contact(ctx, contact_id)
+            elseif method == "DELETE" then
+                return delete_contact(ctx, contact_id)
+            end
+        end
+    end
+
     -- Products routes
     if path == "/products" and method == "GET" then
         return list_products(ctx)
@@ -2268,6 +2645,8 @@ function on_http(ctx)
         if stockin_id ~= nil then
             if method == "GET" then
                 return get_stockin(ctx, stockin_id)
+            elseif method == "PUT" or method == "PATCH" or method == "POST" then
+                return update_stockin(ctx, stockin_id)
             elseif method == "DELETE" then
                 return delete_stockin(ctx, stockin_id)
             end

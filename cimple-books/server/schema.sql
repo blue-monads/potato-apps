@@ -115,12 +115,38 @@ create table Catagories(
 );
 
 
+create table Contacts(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL DEFAULT '',
+    parent_contact_id INTEGER,
+    info TEXT NOT NULL DEFAULT '',
+    images TEXT NOT NULL DEFAULT '',
+    contact_type TEXT NOT NULL DEFAULT 'individual', -- individual, company
+    relation_type TEXT NOT NULL DEFAULT 'customer', -- customer, supplier, employee, partner, other
+
+    primary_email TEXT NOT NULL DEFAULT '',
+    primary_phone TEXT NOT NULL DEFAULT '',
+    primary_address TEXT NOT NULL DEFAULT '',
+
+    notes TEXT NOT NULL DEFAULT '',
+
+    extra_data JSON NOT NULL DEFAULT '{}',
+    created_by INTEGER NOT NULL,
+    updated_by INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+
+
 create table Products(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL DEFAULT '',
     info TEXT NOT NULL DEFAULT '',
-    catagory_id INTEGER NOT NULL DEFAULT 0,
+    catagory_id INTEGER NOT NULL,
     images TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
 
     sales_price INTEGER NOT NULL DEFAULT 0,
     stock_count INTEGER NOT NULL DEFAULT 0, 
@@ -131,6 +157,8 @@ create table Products(
     purchase_account_id INTEGER,
     tax_id INTEGER,
 
+    
+
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -140,7 +168,7 @@ create table Products(
 
 create table ProductVariants(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL DEFAULT 0,
+    product_id INTEGER NOT NULL,
     name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     images TEXT NOT NULL DEFAULT '',
@@ -162,10 +190,13 @@ create table ProductStockIn(
     info TEXT NOT NULL DEFAULT '',
     amount INTEGER NOT NULL DEFAULT 0,
     vendor_id INTEGER NOT NULL DEFAULT 0,
+    vendor_name TEXT NOT NULL DEFAULT '',
+    stockin_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 create table ProductStockInLines(
@@ -175,6 +206,7 @@ create table ProductStockInLines(
     product_id INTEGER NOT NULL,
     variant_id INTEGER NOT NULL DEFAULT 0,
     qty INTEGER NOT NULL DEFAULT 0,
+    price INTEGER NOT NULL DEFAULT 0,
     amount INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,

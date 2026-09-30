@@ -219,6 +219,62 @@ export const deleteCategory = async (categoryId: number): Promise<ApiResponse<{ 
     });
 };
 
+// Contacts API
+export type ContactType = 'individual' | 'company';
+export type ContactRelationType = 'customer' | 'supplier' | 'employee' | 'partner' | 'other';
+
+export interface Contact {
+    id: number;
+    name: string;
+    parent_contact_id?: number | null;
+    info: string;
+    images?: string;
+    contact_type: ContactType;
+    relation_type: ContactRelationType;
+    primary_email: string;
+    primary_phone: string;
+    primary_address: string;
+    notes: string;
+    extra_data?: string;
+    created_by?: number;
+    updated_by?: number;
+    created_at?: string;
+    updated_at?: string;
+    is_deleted?: boolean;
+}
+
+export const listContacts = async (): Promise<ApiResponse<Contact[]>> => {
+    const resp = await apiRequest<Contact[]>('/contacts', { method: 'GET' });
+    if (resp.status === 200 && Array.isArray(resp.data)) {
+        return resp;
+    }
+    return { ...resp, data: [] };
+};
+
+export const getContact = async (contactId: number): Promise<ApiResponse<Contact>> => {
+    return apiRequest<Contact>(`/contacts/${contactId}`, { method: 'GET' });
+};
+
+export const createContact = async (contact: Partial<Contact>): Promise<ApiResponse<Contact>> => {
+    return apiRequest<Contact>('/contacts', {
+        method: 'POST',
+        body: JSON.stringify(contact),
+    });
+};
+
+export const updateContact = async (contactId: number, contact: Partial<Contact>): Promise<ApiResponse<Contact>> => {
+    return apiRequest<Contact>(`/contacts/${contactId}`, {
+        method: 'PUT',
+        body: JSON.stringify(contact),
+    });
+};
+
+export const deleteContact = async (contactId: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/contacts/${contactId}`, {
+        method: 'DELETE',
+    });
+};
+
 // Products & Variants API
 export interface ProductVariant {
     id: number;
@@ -355,8 +411,11 @@ export interface ProductStockInLine {
     info?: string;
     product_stockin_id?: number;
     product_id: number;
+    product_name?: string;
     variant_id?: number;
+    variant_name?: string;
     qty: number;
+    price?: number;
     amount?: number;
     created_by?: number;
     updated_by?: number;
@@ -369,10 +428,14 @@ export interface ProductStockIn {
     info: string;
     amount: number;
     vendor_id: number;
+    vendor_name?: string;
+    reference_id?: string;
+    stockin_date?: string;
     created_by: number;
     updated_by: number;
     created_at: string;
     updated_at: string;
+    is_deleted?: boolean;
     lines?: ProductStockInLine[];
 }
 
@@ -391,6 +454,13 @@ export const getStockIn = async (stockinId: number): Promise<ApiResponse<Product
 export const createStockIn = async (stockin: Partial<ProductStockIn>): Promise<ApiResponse<ProductStockIn>> => {
     return apiRequest<ProductStockIn>('/stockin', {
         method: 'POST',
+        body: JSON.stringify(stockin),
+    });
+};
+
+export const updateStockIn = async (stockinId: number, stockin: Partial<ProductStockIn>): Promise<ApiResponse<ProductStockIn>> => {
+    return apiRequest<ProductStockIn>(`/stockin/${stockinId}`, {
+        method: 'PUT',
         body: JSON.stringify(stockin),
     });
 };

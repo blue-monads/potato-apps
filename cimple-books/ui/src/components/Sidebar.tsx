@@ -10,7 +10,9 @@ import {
     BarChart3,
     Settings,
     PanelLeftClose,
-    PanelLeftOpen
+    PanelLeftOpen,
+    ArrowDownToLine,
+    Users
 } from 'lucide-react';
 import { BASE_PATH } from '../lib/base';
 
@@ -67,10 +69,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
             path: 'txns',
         },
         {
+            href: `${BASE_PATH}contacts`,
+            label: 'Contacts',
+            icon: Users,
+            path: 'contacts',
+        },
+        {
             href: `${BASE_PATH}products`,
             label: 'Products',
             icon: ShoppingCart,
             path: 'products',
+        },
+        {
+            href: `${BASE_PATH}stockin`,
+            label: 'Stock In',
+            icon: ArrowDownToLine,
+            path: 'stockin',
         },
         {
             href: `${BASE_PATH}sales`,

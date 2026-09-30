@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Package, Layers } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Layers, ArrowDownToLine } from 'lucide-react';
 import { Link } from 'react-router';
 import { listProducts, deleteProduct, listCategories, type Product, type Category } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
@@ -87,13 +87,22 @@ const ProductList = () => {
                     <h2 className="text-xl font-bold text-stone-900 font-display">Products</h2>
                     <p className="text-xs text-stone-500 mt-0.5">Manage catalogue items, sales pricing, pictures, and variants</p>
                 </div>
-                <Link
-                    to={`${BASE_PATH}products/new`}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    New Product
-                </Link>
+                <div className="flex items-center gap-2.5">
+                    <Link
+                        to={`${BASE_PATH}stockin/new`}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-[#E1E3DB] hover:bg-stone-50 text-stone-700 rounded-lg text-sm font-semibold transition-colors shadow-xs"
+                    >
+                        <ArrowDownToLine className="w-4 h-4 text-[#2E6E52]" />
+                        Stock In
+                    </Link>
+                    <Link
+                        to={`${BASE_PATH}products/new`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        New Product
+                    </Link>
+                </div>
             </div>
 
             {error && (
@@ -193,7 +202,14 @@ const ProductList = () => {
                                                 )}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end gap-2">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <Link
+                                                        to={`${BASE_PATH}stockin/new`}
+                                                        className="text-stone-500 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                        title="Receive stock"
+                                                    >
+                                                        <ArrowDownToLine className="w-4 h-4" />
+                                                    </Link>
                                                     <Link
                                                         to={`${BASE_PATH}products/${product.id}/edit`}
                                                         className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
