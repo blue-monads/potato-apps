@@ -20,10 +20,31 @@ const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
-    <div className="text-lg">Loading...</div>
+    <div className="text-lg text-stone-500 font-sans">Loading...</div>
   </div>
 );
 
+const RouteErrorBoundary = () => (
+  <div className="min-h-screen bg-[#F4F5F1] p-8 flex flex-col items-center justify-center font-sans">
+    <div className="max-w-md bg-white p-6 rounded-2xl border border-[#E1E3DB] shadow-sm text-center">
+      <h2 className="text-xl font-bold text-stone-900 mb-2 font-display">New version available</h2>
+      <p className="text-stone-600 text-sm mb-5">
+        The application was updated. Please refresh the page to load the latest version.
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="px-5 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors"
+      >
+        Reload Page
+      </button>
+    </div>
+  </div>
+);
+
+// Auto-recover if Vite dynamic import fails due to chunk hash changes after deployment
+window.addEventListener('vite:preloadError', () => {
+  window.location.reload();
+});
 
 const RootLayout = () => (
     <Suspense fallback={<LoadingFallback />}>
@@ -39,6 +60,7 @@ const router = createBrowserRouter([
   {
     path: BASE_PATH,
     element: <RootLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       {
         element: <App />,

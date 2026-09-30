@@ -227,16 +227,31 @@ function seed_template_data(userId, template)
             local cat_idx = prod_data.category_index or 1
             local cat_id = created_categories[cat_idx] or cat_idx
 
+            local has_vars = 0
+            if (item.variants ~= nil and #item.variants > 0) or prod_data.has_variants == true or prod_data.has_variants == 1 then
+                has_vars = 1
+            end
+
+            local track_inv = 1
+            if prod_data.track_inventory ~= nil then
+                if prod_data.track_inventory == false or prod_data.track_inventory == 0 then
+                    track_inv = 0
+                end
+            end
+
+            local img_str = prod_data.images or prod_data.image or ""
             local prod_record = {
                 name = prod_data.name,
                 info = prod_data.info or "",
                 catagory_id = cat_id,
                 sales_price = prod_data.sales_price or 0,
-                image = prod_data.image or "",
-                images = prod_data.images or "",
-                alt_images = prod_data.alt_images or "",
-                epoch = prod_data.epoch or 0,
+                images = img_str,
                 stock_count = prod_data.stock_count or 0,
+                track_inventory = track_inv,
+                has_variants = has_vars,
+                sales_account_id = prod_data.sales_account_id,
+                purchase_account_id = prod_data.purchase_account_id,
+                tax_id = prod_data.tax_id,
                 created_by = userId,
                 updated_by = userId,
                 is_deleted = prod_data.is_deleted or 0
@@ -252,6 +267,7 @@ function seed_template_data(userId, template)
                             name = var.name,
                             description = var.description or "",
                             sales_price = var.sales_price or 0,
+                            stock_count = var.stock_count or 0,
                             images = var.images or "",
                             created_by = userId,
                             updated_by = userId,
@@ -928,6 +944,87 @@ end
 
 -- PRODUCTS
 
+local function calculate_product_stocks(products, variants)
+    local variants_by_product = {}
+    if variants ~= nil then
+        for _, v in ipairs(variants) do
+            local pid = v.product_id
+            if variants_by_product[pid] == nil then
+                variants_by_product[pid] = {}
+            end
+            table.insert(variants_by_product[pid], v)
+        end
+    end
+
+    -- Query stockin lines for inventory tracking
+    local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
+    local stock_by_product = {}
+    local stock_by_variant = {}
+    if stockin_lines ~= nil then
+        for _, line in ipairs(stockin_lines) do
+            local pid = line.product_id
+            local vid = line.variant_id or 0
+            local q = line.qty or 0
+            if pid ~= nil then
+                stock_by_product[pid] = (stock_by_product[pid] or 0) + q
+            end
+            if vid ~= nil and vid > 0 then
+                stock_by_variant[vid] = (stock_by_variant[vid] or 0) + q
+            end
+        end
+    end
+
+    for _, p in ipairs(products) do
+        local p_vars = variants_by_product[p.id] or {}
+        p.variants = p_vars
+        if p.sales_price == nil and p.price ~= nil then
+            p.sales_price = p.price
+        end
+
+        local track_inv = true
+        if p.track_inventory == false or p.track_inventory == 0 then
+            track_inv = false
+        end
+        p.track_inventory = track_inv
+
+        local has_vars = false
+        if p.has_variants == true or p.has_variants == 1 or #p_vars > 0 then
+            has_vars = true
+        end
+        p.has_variants = has_vars
+
+        if track_inv then
+            -- stock count comes from stockin/stockinlines
+            if has_vars then
+                local total_stock = 0
+                for _, v in ipairs(p_vars) do
+                    local v_stock = stock_by_variant[v.id] or 0
+                    v.stock_count = v_stock
+                    total_stock = total_stock + v_stock
+                end
+                if total_stock == 0 and (stock_by_product[p.id] or 0) > 0 then
+                    p.stock_count = stock_by_product[p.id]
+                else
+                    p.stock_count = total_stock
+                end
+            else
+                p.stock_count = stock_by_product[p.id] or 0
+            end
+        else
+            -- otherwise we use stock_count directly product or if it has variants in that case from variants
+            if has_vars then
+                local total_stock = 0
+                for _, v in ipairs(p_vars) do
+                    total_stock = total_stock + (v.stock_count or 0)
+                end
+                p.stock_count = total_stock
+            else
+                p.stock_count = p.stock_count or 0
+            end
+        end
+    end
+end
+
 --- @param ctx HttpContext
 function list_products(ctx)
     local req = ctx.request()
@@ -944,29 +1041,13 @@ function list_products(ctx)
         return
     end
 
-    -- Attach variants
     local variants, _ = potato.db.find_all_by_cond("ProductVariants", {
         is_deleted = 0
     })
-    local variants_by_product = {}
-    if variants ~= nil then
-        for _, v in ipairs(variants) do
-            local pid = v.product_id
-            if variants_by_product[pid] == nil then
-                variants_by_product[pid] = {}
-            end
-            table.insert(variants_by_product[pid], v)
-        end
-    end
 
-    for _, p in ipairs(products) do
-        p.variants = variants_by_product[p.id] or {}
-        if p.sales_price == nil and p.price ~= nil then
-            p.sales_price = p.price
-        end
-    end
+    calculate_product_stocks(products or {}, variants or {})
 
-    req.json_array(200, products)
+    req.json_array(200, products or {})
 end
 
 --- @param ctx HttpContext
@@ -995,7 +1076,9 @@ function get_product(ctx, product_id)
         product_id = product_id,
         is_deleted = 0
     })
-    product.variants = variants or {}
+
+    calculate_product_stocks({product}, variants or {})
+
     req.json(200, product)
 end
 
@@ -1006,29 +1089,56 @@ function create_product(ctx)
     if userId == nil then return end
 
     local product = req.bind_json()
-    product.created_by = userId
-    product.updated_by = userId
-    if product.sales_price == nil and product.price ~= nil then
-        product.sales_price = product.price
-        product.price = nil
+    local sales_price = product.sales_price
+    if sales_price == nil and product.price ~= nil then
+        sales_price = product.price
     end
 
-    local id, err = potato.db.insert("Products", product)
+    local track_inv = 1
+    if product.track_inventory == false or product.track_inventory == 0 then
+        track_inv = 0
+    end
+
+    local has_vars = 0
+    if product.has_variants == true or product.has_variants == 1 then
+        has_vars = 1
+    end
+
+    local img_str = product.images or product.image or ""
+
+    local record = {
+        name = product.name or "",
+        info = product.info or "",
+        catagory_id = tonumber(product.catagory_id) or 0,
+        images = img_str,
+        sales_price = tonumber(sales_price) or 0,
+        stock_count = tonumber(product.stock_count) or 0,
+        track_inventory = track_inv,
+        has_variants = has_vars,
+        sales_account_id = product.sales_account_id,
+        purchase_account_id = product.purchase_account_id,
+        tax_id = product.tax_id,
+        created_by = userId,
+        updated_by = userId,
+        is_deleted = 0
+    }
+
+    local id, err = potato.db.insert("Products", record)
     if err ~= nil then
         req.json(400, {
             error = tostring(err)
         })
         return
     end
-    local product, err = potato.db.find_by_id("Products", id)
+    local created_product, err = potato.db.find_by_id("Products", id)
     if err ~= nil then
         req.json(400, {
             error = tostring(err)
         })
         return
     end
-    product.variants = {}
-    req.json(200, product)
+    calculate_product_stocks({created_product}, {})
+    req.json(200, created_product)
 end
 
 --- @param ctx HttpContext
@@ -1046,20 +1156,44 @@ function update_product(ctx, product_id)
     end
 
     local product = req.bind_json()
-    product.updated_by = userId
-    if product.sales_price == nil and product.price ~= nil then
-        product.sales_price = product.price
-        product.price = nil
-    end
+    local update_data = {
+        updated_by = userId
+    }
 
-    local err = potato.db.update_by_id("Products", product_id, product)
+    if product.name ~= nil then update_data.name = product.name end
+    if product.info ~= nil then update_data.info = product.info end
+    if product.catagory_id ~= nil then update_data.catagory_id = tonumber(product.catagory_id) or 0 end
+    if product.images ~= nil then
+        update_data.images = product.images
+    elseif product.image ~= nil then
+        update_data.images = product.image
+    end
+    if product.sales_price ~= nil then
+        update_data.sales_price = tonumber(product.sales_price) or 0
+    elseif product.price ~= nil then
+        update_data.sales_price = tonumber(product.price) or 0
+    end
+    if product.stock_count ~= nil then
+        update_data.stock_count = tonumber(product.stock_count) or 0
+    end
+    if product.track_inventory ~= nil then
+        update_data.track_inventory = (product.track_inventory == true or product.track_inventory == 1) and 1 or 0
+    end
+    if product.has_variants ~= nil then
+        update_data.has_variants = (product.has_variants == true or product.has_variants == 1) and 1 or 0
+    end
+    if product.sales_account_id ~= nil then update_data.sales_account_id = product.sales_account_id end
+    if product.purchase_account_id ~= nil then update_data.purchase_account_id = product.purchase_account_id end
+    if product.tax_id ~= nil then update_data.tax_id = product.tax_id end
+
+    local err = potato.db.update_by_id("Products", product_id, update_data)
     if err ~= nil then
         req.json(400, {
             error = tostring(err)
         })
         return
     end
-    local product, err = potato.db.find_by_id("Products", product_id)
+    local updated_product, err = potato.db.find_by_id("Products", product_id)
     if err ~= nil then
         req.json(400, {
             error = tostring(err)
@@ -1070,8 +1204,8 @@ function update_product(ctx, product_id)
         product_id = product_id,
         is_deleted = 0
     })
-    product.variants = variants or {}
-    req.json(200, product)
+    calculate_product_stocks({updated_product}, variants or {})
+    req.json(200, updated_product)
 end
 
 --- @param ctx HttpContext
@@ -1126,6 +1260,35 @@ function list_product_variants(ctx, product_id)
         req.json(400, { error = tostring(err) })
         return
     end
+
+    local parent_prod, _ = potato.db.find_by_id("Products", product_id)
+    local track_inv = true
+    if parent_prod ~= nil and (parent_prod.track_inventory == false or parent_prod.track_inventory == 0) then
+        track_inv = false
+    end
+
+    if track_inv then
+        local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
+            product_id = product_id
+        })
+        local stock_by_variant = {}
+        if stockin_lines ~= nil then
+            for _, l in ipairs(stockin_lines) do
+                local vid = l.variant_id or 0
+                if vid > 0 then
+                    stock_by_variant[vid] = (stock_by_variant[vid] or 0) + (l.qty or 0)
+                end
+            end
+        end
+        for _, v in ipairs(variants or {}) do
+            v.stock_count = stock_by_variant[v.id] or 0
+        end
+    else
+        for _, v in ipairs(variants or {}) do
+            v.stock_count = v.stock_count or 0
+        end
+    end
+
     req.json_array(200, variants or {})
 end
 
@@ -1142,16 +1305,24 @@ function create_product_variant(ctx, product_id)
     end
 
     local variant = req.bind_json()
-    variant.product_id = product_id
-    variant.created_by = userId
-    variant.updated_by = userId
-    variant.is_deleted = 0
-    if variant.sales_price == nil and variant.price ~= nil then
-        variant.sales_price = variant.price
-        variant.price = nil
+    local sales_price = variant.sales_price
+    if sales_price == nil and variant.price ~= nil then
+        sales_price = variant.price
     end
 
-    local id, err = potato.db.insert("ProductVariants", variant)
+    local record = {
+        product_id = product_id,
+        name = variant.name or "",
+        description = variant.description or "",
+        images = variant.images or variant.image or "",
+        sales_price = tonumber(sales_price) or 0,
+        stock_count = tonumber(variant.stock_count) or 0,
+        created_by = userId,
+        updated_by = userId,
+        is_deleted = 0
+    }
+
+    local id, err = potato.db.insert("ProductVariants", record)
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
@@ -1182,6 +1353,28 @@ function get_product_variant(ctx, variant_id)
         req.json(404, { error = "Variant not found" })
         return
     end
+
+    local parent_prod, _ = potato.db.find_by_id("Products", variant.product_id)
+    local track_inv = true
+    if parent_prod ~= nil and (parent_prod.track_inventory == false or parent_prod.track_inventory == 0) then
+        track_inv = false
+    end
+
+    if track_inv then
+        local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
+            variant_id = variant_id
+        })
+        local total_qty = 0
+        if stockin_lines ~= nil then
+            for _, l in ipairs(stockin_lines) do
+                total_qty = total_qty + (l.qty or 0)
+            end
+        end
+        variant.stock_count = total_qty
+    else
+        variant.stock_count = variant.stock_count or 0
+    end
+
     req.json(200, variant)
 end
 
@@ -1198,13 +1391,26 @@ function update_product_variant(ctx, variant_id)
     end
 
     local variant = req.bind_json()
-    variant.updated_by = userId
-    if variant.sales_price == nil and variant.price ~= nil then
-        variant.sales_price = variant.price
-        variant.price = nil
+    local update_data = {
+        updated_by = userId
+    }
+    if variant.name ~= nil then update_data.name = variant.name end
+    if variant.description ~= nil then update_data.description = variant.description end
+    if variant.images ~= nil then
+        update_data.images = variant.images
+    elseif variant.image ~= nil then
+        update_data.images = variant.image
+    end
+    if variant.sales_price ~= nil then
+        update_data.sales_price = tonumber(variant.sales_price) or 0
+    elseif variant.price ~= nil then
+        update_data.sales_price = tonumber(variant.price) or 0
+    end
+    if variant.stock_count ~= nil then
+        update_data.stock_count = tonumber(variant.stock_count) or 0
     end
 
-    local err = potato.db.update_by_id("ProductVariants", variant_id, variant)
+    local err = potato.db.update_by_id("ProductVariants", variant_id, update_data)
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
@@ -1240,6 +1446,130 @@ function delete_product_variant(ctx, variant_id)
     end
 
     req.json(200, { message = "Variant deleted" })
+end
+
+-- STOCK IN
+
+--- @param ctx HttpContext
+function list_stockin(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local stockins, err = potato.db.find_all_by_cond("ProductStockIn", {})
+    if err ~= nil then
+        req.json(400, { error = tostring(err) })
+        return
+    end
+
+    local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
+    local lines_by_stockin = {}
+    if lines ~= nil then
+        for _, l in ipairs(lines) do
+            local sid = l.product_stockin_id
+            if lines_by_stockin[sid] == nil then
+                lines_by_stockin[sid] = {}
+            end
+            table.insert(lines_by_stockin[sid], l)
+        end
+    end
+
+    for _, s in ipairs(stockins or {}) do
+        s.lines = lines_by_stockin[s.id] or {}
+    end
+
+    req.json_array(200, stockins or {})
+end
+
+--- @param ctx HttpContext
+function create_stockin(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local data = req.bind_json()
+    local lines = data.lines or {}
+    data.lines = nil
+    data.created_by = userId
+    data.updated_by = userId
+
+    local id, err = potato.db.insert("ProductStockIn", data)
+    if err ~= nil then
+        req.json(400, { error = tostring(err) })
+        return
+    end
+
+    for _, line in ipairs(lines) do
+        local line_data = {
+            product_stockin_id = id,
+            product_id = line.product_id or 0,
+            variant_id = line.variant_id or 0,
+            qty = line.qty or 0,
+            amount = line.amount or 0,
+            info = line.info or "",
+            created_by = userId,
+            updated_by = userId
+        }
+        potato.db.insert("ProductStockInLines", line_data)
+    end
+
+    local stockin, _ = potato.db.find_by_id("ProductStockIn", id)
+    local inserted_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
+        product_stockin_id = id
+    })
+    if stockin ~= nil then
+        stockin.lines = inserted_lines or {}
+    end
+    req.json(200, stockin)
+end
+
+--- @param ctx HttpContext
+--- @param stockin_id number
+function get_stockin(ctx, stockin_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if stockin_id == nil then
+        req.json(400, { error = "stockin_id is required" })
+        return
+    end
+
+    local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
+    if err ~= nil or stockin == nil then
+        req.json(404, { error = "StockIn not found" })
+        return
+    end
+
+    local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
+        product_stockin_id = stockin_id
+    })
+    stockin.lines = lines or {}
+    req.json(200, stockin)
+end
+
+--- @param ctx HttpContext
+--- @param stockin_id number
+function delete_stockin(ctx, stockin_id)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    if stockin_id == nil then
+        req.json(400, { error = "stockin_id is required" })
+        return
+    end
+
+    potato.db.delete_by_cond("ProductStockInLines", {
+        product_stockin_id = stockin_id
+    })
+    local err = potato.db.delete_by_id("ProductStockIn", stockin_id)
+    if err ~= nil then
+        req.json(400, { error = tostring(err) })
+        return
+    end
+
+    req.json(200, { message = "StockIn deleted" })
 end
 
 -- TAXES
@@ -1919,6 +2249,27 @@ function on_http(ctx)
                 return update_product(ctx, product_id)
             elseif method == "DELETE" then
                 return delete_product(ctx, product_id)
+            end
+        end
+    end
+
+    -- Stock In routes
+    if path == "/stockin" and method == "GET" then
+        return list_stockin(ctx)
+    end
+
+    if path == "/stockin" and method == "POST" then
+        return create_stockin(ctx)
+    end
+
+    local stockin_id_match = string.match(path, "^/stockin/(%d+)$")
+    if stockin_id_match then
+        local stockin_id = tonumber(stockin_id_match)
+        if stockin_id ~= nil then
+            if method == "GET" then
+                return get_stockin(ctx, stockin_id)
+            elseif method == "DELETE" then
+                return delete_stockin(ctx, stockin_id)
             end
         end
     end

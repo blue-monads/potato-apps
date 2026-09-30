@@ -120,18 +120,16 @@ create table Products(
     name TEXT NOT NULL DEFAULT '',
     info TEXT NOT NULL DEFAULT '',
     catagory_id INTEGER NOT NULL DEFAULT 0,
-    sales_price INTEGER NOT NULL DEFAULT 0,
-    image TEXT NOT NULL DEFAULT '',
     images TEXT NOT NULL DEFAULT '',
-    alt_images TEXT NOT NULL DEFAULT '',
-    epoch INTEGER NOT NULL DEFAULT 0, -- optimistic counter for stock count
+
+    sales_price INTEGER NOT NULL DEFAULT 0,
     stock_count INTEGER NOT NULL DEFAULT 0, 
 
-    -- track_inventory BOOLEAN NOT NULL DEFAULT TRUE,
-    -- sales_account_id INTEGER,
-    -- purchase_account_id INTEGER,
-    -- tax_id INTEGER,
-
+    track_inventory BOOLEAN NOT NULL DEFAULT TRUE,
+    has_variants BOOLEAN NOT NULL DEFAULT FALSE,
+    sales_account_id INTEGER,
+    purchase_account_id INTEGER,
+    tax_id INTEGER,
 
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
@@ -145,10 +143,12 @@ create table ProductVariants(
     product_id INTEGER NOT NULL DEFAULT 0,
     name TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
-    sales_price INTEGER NOT NULL DEFAULT 0,
-    -- stock_count INTEGER NOT NULL DEFAULT 0, 
-    
     images TEXT NOT NULL DEFAULT '',
+    
+    sales_price INTEGER NOT NULL DEFAULT 0,
+    stock_count INTEGER NOT NULL DEFAULT 0, 
+    
+    
     created_by INTEGER NOT NULL DEFAULT 0,
     updated_by INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -173,6 +173,7 @@ create table ProductStockInLines(
     info TEXT NOT NULL DEFAULT '',
     product_stockin_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
+    variant_id INTEGER NOT NULL DEFAULT 0,
     qty INTEGER NOT NULL DEFAULT 0,
     amount INTEGER NOT NULL DEFAULT 0,
     created_by INTEGER NOT NULL,

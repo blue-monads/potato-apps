@@ -173,18 +173,23 @@ const ProductList = () => {
                                                 ${formatPrice(product.sales_price)}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-700">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${product.stock_count > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
-                                                    {product.stock_count} in stock
-                                                </span>
+                                                <div className="flex flex-col items-start gap-0.5">
+                                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${product.stock_count > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>
+                                                        {product.stock_count} in stock
+                                                    </span>
+                                                    <span className="text-[10px] text-stone-400">
+                                                        {product.track_inventory !== false ? 'Tracked via Stock In' : 'Direct Stock'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
-                                                {variantCount > 0 ? (
+                                                {product.has_variants || variantCount > 0 ? (
                                                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#EAF3EE] text-[#2E6E52] border border-[#2E6E52]/20">
                                                         <Layers className="w-3 h-3" />
-                                                        {variantCount} {variantCount === 1 ? 'variant' : 'variants'}
+                                                        {variantCount > 0 ? `${variantCount} ${variantCount === 1 ? 'variant' : 'variants'}` : 'Has Variants'}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-xs text-stone-400">—</span>
+                                                    <span className="text-xs text-stone-400">Single item</span>
                                                 )}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">

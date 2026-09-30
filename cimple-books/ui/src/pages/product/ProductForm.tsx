@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Upload, Image as ImageIcon, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Upload, X, Receipt, Package } from 'lucide-react';
 import { 
     createProduct, 
     updateProduct, 
@@ -8,9 +8,13 @@ import {
     updateProductVariant,
     deleteProductVariant,
     uploadProductImage,
+    listAccounts,
+    listTaxes,
     type Product, 
-    type ProductVariant,
-    type Category 
+    type ProductVariant, 
+    type Category,
+    type Account,
+    type Tax
 } from '../../lib/api';
 
 interface ProductFormProps {
@@ -29,6 +33,17 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
     const [newImageUrl, setNewImageUrl] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
+    // Inventory & Variant settings
+    const [trackInventory, setTrackInventory] = useState(true);
+    const [hasVariants, setHasVariants] = useState(false);
+
+    // Accounting & Tax settings
+    const [salesAccountId, setSalesAccountId] = useState<number | undefined>(undefined);
+    const [purchaseAccountId, setPurchaseAccountId] = useState<number | undefined>(undefined);
+    const [taxId, setTaxId] = useState<number | undefined>(undefined);
+    const [accounts, setAccounts] = useState<Account[]>([]);
+    const [taxes, setTaxes] = useState<Tax[]>([]);
+
     // Variants state
     const [variants, setVariants] = useState<ProductVariant[]>([]);
     const [loadingVariants, setLoadingVariants] = useState(false);
@@ -36,12 +51,28 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
     const [variantName, setVariantName] = useState('');
     const [variantDesc, setVariantDesc] = useState('');
     const [variantPrice, setVariantPrice] = useState('');
+    const [variantStockCount, setVariantStockCount] = useState('0');
     const [variantImage, setVariantImage] = useState('');
-    const [isUploadingVariantImg, setIsUploadingVariantImg] = useState(false);
     const [showVariantForm, setShowVariantForm] = useState(false);
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            try {
+                const [accResp, taxResp] = await Promise.all([
+                    listAccounts(),
+                    listTaxes(),
+                ]);
+                if (accResp.status === 200) setAccounts(accResp.data || []);
+                if (taxResp.status === 200) setTaxes(taxResp.data || []);
+            } catch (err) {
+                console.error('Failed to load accounts/taxes', err);
+            }
+        };
+        loadInitialData();
+    }, []);
 
     useEffect(() => {
         if (product) {
@@ -50,6 +81,11 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
             setCategoryId(product.catagory_id || 0);
             setSalesPrice(product.sales_price > 0 ? (product.sales_price / 100).toFixed(2) : '');
             setStockCount(product.stock_count || 0);
+            setTrackInventory(product.track_inventory !== false && product.track_inventory !== (0 as any));
+            setHasVariants(Boolean(product.has_variants || (product.variants && product.variants.length > 0)));
+            setSalesAccountId(product.sales_account_id ?? undefined);
+            setPurchaseAccountId(product.purchase_account_id ?? undefined);
+            setTaxId(product.tax_id ?? undefined);
 
             // Parse images
             const imgList: string[] = [];
@@ -72,6 +108,11 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
             setCategoryId(categories.length > 0 ? categories[0].id : 0);
             setSalesPrice('');
             setStockCount(0);
+            setTrackInventory(true);
+            setHasVariants(false);
+            setSalesAccountId(undefined);
+            setPurchaseAccountId(undefined);
+            setTaxId(undefined);
             setImages([]);
             setVariants([]);
         }
@@ -119,21 +160,6 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
         setImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
     };
 
-    const handleVariantImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setIsUploadingVariantImg(true);
-        try {
-            const url = await uploadProductImage(file);
-            setVariantImage(url);
-        } catch (err) {
-            alert(err instanceof Error ? err.message : 'Failed to upload variant image');
-        } finally {
-            setIsUploadingVariantImg(false);
-            e.target.value = '';
-        }
-    };
-
     const handleSaveVariant = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!product?.id) {
@@ -151,6 +177,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
             name: variantName.trim(),
             description: variantDesc.trim(),
             sales_price: priceInCents,
+            stock_count: parseInt(variantStockCount, 10) || 0,
             images: variantImage.trim(),
         };
 
@@ -182,6 +209,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
         setVariantName('');
         setVariantDesc('');
         setVariantPrice('');
+        setVariantStockCount('0');
         setVariantImage('');
         setShowVariantForm(false);
     };
@@ -191,6 +219,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
         setVariantName(v.name);
         setVariantDesc(v.description || '');
         setVariantPrice((v.sales_price / 100).toFixed(2));
+        setVariantStockCount(String(v.stock_count || 0));
         setVariantImage(v.images || '');
         setShowVariantForm(true);
     };
@@ -209,6 +238,8 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
         }
     };
 
+    const totalVariantStock = variants.reduce((sum, v) => sum + (v.stock_count || 0), 0);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
@@ -216,14 +247,23 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
 
         try {
             const imgString = images.join(',');
-            const primaryImg = images.length > 0 ? images[0] : '';
+ 
+            let effectiveStockCount = stockCount;
+            if (!trackInventory && hasVariants) {
+                effectiveStockCount = totalVariantStock;
+            }
+
             const productData: Partial<Product> = {
                 name: name.trim(),
                 info: info.trim(),
                 catagory_id: categoryId,
                 sales_price: Math.round(parseFloat(salesPrice || '0') * 100),
-                stock_count: stockCount,
-                image: primaryImg,
+                stock_count: effectiveStockCount,
+                track_inventory: trackInventory,
+                has_variants: hasVariants,
+                sales_account_id: salesAccountId || null,
+                purchase_account_id: purchaseAccountId || null,
+                tax_id: taxId || null,
                 images: imgString,
             };
 
@@ -264,31 +304,31 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         required
-                        className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
                         placeholder="e.g., Organic Honey 500g"
                     />
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                        Category *
-                    </label>
-                    <select
-                        value={categoryId}
-                        onChange={(e) => setCategoryId(parseInt(e.target.value))}
-                        required
-                        className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors bg-white"
-                    >
-                        <option value={0}>Select Category</option>
-                        {categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                                {cat.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-stone-700 mb-1.5">
+                            Category *
+                        </label>
+                        <select
+                            value={categoryId}
+                            onChange={(e) => setCategoryId(parseInt(e.target.value))}
+                            required
+                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors bg-white"
+                        >
+                            <option value={0}>Select Category</option>
+                            {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                    {cat.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-semibold text-stone-700 mb-1.5">
                             Sales Price ($) *
@@ -299,78 +339,178 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                             value={salesPrice}
                             onChange={(e) => setSalesPrice(e.target.value)}
                             required
-                            className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
+                            className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
                             placeholder="0.00"
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                            Stock Count
-                        </label>
-                        <input
-                            type="number"
-                            value={stockCount}
-                            onChange={(e) => setStockCount(parseInt(e.target.value) || 0)}
-                            className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
-                            placeholder="0"
-                        />
+                </div>
+
+                {/* Inventory & Variations */}
+                <div className="p-4 bg-[#FAFBF9] rounded-xl border border-[#E1E3DB] space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <span className="text-sm font-bold text-stone-900">Track Inventory</span>
+                            <p className="text-xs text-stone-500">
+                                {trackInventory ? "Automatic from Stock In" : "Direct manual stock entry"}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={trackInventory}
+                            onClick={() => setTrackInventory(!trackInventory)}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                                trackInventory ? 'bg-[#2E6E52]' : 'bg-stone-300'
+                            }`}
+                        >
+                            <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    trackInventory ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                            />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-[#E1E3DB] pt-3">
+                        <div>
+                            <span className="text-sm font-bold text-stone-900">Has Variants</span>
+                            <p className="text-xs text-stone-500">Enable multiple variations (size, color, pack)</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={hasVariants}
+                            onClick={() => setHasVariants(!hasVariants)}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                                hasVariants ? 'bg-[#2E6E52]' : 'bg-stone-300'
+                            }`}
+                        >
+                            <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    hasVariants ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                            />
+                        </button>
+                    </div>
+
+                    {trackInventory ? (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center gap-2">
+                            <Package className="w-4 h-4 text-[#2E6E52] flex-shrink-0" />
+                            <span>Tracked via Stock In ({stockCount} units in stock)</span>
+                        </div>
+                    ) : hasVariants ? (
+                        <div className="p-3 bg-stone-100 border border-stone-200 rounded-lg text-xs text-stone-800 flex items-center justify-between">
+                            <span>Total Variant Stock:</span>
+                            <span className="font-bold">{totalVariantStock} units</span>
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">
+                                Stock Count
+                            </label>
+                            <input
+                                type="number"
+                                value={stockCount}
+                                onChange={(e) => setStockCount(parseInt(e.target.value) || 0)}
+                                className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg text-sm bg-white"
+                                placeholder="0"
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Accounting & Taxes */}
+                <div className="p-4 bg-[#FAFBF9] rounded-xl border border-[#E1E3DB] space-y-3">
+                    <span className="text-sm font-bold text-stone-900 flex items-center gap-1.5">
+                        <Receipt className="w-4 h-4 text-[#2E6E52]" />
+                        Accounting & Taxes
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Sales Account</label>
+                            <select
+                                value={salesAccountId || ''}
+                                onChange={(e) => setSalesAccountId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                className="w-full px-2.5 py-1.5 border border-[#E1E3DB] rounded-lg text-xs bg-white"
+                            >
+                                <option value="">Default Sales</option>
+                                {accounts.map((a) => (
+                                    <option key={a.id} value={a.id}>{a.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Purchase Account</label>
+                            <select
+                                value={purchaseAccountId || ''}
+                                onChange={(e) => setPurchaseAccountId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                className="w-full px-2.5 py-1.5 border border-[#E1E3DB] rounded-lg text-xs bg-white"
+                            >
+                                <option value="">Default Purchase</option>
+                                {accounts.map((a) => (
+                                    <option key={a.id} value={a.id}>{a.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Tax Rate</label>
+                            <select
+                                value={taxId || ''}
+                                onChange={(e) => setTaxId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                className="w-full px-2.5 py-1.5 border border-[#E1E3DB] rounded-lg text-xs bg-white"
+                            >
+                                <option value="">None (0%)</option>
+                                {taxes.map((t) => (
+                                    <option key={t.id} value={t.id}>{t.name} ({t.rate}%)</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                        Description / Info
+                        Description & Notes
                     </label>
                     <textarea
                         value={info}
                         onChange={(e) => setInfo(e.target.value)}
                         rows={3}
-                        className="w-full px-3.5 py-2.5 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
-                        placeholder="Additional details, specifications, or notes about the product"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none text-stone-900 transition-colors"
+                        placeholder="Details, ingredients, dimensions, warranty, or other specifications"
                     />
                 </div>
 
-                {/* PRODUCT PICTURES / IMAGES */}
-                <div className="border border-[#E1E3DB] rounded-xl p-4 bg-[#F8F9F6]">
+                {/* Product Pictures */}
+                <div className="border border-[#E1E3DB] rounded-lg p-4 bg-stone-50/50">
                     <div className="flex items-center justify-between mb-3">
-                        <label className="text-sm font-semibold text-stone-800 flex items-center gap-2">
-                            <ImageIcon className="w-4 h-4 text-[#2E6E52]" />
+                        <label className="block text-sm font-semibold text-stone-700">
                             Product Pictures
                         </label>
-                        <span className="text-xs text-stone-500">
-                            {images.length} {images.length === 1 ? 'image' : 'images'} added
-                        </span>
+                        <span className="text-xs text-stone-500">{images.length} added</span>
                     </div>
 
-                    {/* Previews */}
                     {images.length > 0 && (
-                        <div className="flex flex-wrap gap-3 mb-3">
+                        <div className="flex flex-wrap gap-2 mb-3">
                             {images.map((imgUrl, idx) => (
-                                <div key={idx} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-[#E1E3DB] bg-white shadow-sm">
-                                    <img src={imgUrl} alt={`Product ${idx + 1}`} className="w-full h-full object-cover" />
+                                <div key={idx} className="relative group w-16 h-16 rounded-lg overflow-hidden border border-[#E1E3DB] bg-white">
+                                    <img src={imgUrl} alt={`Product image ${idx + 1}`} className="w-full h-full object-cover" />
                                     <button
                                         type="button"
                                         onClick={() => handleRemoveImage(idx)}
-                                        className="absolute top-1 right-1 bg-red-600/80 hover:bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Remove picture"
+                                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
-                                    {idx === 0 && (
-                                        <span className="absolute bottom-0 left-0 right-0 bg-[#2E6E52]/90 text-white text-[10px] text-center font-medium py-0.5">
-                                            Cover
-                                        </span>
-                                    )}
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* Image Inputs */}
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-white border border-[#E1E3DB] hover:bg-[#F4F5F1] text-stone-700 text-sm font-medium rounded-lg transition-colors">
-                            <Upload className="w-4 h-4 text-[#2E6E52]" />
-                            {isUploading ? 'Uploading...' : 'Upload Image'}
+                        <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#E1E3DB] hover:bg-stone-50 text-stone-700 text-xs font-medium rounded-lg">
+                            <Upload className="w-3.5 h-3.5 text-[#2E6E52]" />
+                            {isUploading ? 'Uploading...' : 'Upload'}
                             <input
                                 type="file"
                                 accept="image/*"
@@ -379,20 +519,19 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                                 className="hidden"
                             />
                         </label>
-
-                        <div className="flex-1 flex gap-2">
+                        <div className="flex-1 flex gap-1.5">
                             <input
                                 type="text"
                                 value={newImageUrl}
                                 onChange={(e) => setNewImageUrl(e.target.value)}
-                                placeholder="Or enter image URL..."
-                                className="flex-1 px-3 py-2 border border-[#E1E3DB] bg-white rounded-lg text-sm focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none"
+                                placeholder="Paste image URL..."
+                                className="flex-1 px-3 py-1.5 border border-[#E1E3DB] bg-white rounded-lg text-xs"
                             />
                             <button
                                 type="button"
                                 onClick={handleAddImageUrl}
                                 disabled={!newImageUrl.trim()}
-                                className="px-3 py-2 bg-stone-200 hover:bg-stone-300 disabled:opacity-50 text-stone-700 rounded-lg text-sm font-medium transition-colors"
+                                className="px-3 py-1.5 bg-stone-200 hover:bg-stone-300 disabled:opacity-50 text-stone-700 rounded-lg text-xs font-semibold"
                             >
                                 Add
                             </button>
@@ -400,209 +539,130 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                     </div>
                 </div>
 
-                {/* SAVE PRODUCT BUTTON */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E3DB]">
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="px-5 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors font-medium text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {saving ? 'Saving Product...' : (product ? 'Update Product' : 'Create Product')}
-                    </button>
-                </div>
-            </form>
-
-            {/* PRODUCT VARIANTS SECTION */}
-            {product?.id ? (
-                <div className="mt-8 pt-6 border-t border-[#E1E3DB]">
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h4 className="text-base font-bold text-stone-900 font-display">Product Variants</h4>
-                            <p className="text-xs text-stone-500">Manage size, flavor, color, or other variations</p>
-                        </div>
-                        {!showVariantForm && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    resetVariantForm();
-                                    setShowVariantForm(true);
-                                }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#EAF3EE] hover:bg-[#2E6E52] text-[#2E6E52] hover:text-white rounded-lg text-xs font-semibold transition-colors"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                Add Variant
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Variant Form */}
-                    {showVariantForm && (
-                        <div className="mb-4 p-4 border border-[#2E6E52]/30 bg-[#F8F9F6] rounded-xl space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h5 className="text-sm font-bold text-stone-800">
-                                    {editingVariantId ? 'Edit Variant' : 'New Variant'}
-                                </h5>
+                {/* Variants Section */}
+                {hasVariants && (
+                    <div className="border border-[#E1E3DB] rounded-lg p-4 bg-stone-50/50">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <label className="block text-sm font-semibold text-stone-700">
+                                    Product Variants
+                                </label>
+                                <span className="text-xs text-stone-500">
+                                    {variants.length} variations
+                                </span>
+                            </div>
+                            {product?.id && !showVariantForm && (
                                 <button
                                     type="button"
-                                    onClick={resetVariantForm}
-                                    className="text-stone-400 hover:text-stone-600"
+                                    onClick={() => {
+                                        resetVariantForm();
+                                        setShowVariantForm(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2E6E52] text-white rounded-lg text-xs font-semibold"
                                 >
-                                    <X className="w-4 h-4" />
+                                    <Plus className="w-3 h-3" />
+                                    Add Variant
                                 </button>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                        Variant Name *
-                                    </label>
+                            )}
+                        </div>
+
+                        {showVariantForm && product?.id && (
+                            <div className="mb-3 p-3 bg-white border border-[#2E6E52]/40 rounded-lg space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-stone-800">
+                                        {editingVariantId ? 'Edit Variant' : 'New Variant'}
+                                    </span>
+                                    <button type="button" onClick={resetVariantForm} className="text-stone-400">
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                     <input
                                         type="text"
                                         value={variantName}
                                         onChange={(e) => setVariantName(e.target.value)}
-                                        placeholder="e.g., Small / 250ml / Red"
-                                        className="w-full px-3 py-1.5 text-sm border border-[#E1E3DB] rounded-lg bg-white focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none"
+                                        placeholder="Variant name *"
+                                        className="px-2.5 py-1.5 text-xs border rounded-lg"
                                         required
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                        Sales Price ($)
-                                    </label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         value={variantPrice}
                                         onChange={(e) => setVariantPrice(e.target.value)}
-                                        placeholder={salesPrice || '0.00'}
-                                        className="w-full px-3 py-1.5 text-sm border border-[#E1E3DB] rounded-lg bg-white focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none"
+                                        placeholder="Price ($)"
+                                        className="px-2.5 py-1.5 text-xs border rounded-lg"
                                     />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                    Description / Details
-                                </label>
-                                <input
-                                    type="text"
-                                    value={variantDesc}
-                                    onChange={(e) => setVariantDesc(e.target.value)}
-                                    placeholder="Optional variant description"
-                                    className="w-full px-3 py-1.5 text-sm border border-[#E1E3DB] rounded-lg bg-white focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                    Variant Image
-                                </label>
-                                <div className="flex gap-2 items-center">
-                                    {variantImage && (
-                                        <img src={variantImage} alt="Variant" className="w-8 h-8 rounded border border-[#E1E3DB] object-cover" />
-                                    )}
                                     <input
-                                        type="text"
-                                        value={variantImage}
-                                        onChange={(e) => setVariantImage(e.target.value)}
-                                        placeholder="Image URL or upload..."
-                                        className="flex-1 px-3 py-1.5 text-sm border border-[#E1E3DB] rounded-lg bg-white focus:ring-2 focus:ring-[#2E6E52]/20 focus:border-[#2E6E52] outline-none"
+                                        type="number"
+                                        value={variantStockCount}
+                                        onChange={(e) => setVariantStockCount(e.target.value)}
+                                        disabled={trackInventory}
+                                        placeholder="Stock Count"
+                                        className={`px-2.5 py-1.5 text-xs border rounded-lg ${trackInventory ? 'bg-stone-100 text-stone-400' : ''}`}
                                     />
-                                    <label className="cursor-pointer px-2.5 py-1.5 bg-white border border-[#E1E3DB] hover:bg-[#EEF0EA] rounded-lg text-xs font-medium text-stone-700">
-                                        {isUploadingVariantImg ? '...' : 'Upload'}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleVariantImageUpload}
-                                            disabled={isUploadingVariantImg}
-                                            className="hidden"
-                                        />
-                                    </label>
+                                </div>
+                                <div className="flex justify-end gap-1.5 pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={resetVariantForm}
+                                        className="px-2.5 py-1 border text-stone-600 rounded text-xs"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveVariant}
+                                        className="px-3 py-1 bg-[#2E6E52] text-white rounded text-xs font-semibold"
+                                    >
+                                        Save
+                                    </button>
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-2 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={resetVariantForm}
-                                    className="px-3 py-1.5 border border-[#E1E3DB] text-stone-600 hover:bg-stone-100 rounded-lg text-xs font-medium"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleSaveVariant}
-                                    className="px-4 py-1.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-xs font-semibold"
-                                >
-                                    {editingVariantId ? 'Update Variant' : 'Save Variant'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Variants Table / List */}
-                    {loadingVariants ? (
-                        <div className="text-center py-4 text-xs text-stone-500">Loading variants...</div>
-                    ) : variants.length === 0 ? (
-                        <div className="text-center py-4 border border-dashed border-[#E1E3DB] rounded-lg text-xs text-stone-500">
-                            No variants yet for this product.
-                        </div>
-                    ) : (
-                        <div className="border border-[#E1E3DB] rounded-lg overflow-hidden bg-white">
-                            <table className="min-w-full divide-y divide-[#E1E3DB] text-xs">
-                                <thead className="bg-[#F8F9F6] text-stone-600 uppercase font-semibold">
-                                    <tr>
-                                        <th className="px-3 py-2 text-left">Variant</th>
-                                        <th className="px-3 py-2 text-left">Sales Price</th>
-                                        <th className="px-3 py-2 text-left">Description</th>
-                                        <th className="px-3 py-2 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#E1E3DB]">
-                                    {variants.map(v => (
-                                        <tr key={v.id} className="hover:bg-[#FAFBF9]">
-                                            <td className="px-3 py-2 font-medium text-stone-900 flex items-center gap-2">
-                                                {v.images ? (
-                                                    <img src={v.images} alt={v.name} className="w-6 h-6 rounded object-cover border border-[#E1E3DB]" />
-                                                ) : (
-                                                    <div className="w-6 h-6 rounded bg-[#EEF0EA] border border-[#E1E3DB] flex items-center justify-center text-[10px] text-stone-400">
-                                                        V
-                                                    </div>
-                                                )}
-                                                <span>{v.name}</span>
-                                            </td>
-                                            <td className="px-3 py-2 font-semibold text-stone-900">
-                                                ${(v.sales_price / 100).toFixed(2)}
-                                            </td>
-                                            <td className="px-3 py-2 text-stone-500 truncate max-w-[150px]">
-                                                {v.description || '-'}
-                                            </td>
-                                            <td className="px-3 py-2 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleEditVariant(v)}
-                                                    className="text-stone-600 hover:text-[#2E6E52] p-1"
-                                                    title="Edit"
-                                                >
-                                                    <Edit2 className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteVariant(v.id)}
-                                                    className="text-red-500 hover:text-red-700 p-1"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                        {!product?.id ? (
+                            <p className="text-xs text-stone-400">
+                                Save product first to manage specific variants.
+                            </p>
+                        ) : loadingVariants ? (
+                            <p className="text-xs text-stone-400">Loading variants...</p>
+                        ) : variants.length === 0 ? (
+                            <p className="text-xs text-stone-400">No variants added yet.</p>
+                        ) : (
+                            <div className="space-y-1.5">
+                                {variants.map(v => (
+                                    <div key={v.id} className="flex items-center justify-between p-2 bg-white rounded border border-[#E1E3DB] text-xs">
+                                        <div className="font-semibold text-stone-800">{v.name}</div>
+                                        <div className="flex items-center gap-3">
+                                            <span>${(v.sales_price / 100).toFixed(2)}</span>
+                                            <span className="px-1.5 py-0.5 bg-stone-100 rounded text-stone-600">
+                                                {v.stock_count || 0} in stock
+                                            </span>
+                                            <button type="button" onClick={() => handleEditVariant(v)} className="text-stone-500 hover:text-stone-800">
+                                                <Edit2 className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button type="button" onClick={() => handleDeleteVariant(v.id)} className="text-red-500 hover:text-red-700">
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E1E3DB]">
+                    <button
+                        type="submit"
+                        disabled={saving}
+                        className="px-5 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                    >
+                        {saving ? 'Saving...' : (product ? 'Save Changes' : 'Create Product')}
+                    </button>
                 </div>
-            ) : (
-                <div className="mt-4 p-3 bg-[#F8F9F6] border border-[#E1E3DB] rounded-lg text-xs text-stone-500">
-                    💡 Tip: Save this product first to add and manage specific Product Variants (e.g. sizes, colors).
-                </div>
-            )}
+            </form>
         </div>
     );
 };

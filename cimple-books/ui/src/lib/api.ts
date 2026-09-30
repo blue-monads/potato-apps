@@ -226,6 +226,7 @@ export interface ProductVariant {
     name: string;
     description: string;
     sales_price: number;
+    stock_count?: number;
     images?: string;
     created_by?: number;
     updated_by?: number;
@@ -245,6 +246,11 @@ export interface Product {
     alt_images?: string;
     epoch?: number;
     stock_count: number;
+    track_inventory?: boolean;
+    has_variants?: boolean;
+    sales_account_id?: number | null;
+    purchase_account_id?: number | null;
+    tax_id?: number | null;
     created_by?: number;
     updated_by?: number;
     created_at?: string;
@@ -343,6 +349,57 @@ export const uploadProductImage = async (file: File): Promise<string> => {
     return `/zz/api/core/space_file/preview/${cleanId}`;
 };
 
+// Stock In API
+export interface ProductStockInLine {
+    id?: number;
+    info?: string;
+    product_stockin_id?: number;
+    product_id: number;
+    variant_id?: number;
+    qty: number;
+    amount?: number;
+    created_by?: number;
+    updated_by?: number;
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface ProductStockIn {
+    id: number;
+    info: string;
+    amount: number;
+    vendor_id: number;
+    created_by: number;
+    updated_by: number;
+    created_at: string;
+    updated_at: string;
+    lines?: ProductStockInLine[];
+}
+
+export const listStockIn = async (): Promise<ApiResponse<ProductStockIn[]>> => {
+    const resp = await apiRequest<ProductStockIn[]>('/stockin', { method: 'GET' });
+    if (resp.status === 200 && Array.isArray(resp.data)) {
+        return resp;
+    }
+    return { ...resp, data: [] };
+};
+
+export const getStockIn = async (stockinId: number): Promise<ApiResponse<ProductStockIn>> => {
+    return apiRequest<ProductStockIn>(`/stockin/${stockinId}`, { method: 'GET' });
+};
+
+export const createStockIn = async (stockin: Partial<ProductStockIn>): Promise<ApiResponse<ProductStockIn>> => {
+    return apiRequest<ProductStockIn>('/stockin', {
+        method: 'POST',
+        body: JSON.stringify(stockin),
+    });
+};
+
+export const deleteStockIn = async (stockinId: number): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>(`/stockin/${stockinId}`, {
+        method: 'DELETE',
+    });
+};
 
 // Taxes API
 export interface Tax {
