@@ -1,0 +1,143 @@
+{
+  "template": "tech_electronics",
+  "name": "Tech & Electronics",
+  "description": "Computers, gadgets, peripherals, tech support & hardware repair service lines.",
+  "accounts": [
+    { "name": "Cash Register", "acc_type": "assets", "info": "Store floor cash drawer", "parent_id": 0, "total_debit": 500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Tech Venture Bank Account", "acc_type": "assets", "info": "Primary operating checking", "parent_id": 0, "total_debit": 6500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Merchant Account Clearing", "acc_type": "assets", "info": "Credit card & stripe payments", "parent_id": 0, "total_debit": 450000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Hardware Inventory Asset", "acc_type": "assets", "info": "Computers, components, gadgets", "parent_id": 0, "total_debit": 3800000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Accounts Payable - OEMs", "acc_type": "liabilities", "info": "Suppliers and component vendors", "parent_id": 0, "total_debit": 0, "total_credit": 600000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Warranty Reserve", "acc_type": "liabilities", "info": "Provision for device repairs", "parent_id": 0, "total_debit": 0, "total_credit": 120000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Founder's Capital", "acc_type": "equity", "info": "Equity investment", "parent_id": 0, "total_debit": 0, "total_credit": 9000000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Hardware Sales Revenue", "acc_type": "revenue", "info": "Sales of electronics & laptops", "parent_id": 0, "total_debit": 0, "total_credit": 2500000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Repair & Support Revenue", "acc_type": "revenue", "info": "Technical repairs & diagnostics", "parent_id": 0, "total_debit": 0, "total_credit": 480000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Store Lease Expense", "acc_type": "expenses", "info": "Retail showroom lease", "parent_id": 0, "total_debit": 180000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Engineering & Tech Salaries", "acc_type": "expenses", "info": "Repair techs and sales reps", "parent_id": 0, "total_debit": 380000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
+  ],
+  "taxes": [
+    { "name": "Consumer Electronics VAT (13%)", "ttype": "sales", "info": "Hardware standard VAT", "rate": 1300, "strict": 0, "is_deleted": 0 },
+    { "name": "Tech Services Tax (10%)", "ttype": "sales", "info": "Repairs & technical services", "rate": 1000, "strict": 0, "is_deleted": 0 },
+    { "name": "Component Purchase VAT (13%)", "ttype": "purchase", "info": "Input VAT on hardware imports", "rate": 1300, "strict": 0, "is_deleted": 0 }
+  ],
+  "categories": [
+    { "name": "Computers & Laptops", "info": "Notebooks, desktops, mini PCs", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Audio & Smart Devices", "info": "Headphones, wireless earbuds, smart speakers", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Accessories & Power", "info": "Chargers, cables, docks, keyboards", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Repair Services", "info": "Device repairs, screen replacements, upgrades", "product_class": "service", "parent_id": 0, "image": "", "is_deleted": 0 }
+  ],
+  "products": [
+    {
+      "prod": {
+        "name": "Ultra Slim Laptop 14\" Pro",
+        "info": "Intel Core i7 13th Gen, IPS Display, Thunderbolt 4",
+        "category_index": 1,
+        "sales_price": 129900,
+        "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 12,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "16GB RAM / 512GB SSD", "description": "Space Gray edition", "sales_price": 129900, "images": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60" },
+        { "name": "32GB RAM / 1TB SSD", "description": "Space Gray edition with max specs", "sales_price": 159900, "images": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Active Noise Cancelling Headphones",
+        "info": "Wireless over-ear Bluetooth 5.3 headset with 40hr battery",
+        "category_index": 2,
+        "sales_price": 18900,
+        "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 35,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Matte Carbon Black", "description": "Classic stealth black", "sales_price": 18900, "images": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Silver Mist", "description": "Brushed aluminum finish", "sales_price": 18900, "images": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Mechanical Gaming Keyboard RGB",
+        "info": "Hot-swappable switches, sound dampening foam, PBT keycaps",
+        "category_index": 3,
+        "sales_price": 7999,
+        "image": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 40,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Red Linear Switches", "description": "Smooth and quiet keypresses", "sales_price": 7999, "images": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Brown Tactile Switches", "description": "Subtle tactile bump for typing", "sales_price": 7999, "images": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60" }
+      ]
+    }
+  ],
+  "sale": {
+    "title": "INV-001 - First Customer Order",
+    "client_id": 101,
+    "client_name": "Global Ventures Inc.",
+    "notes": "Initial demo order created upon system setup",
+    "attachments": "",
+    "total_item_price": 148800,
+    "total_item_tax_amount": 19344,
+    "total_item_discount_amount": 0,
+    "sub_total": 168144,
+    "overall_discount_amount": 0,
+    "overall_tax_amount": 0,
+    "total": 168144,
+    "payment_status": "paid",
+    "invalidated_reason": "",
+    "is_deleted": 0,
+    "lines": [
+      {
+        "product_index": 1,
+        "info": "Ultra Slim Laptop 14\" Pro (16GB/512GB)",
+        "qty": 1,
+        "price": 129900,
+        "tax_amount": 16887,
+        "discount_amount": 0,
+        "total_amount": 146787
+      },
+      {
+        "product_index": 2,
+        "info": "Active Noise Cancelling Headphones",
+        "qty": 1,
+        "price": 18900,
+        "tax_amount": 2457,
+        "discount_amount": 0,
+        "total_amount": 21357
+      }
+    ]
+  },
+  "transaction": {
+    "title": "Opening Capital Deposit",
+    "notes": "Opening journal entry for business inception",
+    "txn_type": "manual",
+    "reference_id": "TXN-SETUP-001",
+    "attachments": "",
+    "is_editable": 1,
+    "is_deleted": 0,
+    "lines": [
+      {
+        "account_name": "Tech Venture Bank Account",
+        "debit_amount": 5000000,
+        "credit_amount": 0
+      },
+      {
+        "account_name": "Founder's Capital",
+        "debit_amount": 0,
+        "credit_amount": 5000000
+      }
+    ]
+  }
+}

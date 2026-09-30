@@ -1,4 +1,5 @@
 local potato = require("potato")
+local json = require("json")
 
 function get_user_id(req)
     local userId, err = req.get_user_id()
@@ -82,360 +83,270 @@ function seed_database(ctx)
     return init_app(ctx)
 end
 
+local function read_seed_file(file_name)
+    local rel_paths = {
+        "public/seed/" .. file_name,
+        "seed/" .. file_name,
+        file_name
+    }
+
+    -- 1. Try reading via potato.core.read_package_file (packaged runtime)
+    if potato and potato.core and potato.core.read_package_file then
+        for _, p in ipairs(rel_paths) do
+            local c, _ = potato.core.read_package_file(p)
+            if c ~= nil and c ~= "" then
+                return c
+            end
+        end
+    end
+
+    -- 2. Try direct filesystem read (for dev/local execution)
+    local disk_prefixes = {
+        "",
+        "cimple-books/",
+        "potato-apps/cimple-books/",
+        "/home/bigbird/zhome/code/blue-monads/potato-apps/cimple-books/",
+        "../",
+        "../../"
+    }
+    for _, p in ipairs(rel_paths) do
+        for _, prefix in ipairs(disk_prefixes) do
+            local f = io.open(prefix .. p, "r")
+            if f then
+                local content = f:read("*all")
+                f:close()
+                if content ~= nil and content ~= "" then
+                    return content
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+local function load_template_data(template)
+    if template == nil or template == "" then
+        template = "small_business"
+    end
+
+    -- 1. Try template-specific JSON file (e.g. small_business.json)
+    local raw = read_seed_file(template .. ".json")
+    if raw ~= nil and raw ~= "" then
+        local ok, data = pcall(json.decode, raw)
+        if ok and type(data) == "table" then
+            return data
+        end
+    end
+
+    -- 2. Try consolidated seed.json
+    local combined_raw = read_seed_file("seed.json")
+    if combined_raw ~= nil and combined_raw ~= "" then
+        local ok, combined_data = pcall(json.decode, combined_raw)
+        if ok and type(combined_data) == "table" and type(combined_data[template]) == "table" then
+            return combined_data[template]
+        end
+    end
+
+    -- 3. Fallback to small_business if requested template was not found
+    if template ~= "small_business" then
+        return load_template_data("small_business")
+    end
+
+    return nil
+end
+
 function seed_template_data(userId, template)
     if template == "blank" then
         return
     end
 
-    local is_pharmacy = (template == "pharmacy")
-    local is_tech = (template == "tech_electronics")
-    local is_consulting = (template == "consulting")
-
-    -- 1. Accounts
-    local accounts = {}
-    if is_pharmacy then
-        accounts = {
-            { name = "Pharmacy Cash Register", acc_type = "assets", info = "Point-of-sale cash counter", parent_id = 0, total_debit = 800000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Pharmacy Operating Account", acc_type = "assets", info = "Main bank account", parent_id = 0, total_debit = 4500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Accounts Receivable - Insurance", acc_type = "assets", info = "Claims pending reimbursement", parent_id = 0, total_debit = 320000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Prescription Medicine Inventory", acc_type = "assets", info = "Value of Rx drugs in stock", parent_id = 0, total_debit = 2500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "OTC & Health Inventory", acc_type = "assets", info = "Over the counter medicine stock", parent_id = 0, total_debit = 1200000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Accounts Payable - Distributors", acc_type = "liabilities", info = "Pharma wholesalers payable", parent_id = 0, total_debit = 0, total_credit = 450000, contact_id = 0, is_deleted = 0 },
-            { name = "Sales Tax Payable", acc_type = "liabilities", info = "Collected healthcare sales tax", parent_id = 0, total_debit = 0, total_credit = 35000, contact_id = 0, is_deleted = 0 },
-            { name = "Owner's Equity", acc_type = "equity", info = "Initial capital investment", parent_id = 0, total_debit = 0, total_credit = 8000000, contact_id = 0, is_deleted = 0 },
-            { name = "Prescription Sales Revenue", acc_type = "revenue", info = "Income from Rx dispensary", parent_id = 0, total_debit = 0, total_credit = 1800000, contact_id = 0, is_deleted = 0 },
-            { name = "OTC Sales Revenue", acc_type = "revenue", info = "General health & wellness retail", parent_id = 0, total_debit = 0, total_credit = 650000, contact_id = 0, is_deleted = 0 },
-            { name = "Clinical Consultation Income", acc_type = "revenue", info = "Health checkup and consultation", parent_id = 0, total_debit = 0, total_credit = 210000, contact_id = 0, is_deleted = 0 },
-            { name = "Staff Pharmacist Salaries", acc_type = "expenses", info = "Pharmacist and tech payroll", parent_id = 0, total_debit = 420000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Pharmacy Store Rent", acc_type = "expenses", info = "Commercial premises rent", parent_id = 0, total_debit = 150000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Medical Waste Disposal", acc_type = "expenses", info = "Biohazard and expired drug disposal", parent_id = 0, total_debit = 25000, total_credit = 0, contact_id = 0, is_deleted = 0 }
-        }
-    elseif is_tech then
-        accounts = {
-            { name = "Cash Register", acc_type = "assets", info = "Store floor cash drawer", parent_id = 0, total_debit = 500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Tech Venture Bank Account", acc_type = "assets", info = "Primary operating checking", parent_id = 0, total_debit = 6500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Merchant Account Clearing", acc_type = "assets", info = "Credit card & stripe payments", parent_id = 0, total_debit = 450000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Hardware Inventory Asset", acc_type = "assets", info = "Computers, components, gadgets", parent_id = 0, total_debit = 3800000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Accounts Payable - OEMs", acc_type = "liabilities", info = "Suppliers and component vendors", parent_id = 0, total_debit = 0, total_credit = 600000, contact_id = 0, is_deleted = 0 },
-            { name = "Warranty Reserve", acc_type = "liabilities", info = "Provision for device repairs", parent_id = 0, total_debit = 0, total_credit = 120000, contact_id = 0, is_deleted = 0 },
-            { name = "Founder's Capital", acc_type = "equity", info = "Equity investment", parent_id = 0, total_debit = 0, total_credit = 9000000, contact_id = 0, is_deleted = 0 },
-            { name = "Hardware Sales Revenue", acc_type = "revenue", info = "Sales of electronics & laptops", parent_id = 0, total_debit = 0, total_credit = 2500000, contact_id = 0, is_deleted = 0 },
-            { name = "Repair & Support Revenue", acc_type = "revenue", info = "Technical repairs & diagnostics", parent_id = 0, total_debit = 0, total_credit = 480000, contact_id = 0, is_deleted = 0 },
-            { name = "Store Lease Expense", acc_type = "expenses", info = "Retail showroom lease", parent_id = 0, total_debit = 180000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Engineering & Tech Salaries", acc_type = "expenses", info = "Repair techs and sales reps", parent_id = 0, total_debit = 380000, total_credit = 0, contact_id = 0, is_deleted = 0 }
-        }
-    elseif is_consulting then
-        accounts = {
-            { name = "Operating Bank Account", acc_type = "assets", info = "Primary business bank account", parent_id = 0, total_debit = 5500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Accounts Receivable - Clients", acc_type = "assets", info = "Uncollected client invoices", parent_id = 0, total_debit = 850000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Client Retainer Escrow", acc_type = "liabilities", info = "Unearned retainer deposits", parent_id = 0, total_debit = 0, total_credit = 400000, contact_id = 0, is_deleted = 0 },
-            { name = "Partner Equity", acc_type = "equity", info = "Partner capital contributions", parent_id = 0, total_debit = 0, total_credit = 5000000, contact_id = 0, is_deleted = 0 },
-            { name = "Professional Advisory Fees", acc_type = "revenue", info = "Consulting and advisory revenue", parent_id = 0, total_debit = 0, total_credit = 2800000, contact_id = 0, is_deleted = 0 },
-            { name = "Monthly Retainer Income", acc_type = "revenue", info = "Ongoing client retainers", parent_id = 0, total_debit = 0, total_credit = 950000, contact_id = 0, is_deleted = 0 },
-            { name = "Office Space Rent", acc_type = "expenses", info = "Executive suite lease", parent_id = 0, total_debit = 140000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Software & SaaS Tooling", acc_type = "expenses", info = "Cloud accounting & research tools", parent_id = 0, total_debit = 45000, total_credit = 0, contact_id = 0, is_deleted = 0 }
-        }
-    else
-        -- Small Business / Retail (Default)
-        accounts = {
-            { name = "Cash on Hand", acc_type = "assets", info = "Petty cash and cash register", parent_id = 0, total_debit = 1000000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Operating Bank Account", acc_type = "assets", info = "Primary business bank account", parent_id = 0, total_debit = 5000000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Accounts Receivable", acc_type = "assets", info = "Money owed by customers", parent_id = 0, total_debit = 250000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Inventory Asset", acc_type = "assets", info = "Value of inventory on hand", parent_id = 0, total_debit = 1500000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Accounts Payable", acc_type = "liabilities", info = "Money owed to suppliers", parent_id = 0, total_debit = 0, total_credit = 300000, contact_id = 0, is_deleted = 0 },
-            { name = "Sales Tax Payable", acc_type = "liabilities", info = "Collected sales tax to remit", parent_id = 0, total_debit = 0, total_credit = 65000, contact_id = 0, is_deleted = 0 },
-            { name = "Owner's Equity", acc_type = "equity", info = "Initial capital contribution", parent_id = 0, total_debit = 0, total_credit = 6000000, contact_id = 0, is_deleted = 0 },
-            { name = "Sales Revenue", acc_type = "revenue", info = "Revenue from product sales", parent_id = 0, total_debit = 0, total_credit = 1500000, contact_id = 0, is_deleted = 0 },
-            { name = "Service Income", acc_type = "revenue", info = "Revenue from consulting and services", parent_id = 0, total_debit = 0, total_credit = 450000, contact_id = 0, is_deleted = 0 },
-            { name = "Rent Expense", acc_type = "expenses", info = "Monthly office rent", parent_id = 0, total_debit = 120000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Salaries Expense", acc_type = "expenses", info = "Staff payroll expenses", parent_id = 0, total_debit = 350000, total_credit = 0, contact_id = 0, is_deleted = 0 },
-            { name = "Office Supplies Expense", acc_type = "expenses", info = "Stationery and supplies", parent_id = 0, total_debit = 15000, total_credit = 0, contact_id = 0, is_deleted = 0 }
-        }
+    local seed_data = load_template_data(template)
+    if not seed_data then
+        print("Warning: No seed data found for template: " .. tostring(template))
+        return
     end
 
+    -- 1. Accounts
     local created_accounts = {}
-    for _, acc in ipairs(accounts) do
-        local id, _ = potato.db.insert("Accounts", acc)
-        if id ~= nil then
-            created_accounts[acc.name] = id
+    if seed_data.accounts then
+        for _, acc in ipairs(seed_data.accounts) do
+            local acc_record = {
+                name = acc.name,
+                acc_type = acc.acc_type,
+                info = acc.info or "",
+                parent_id = acc.parent_id or 0,
+                total_debit = acc.total_debit or 0,
+                total_credit = acc.total_credit or 0,
+                contact_id = acc.contact_id or 0,
+                is_deleted = acc.is_deleted or 0
+            }
+            local id, _ = potato.db.insert("Accounts", acc_record)
+            if id ~= nil then
+                created_accounts[acc.name] = id
+            end
         end
     end
 
     -- 2. Tax Rates
-    local taxes = {}
-    if is_pharmacy then
-        taxes = {
-            { name = "Prescription Drugs (0%)", ttype = "sales", info = "Exempt essential medicines", rate = 0, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "OTC Medicines VAT (5%)", ttype = "sales", info = "Reduced healthcare VAT", rate = 500, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "General Health Goods (13%)", ttype = "sales", info = "Standard retail VAT", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Wholesale Purchase VAT (13%)", ttype = "purchase", info = "Input VAT on purchases", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    elseif is_tech then
-        taxes = {
-            { name = "Consumer Electronics VAT (13%)", ttype = "sales", info = "Hardware standard VAT", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Tech Services Tax (10%)", ttype = "sales", info = "Repairs & technical services", rate = 1000, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Component Purchase VAT (13%)", ttype = "purchase", info = "Input VAT on hardware imports", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    elseif is_consulting then
-        taxes = {
-            { name = "Professional Services VAT (13%)", ttype = "sales", info = "Standard advisory VAT", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Withholding Tax (1.5%)", ttype = "sales", info = "Contractor withholding", rate = 150, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Remote Services (0%)", ttype = "sales", info = "Tax exempt offshore clients", rate = 0, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    else
-        taxes = {
-            { name = "Standard Sales VAT (13%)", ttype = "sales", info = "Standard Value Added Tax on sales", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Purchase VAT (13%)", ttype = "purchase", info = "Input VAT on purchases", rate = 1300, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Sales Tax (5%)", ttype = "sales", info = "State sales tax", rate = 500, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Zero Tax (0%)", ttype = "sales", info = "Tax exempt items", rate = 0, ["strict"] = 0, created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    end
-
-    for _, t in ipairs(taxes) do
-        potato.db.insert("Tax", t)
+    if seed_data.taxes then
+        for _, t in ipairs(seed_data.taxes) do
+            local tax_record = {
+                name = t.name,
+                ttype = t.ttype or "sales",
+                info = t.info or "",
+                rate = t.rate or 0,
+                ["strict"] = t["strict"] or 0,
+                created_by = userId,
+                updated_by = userId,
+                is_deleted = t.is_deleted or 0
+            }
+            potato.db.insert("Tax", tax_record)
+        end
     end
 
     -- 3. Categories
-    local categories = {}
-    if is_pharmacy then
-        categories = {
-            { name = "Prescription Drugs", info = "Dispensed prescription medications", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Over-The-Counter (OTC)", info = "Non-prescription medications & remedies", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Vitamins & Supplements", info = "Dietary supplements, probiotics, minerals", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "First Aid & Equipment", info = "Dressings, monitors, medical diagnostics", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    elseif is_tech then
-        categories = {
-            { name = "Computers & Laptops", info = "Notebooks, desktops, mini PCs", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Audio & Smart Devices", info = "Headphones, wireless earbuds, smart speakers", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Accessories & Power", info = "Chargers, cables, docks, keyboards", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Repair Services", info = "Device repairs, screen replacements, upgrades", product_class = "service", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    elseif is_consulting then
-        categories = {
-            { name = "Accounting & Tax Advisory", info = "Tax prep, bookkeeping, financial modeling", product_class = "service", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Management Consulting", info = "Operational strategy and turnaround", product_class = "service", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Audit & Compliance", info = "Financial review and regulatory compliance", product_class = "service", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    else
-        categories = {
-            { name = "Office Supplies", info = "Stationery, paper, desk equipment", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "Electronics & Gadgets", info = "Hardware, peripherals, and electronics", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 },
-            { name = "General Merchandise", info = "Everyday consumables and store goods", product_class = "physical_item", parent_id = 0, image = "", created_by = userId, updated_by = userId, is_deleted = 0 }
-        }
-    end
-
     local created_categories = {}
-    for _, cat in ipairs(categories) do
-        local id, _ = potato.db.insert("Catagories", cat)
-        if id ~= nil then
-            table.insert(created_categories, id)
+    if seed_data.categories then
+        for _, cat in ipairs(seed_data.categories) do
+            local cat_record = {
+                name = cat.name,
+                info = cat.info or "",
+                product_class = cat.product_class or "physical_item",
+                parent_id = cat.parent_id or 0,
+                image = cat.image or "",
+                created_by = userId,
+                updated_by = userId,
+                is_deleted = cat.is_deleted or 0
+            }
+            local id, _ = potato.db.insert("Catagories", cat_record)
+            if id ~= nil then
+                table.insert(created_categories, id)
+            end
         end
     end
 
     -- 4. Products & ProductVariants
-    local cat1 = created_categories[1] or 1
-    local cat2 = created_categories[2] or 2
-    local cat3 = created_categories[3] or 3
-
-    local products_with_variants = {}
-    if is_pharmacy then
-        products_with_variants = {
-            {
-                prod = { name = "Paracetamol 500mg", info = "Rapid pain relief and fever reducer caplets", catagory_id = cat2, sales_price = 350, image = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 150, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Blister Pack (20 Caplets)", description = "Standard pack of 20", sales_price = 350, images = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Economy Bottle (100 Caplets)", description = "Value family size bottle of 100", sales_price = 1250, images = "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Digital Blood Pressure Monitor", info = "Automatic upper-arm cuff digital sphygmomanometer", catagory_id = cat1, sales_price = 4500, image = "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 25, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Standard Arm Cuff (22-32cm)", description = "Medium adult cuff", sales_price = 4500, images = "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Large Arm Cuff (32-45cm)", description = "XL adult cuff", sales_price = 4900, images = "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Vitamin C 1000mg + Zinc Effervescent", info = "Immune support effervescent drink tablets", catagory_id = cat3, sales_price = 1100, image = "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 80, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Zesty Orange Flavor", description = "Tube of 20 dissolving tablets", sales_price = 1100, images = "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Wild Berry Flavor", description = "Tube of 20 dissolving tablets", sales_price = 1100, images = "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60" }
-                }
-            }
-        }
-    elseif is_tech then
-        products_with_variants = {
-            {
-                prod = { name = "Ultra Slim Laptop 14\" Pro", info = "Intel Core i7 13th Gen, IPS Display, Thunderbolt 4", catagory_id = cat1, sales_price = 129900, image = "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 12, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "16GB RAM / 512GB SSD", description = "Space Gray edition", sales_price = 129900, images = "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60" },
-                    { name = "32GB RAM / 1TB SSD", description = "Space Gray edition with max specs", sales_price = 159900, images = "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Active Noise Cancelling Headphones", info = "Wireless over-ear Bluetooth 5.3 headset with 40hr battery", catagory_id = cat2, sales_price = 18900, image = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 35, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Matte Carbon Black", description = "Classic stealth black", sales_price = 18900, images = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Silver Mist", description = "Brushed aluminum finish", sales_price = 18900, images = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Mechanical Gaming Keyboard RGB", info = "Hot-swappable switches, sound dampening foam, PBT keycaps", catagory_id = cat3, sales_price = 7999, image = "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 40, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Red Linear Switches", description = "Smooth and quiet keypresses", sales_price = 7999, images = "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Brown Tactile Switches", description = "Subtle tactile bump for typing", sales_price = 7999, images = "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&auto=format&fit=crop&q=60" }
-                }
-            }
-        }
-    elseif is_consulting then
-        products_with_variants = {
-            {
-                prod = { name = "Monthly Accounting & Tax Retainer", info = "Comprehensive monthly bookkeeping and compliance", catagory_id = cat1, sales_price = 30000, image = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 999, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Starter Tier (Up to 50 Transactions)", description = "Ideal for sole proprietors", sales_price = 30000, images = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Growth Tier (Up to 250 Transactions)", description = "Includes quarterly advisory session", sales_price = 65000, images = "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Corporate Tax Return Filing", info = "Annual corporate tax compilation and e-filing package", catagory_id = cat1, sales_price = 45000, image = "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 999, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Standard Entity (< $1M Revenue)", description = "Full compliance preparation", sales_price = 45000, images = "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=60" }
-                }
-            }
-        }
-    else
-        -- Small Business / Retail (Default)
-        products_with_variants = {
-            {
-                prod = { name = "Executive Desk Notebook Set", info = "Premium hardcover dotted & ruled notebooks", catagory_id = cat1, sales_price = 1850, image = "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 120, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Hardcover Ruled (A5)", description = "192 pages, 100gsm fountain-pen friendly paper", sales_price = 1850, images = "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Hardcover Dotted (A5)", description = "5mm dot grid layout, emerald ribbon bookmark", sales_price = 1950, images = "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Ergonomic Wireless Mouse", info = "Quiet click optical rechargeable Bluetooth mouse", catagory_id = cat2, sales_price = 2999, image = "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 60, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Graphite Charcoal", description = "Matte ergonomic grip", sales_price = 2999, images = "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60" },
-                    { name = "Off-White Chalk", description = "Sleek contemporary colorway", sales_price = 2999, images = "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60" }
-                }
-            },
-            {
-                prod = { name = "Artisan Whole Bean Coffee (1kg)", info = "Single origin medium roast Arabica beans", catagory_id = cat3, sales_price = 2200, image = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60", images = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60", alt_images = "", epoch = 0, stock_count = 45, created_by = userId, updated_by = userId, is_deleted = 0 },
-                variants = {
-                    { name = "Whole Bean 1kg", description = "Direct trade freshly roasted", sales_price = 2200, images = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60" },
-                    { name = "French Press Coarse Grind 1kg", description = "Ground for immersion brewing", sales_price = 2300, images = "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60" }
-                }
-            }
-        }
-    end
-
     local created_product_ids = {}
-    for _, item in ipairs(products_with_variants) do
-        local pid, _ = potato.db.insert("Products", item.prod)
-        if pid ~= nil then
-            table.insert(created_product_ids, pid)
-            if item.variants ~= nil then
-                for _, var in ipairs(item.variants) do
-                    var.product_id = pid
-                    var.created_by = userId
-                    var.updated_by = userId
-                    var.is_deleted = 0
-                    potato.db.insert("ProductVariants", var)
+    if seed_data.products then
+        for _, item in ipairs(seed_data.products) do
+            local prod_data = item.prod or item
+            local cat_idx = prod_data.category_index or 1
+            local cat_id = created_categories[cat_idx] or cat_idx
+
+            local prod_record = {
+                name = prod_data.name,
+                info = prod_data.info or "",
+                catagory_id = cat_id,
+                sales_price = prod_data.sales_price or 0,
+                image = prod_data.image or "",
+                images = prod_data.images or "",
+                alt_images = prod_data.alt_images or "",
+                epoch = prod_data.epoch or 0,
+                stock_count = prod_data.stock_count or 0,
+                created_by = userId,
+                updated_by = userId,
+                is_deleted = prod_data.is_deleted or 0
+            }
+
+            local pid, _ = potato.db.insert("Products", prod_record)
+            if pid ~= nil then
+                table.insert(created_product_ids, pid)
+                if item.variants ~= nil then
+                    for _, var in ipairs(item.variants) do
+                        local var_record = {
+                            product_id = pid,
+                            name = var.name,
+                            description = var.description or "",
+                            sales_price = var.sales_price or 0,
+                            images = var.images or "",
+                            created_by = userId,
+                            updated_by = userId,
+                            is_deleted = var.is_deleted or 0
+                        }
+                        potato.db.insert("ProductVariants", var_record)
+                    end
                 end
             end
         end
     end
 
     -- 5. Sample Sale
-    if #created_product_ids >= 2 then
-        local p1_id = created_product_ids[1]
-        local p2_id = created_product_ids[2]
-
-        local sale_id, _ = potato.db.insert("Sales", {
-            title = "INV-001 - First Customer Order",
-            client_id = 101,
-            client_name = "Global Ventures Inc.",
-            notes = "Initial demo order created upon system setup",
-            attachments = "",
-            total_item_price = 6699,
-            total_item_tax_amount = 871,
-            total_item_discount_amount = 200,
-            sub_total = 7370,
-            overall_discount_amount = 0,
-            overall_tax_amount = 0,
-            total = 7370,
+    if seed_data.sale and #created_product_ids >= 1 then
+        local s = seed_data.sale
+        local sale_record = {
+            title = s.title or "INV-001 - First Customer Order",
+            client_id = s.client_id or 101,
+            client_name = s.client_name or "Global Ventures Inc.",
+            notes = s.notes or "Initial demo order created upon system setup",
+            attachments = s.attachments or "",
+            total_item_price = s.total_item_price or 0,
+            total_item_tax_amount = s.total_item_tax_amount or 0,
+            total_item_discount_amount = s.total_item_discount_amount or 0,
+            sub_total = s.sub_total or 0,
+            overall_discount_amount = s.overall_discount_amount or 0,
+            overall_tax_amount = s.overall_tax_amount or 0,
+            total = s.total or 0,
             created_by = userId,
             updated_by = userId,
-            payment_status = "paid",
-            invalidated_reason = "",
-            is_deleted = 0
-        })
+            payment_status = s.payment_status or "paid",
+            invalidated_reason = s.invalidated_reason or "",
+            is_deleted = s.is_deleted or 0
+        }
 
-        if sale_id ~= nil then
-            potato.db.insert("SalesLines", {
-                sale_id = sale_id,
-                product_id = p1_id,
-                info = "Item Line 1",
-                qty = 2,
-                price = 1850,
-                tax_amount = 481,
-                discount_amount = 100,
-                total_amount = 4081,
-                created_by = userId,
-                updated_by = userId
-            })
-            potato.db.insert("SalesLines", {
-                sale_id = sale_id,
-                product_id = p2_id,
-                info = "Item Line 2",
-                qty = 1,
-                price = 2999,
-                tax_amount = 390,
-                discount_amount = 100,
-                total_amount = 3289,
-                created_by = userId,
-                updated_by = userId
-            })
+        local sale_id, _ = potato.db.insert("Sales", sale_record)
+        if sale_id ~= nil and s.lines then
+            for idx, line in ipairs(s.lines) do
+                local p_idx = line.product_index or idx
+                local p_id = created_product_ids[p_idx] or created_product_ids[1]
+                local line_record = {
+                    sale_id = sale_id,
+                    product_id = p_id,
+                    info = line.info or ("Item Line " .. tostring(idx)),
+                    qty = line.qty or 1,
+                    price = line.price or 0,
+                    tax_amount = line.tax_amount or 0,
+                    discount_amount = line.discount_amount or 0,
+                    total_amount = line.total_amount or 0,
+                    created_by = userId,
+                    updated_by = userId
+                }
+                potato.db.insert("SalesLines", line_record)
+            end
         end
     end
 
     -- 6. Sample Initial Capital Transaction
-    local bank_id = created_accounts["Operating Bank Account"] or created_accounts["Pharmacy Operating Account"] or created_accounts["Tech Venture Bank Account"] or 2
-    local equity_id = created_accounts["Owner's Equity"] or created_accounts["Founder's Capital"] or created_accounts["Partner Equity"] or 7
-
-    local txn_id, _ = potato.db.insert("Transactions", {
-        title = "Opening Capital Deposit",
-        notes = "Opening journal entry for business inception",
-        txn_type = "manual",
-        reference_id = "TXN-SETUP-001",
-        attachments = "",
-        created_by = userId,
-        updated_by = userId,
-        is_editable = 1,
-        is_deleted = 0
-    })
-    if txn_id ~= nil then
-        potato.db.insert("TransactionLines", {
-            account_id = bank_id,
-            txn_id = txn_id,
-            debit_amount = 5000000,
-            credit_amount = 0,
+    if seed_data.transaction then
+        local tx = seed_data.transaction
+        local txn_record = {
+            title = tx.title or "Opening Capital Deposit",
+            notes = tx.notes or "Opening journal entry for business inception",
+            txn_type = tx.txn_type or "manual",
+            reference_id = tx.reference_id or "TXN-SETUP-001",
+            attachments = tx.attachments or "",
             created_by = userId,
             updated_by = userId,
-            linked_sales_id = 0,
-            linked_stockin_id = 0
-        })
-        potato.db.insert("TransactionLines", {
-            account_id = equity_id,
-            txn_id = txn_id,
-            debit_amount = 0,
-            credit_amount = 5000000,
-            created_by = userId,
-            updated_by = userId,
-            linked_sales_id = 0,
-            linked_stockin_id = 0
-        })
+            is_editable = tx.is_editable or 1,
+            is_deleted = tx.is_deleted or 0
+        }
+        local txn_id, _ = potato.db.insert("Transactions", txn_record)
+        if txn_id ~= nil and tx.lines then
+            for _, tline in ipairs(tx.lines) do
+                local acc_id = created_accounts[tline.account_name] or tline.account_id or 1
+                local tl_record = {
+                    account_id = acc_id,
+                    txn_id = txn_id,
+                    debit_amount = tline.debit_amount or 0,
+                    credit_amount = tline.credit_amount or 0,
+                    created_by = userId,
+                    updated_by = userId,
+                    linked_sales_id = 0,
+                    linked_stockin_id = 0
+                }
+                potato.db.insert("TransactionLines", tl_record)
+            end
+        end
     end
 end
 

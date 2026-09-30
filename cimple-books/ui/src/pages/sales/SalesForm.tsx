@@ -5,8 +5,8 @@ import { createSale, updateSale, getSale, type Sale } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import SalesItemPicker from './components/SalesItemPicker';
-import OverallDiscountPicker from './components/OverallDiscountPicker';
-import OverallTaxPicker from './components/OverallTaxPicker';
+// import OverallDiscountPicker from './components/OverallDiscountPicker';
+// import OverallTaxPicker from './components/OverallTaxPicker';
 
 interface SalesLine {
     info: string;
@@ -118,31 +118,31 @@ const SalesForm = () => {
         });
     };
 
-    const openOverallDiscountPicker = () => {
-        openModal({
-            title: 'Overall Discount',
-            content: (
-                <OverallDiscountPicker
-                    subTotal={subTotal}
-                    currentDiscount={overallDiscountAmount}
-                    onSet={(discount) => setOverallDiscountAmount(discount)}
-                />
-            ),
-        });
-    };
+    // const openOverallDiscountPicker = () => {
+    //     openModal({
+    //         title: 'Overall Discount',
+    //         content: (
+    //             <OverallDiscountPicker
+    //                 subTotal={subTotal}
+    //                 currentDiscount={overallDiscountAmount}
+    //                 onSet={(discount) => setOverallDiscountAmount(discount)}
+    //             />
+    //         ),
+    //     });
+    // };
 
-    const openOverallTaxPicker = () => {
-        openModal({
-            title: 'Overall Tax',
-            content: (
-                <OverallTaxPicker
-                    subTotal={subTotal}
-                    currentTax={overallTaxAmount}
-                    onSet={(tax) => setOverallTaxAmount(tax)}
-                />
-            ),
-        });
-    };
+    // const openOverallTaxPicker = () => {
+    //     openModal({
+    //         title: 'Overall Tax',
+    //         content: (
+    //             <OverallTaxPicker
+    //                 subTotal={subTotal}
+    //                 currentTax={overallTaxAmount}
+    //                 onSet={(tax) => setOverallTaxAmount(tax)}
+    //             />
+    //         ),
+    //     });
+    // };
 
     const removeLine = (index: number) => {
         setLines(lines.filter((_, i) => i !== index));
@@ -414,7 +414,7 @@ const SalesForm = () => {
 
             {/* Totals */}
             <div className="border-t border-[#E1E3DB] pt-4">
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                {/* <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">
                             Overall Tax Amount
@@ -467,7 +467,7 @@ const SalesForm = () => {
                             </p>
                         )}
                     </div>
-                </div>
+                </div> */}
 
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <table className="w-full text-sm">
@@ -490,7 +490,7 @@ const SalesForm = () => {
                                     ${formatCurrency(subTotal)}
                                 </td>
                             </tr>
-                            <tr>
+                            {/* <tr>
                                 <td className="px-2 py-2 border border-gray-800">
                                     <button
                                         type="button"
@@ -539,7 +539,7 @@ const SalesForm = () => {
                                         )}
                                     </button>
                                 </td>
-                            </tr>
+                            </tr> */}
                             <tr>
                                 <td className="px-2 py-2 border border-gray-800 font-semibold text-lg">Total</td>
                                 <td className="px-2 py-2 border border-gray-800 text-right font-semibold text-lg">

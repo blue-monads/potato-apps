@@ -1,0 +1,120 @@
+{
+  "template": "consulting",
+  "name": "Professional Services",
+  "description": "Accounting, tax preparation, monthly retainers, client advisory & escrow.",
+  "accounts": [
+    { "name": "Operating Bank Account", "acc_type": "assets", "info": "Primary business bank account", "parent_id": 0, "total_debit": 5500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Accounts Receivable - Clients", "acc_type": "assets", "info": "Uncollected client invoices", "parent_id": 0, "total_debit": 850000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Client Retainer Escrow", "acc_type": "liabilities", "info": "Unearned retainer deposits", "parent_id": 0, "total_debit": 0, "total_credit": 400000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Partner Equity", "acc_type": "equity", "info": "Partner capital contributions", "parent_id": 0, "total_debit": 0, "total_credit": 5000000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Professional Advisory Fees", "acc_type": "revenue", "info": "Consulting and advisory revenue", "parent_id": 0, "total_debit": 0, "total_credit": 2800000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Monthly Retainer Income", "acc_type": "revenue", "info": "Ongoing client retainers", "parent_id": 0, "total_debit": 0, "total_credit": 950000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Office Space Rent", "acc_type": "expenses", "info": "Executive suite lease", "parent_id": 0, "total_debit": 140000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Software & SaaS Tooling", "acc_type": "expenses", "info": "Cloud accounting & research tools", "parent_id": 0, "total_debit": 45000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
+  ],
+  "taxes": [
+    { "name": "Professional Services VAT (13%)", "ttype": "sales", "info": "Standard advisory VAT", "rate": 1300, "strict": 0, "is_deleted": 0 },
+    { "name": "Withholding Tax (1.5%)", "ttype": "sales", "info": "Contractor withholding", "rate": 150, "strict": 0, "is_deleted": 0 },
+    { "name": "Remote Services (0%)", "ttype": "sales", "info": "Tax exempt offshore clients", "rate": 0, "strict": 0, "is_deleted": 0 }
+  ],
+  "categories": [
+    { "name": "Accounting & Tax Advisory", "info": "Tax prep, bookkeeping, financial modeling", "product_class": "service", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Management Consulting", "info": "Operational strategy and turnaround", "product_class": "service", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Audit & Compliance", "info": "Financial review and regulatory compliance", "product_class": "service", "parent_id": 0, "image": "", "is_deleted": 0 }
+  ],
+  "products": [
+    {
+      "prod": {
+        "name": "Monthly Accounting & Tax Retainer",
+        "info": "Comprehensive monthly bookkeeping and compliance",
+        "category_index": 1,
+        "sales_price": 30000,
+        "image": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 999,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Starter Tier (Up to 50 Transactions)", "description": "Ideal for sole proprietors", "sales_price": 30000, "images": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Growth Tier (Up to 250 Transactions)", "description": "Includes quarterly advisory session", "sales_price": 65000, "images": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Corporate Tax Return Filing",
+        "info": "Annual corporate tax compilation and e-filing package",
+        "category_index": 1,
+        "sales_price": 45000,
+        "image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 999,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Standard Entity (< $1M Revenue)", "description": "Full compliance preparation", "sales_price": 45000, "images": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&auto=format&fit=crop&q=60" }
+      ]
+    }
+  ],
+  "sale": {
+    "title": "INV-001 - First Customer Order",
+    "client_id": 101,
+    "client_name": "Global Ventures Inc.",
+    "notes": "Initial demo order created upon system setup",
+    "attachments": "",
+    "total_item_price": 75000,
+    "total_item_tax_amount": 9750,
+    "total_item_discount_amount": 0,
+    "sub_total": 84750,
+    "overall_discount_amount": 0,
+    "overall_tax_amount": 0,
+    "total": 84750,
+    "payment_status": "paid",
+    "invalidated_reason": "",
+    "is_deleted": 0,
+    "lines": [
+      {
+        "product_index": 1,
+        "info": "Monthly Accounting Retainer - Starter Tier",
+        "qty": 1,
+        "price": 30000,
+        "tax_amount": 3900,
+        "discount_amount": 0,
+        "total_amount": 33900
+      },
+      {
+        "product_index": 2,
+        "info": "Corporate Tax Return Filing (< $1M)",
+        "qty": 1,
+        "price": 45000,
+        "tax_amount": 5850,
+        "discount_amount": 0,
+        "total_amount": 50850
+      }
+    ]
+  },
+  "transaction": {
+    "title": "Opening Capital Deposit",
+    "notes": "Opening journal entry for business inception",
+    "txn_type": "manual",
+    "reference_id": "TXN-SETUP-001",
+    "attachments": "",
+    "is_editable": 1,
+    "is_deleted": 0,
+    "lines": [
+      {
+        "account_name": "Operating Bank Account",
+        "debit_amount": 5000000,
+        "credit_amount": 0
+      },
+      {
+        "account_name": "Partner Equity",
+        "debit_amount": 0,
+        "credit_amount": 5000000
+      }
+    ]
+  }
+}

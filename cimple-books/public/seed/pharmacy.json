@@ -1,0 +1,147 @@
+{
+  "template": "pharmacy",
+  "name": "Pharmacy",
+  "description": "Rx and OTC drugs, healthcare supplies, clinical consultations, pharma accounts.",
+  "accounts": [
+    { "name": "Pharmacy Cash Register", "acc_type": "assets", "info": "Point-of-sale cash counter", "parent_id": 0, "total_debit": 800000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Pharmacy Operating Account", "acc_type": "assets", "info": "Main bank account", "parent_id": 0, "total_debit": 4500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Accounts Receivable - Insurance", "acc_type": "assets", "info": "Claims pending reimbursement", "parent_id": 0, "total_debit": 320000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Prescription Medicine Inventory", "acc_type": "assets", "info": "Value of Rx drugs in stock", "parent_id": 0, "total_debit": 2500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "OTC & Health Inventory", "acc_type": "assets", "info": "Over the counter medicine stock", "parent_id": 0, "total_debit": 1200000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Accounts Payable - Distributors", "acc_type": "liabilities", "info": "Pharma wholesalers payable", "parent_id": 0, "total_debit": 0, "total_credit": 450000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Sales Tax Payable", "acc_type": "liabilities", "info": "Collected healthcare sales tax", "parent_id": 0, "total_debit": 0, "total_credit": 35000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Owner's Equity", "acc_type": "equity", "info": "Initial capital investment", "parent_id": 0, "total_debit": 0, "total_credit": 8000000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Prescription Sales Revenue", "acc_type": "revenue", "info": "Income from Rx dispensary", "parent_id": 0, "total_debit": 0, "total_credit": 1800000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "OTC Sales Revenue", "acc_type": "revenue", "info": "General health & wellness retail", "parent_id": 0, "total_debit": 0, "total_credit": 650000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Clinical Consultation Income", "acc_type": "revenue", "info": "Health checkup and consultation", "parent_id": 0, "total_debit": 0, "total_credit": 210000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Staff Pharmacist Salaries", "acc_type": "expenses", "info": "Pharmacist and tech payroll", "parent_id": 0, "total_debit": 420000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Pharmacy Store Rent", "acc_type": "expenses", "info": "Commercial premises rent", "parent_id": 0, "total_debit": 150000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Medical Waste Disposal", "acc_type": "expenses", "info": "Biohazard and expired drug disposal", "parent_id": 0, "total_debit": 25000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
+  ],
+  "taxes": [
+    { "name": "Prescription Drugs (0%)", "ttype": "sales", "info": "Exempt essential medicines", "rate": 0, "strict": 0, "is_deleted": 0 },
+    { "name": "OTC Medicines VAT (5%)", "ttype": "sales", "info": "Reduced healthcare VAT", "rate": 500, "strict": 0, "is_deleted": 0 },
+    { "name": "General Health Goods (13%)", "ttype": "sales", "info": "Standard retail VAT", "rate": 1300, "strict": 0, "is_deleted": 0 },
+    { "name": "Wholesale Purchase VAT (13%)", "ttype": "purchase", "info": "Input VAT on purchases", "rate": 1300, "strict": 0, "is_deleted": 0 }
+  ],
+  "categories": [
+    { "name": "Prescription Drugs", "info": "Dispensed prescription medications", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Over-The-Counter (OTC)", "info": "Non-prescription medications & remedies", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Vitamins & Supplements", "info": "Dietary supplements, probiotics, minerals", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "First Aid & Equipment", "info": "Dressings, monitors, medical diagnostics", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 }
+  ],
+  "products": [
+    {
+      "prod": {
+        "name": "Paracetamol 500mg",
+        "info": "Rapid pain relief and fever reducer caplets",
+        "category_index": 2,
+        "sales_price": 350,
+        "image": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 150,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Blister Pack (20 Caplets)", "description": "Standard pack of 20", "sales_price": 350, "images": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Economy Bottle (100 Caplets)", "description": "Value family size bottle of 100", "sales_price": 1250, "images": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Digital Blood Pressure Monitor",
+        "info": "Automatic upper-arm cuff digital sphygmomanometer",
+        "category_index": 1,
+        "sales_price": 4500,
+        "image": "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 25,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Standard Arm Cuff (22-32cm)", "description": "Medium adult cuff", "sales_price": 4500, "images": "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Large Arm Cuff (32-45cm)", "description": "XL adult cuff", "sales_price": 4900, "images": "https://images.unsplash.com/photo-1631815588090-d4bfec5b1ccb?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Vitamin C 1000mg + Zinc Effervescent",
+        "info": "Immune support effervescent drink tablets",
+        "category_index": 3,
+        "sales_price": 1100,
+        "image": "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 80,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Zesty Orange Flavor", "description": "Tube of 20 dissolving tablets", "sales_price": 1100, "images": "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Wild Berry Flavor", "description": "Tube of 20 dissolving tablets", "sales_price": 1100, "images": "https://images.unsplash.com/photo-1577401239170-897942555fb3?w=500&auto=format&fit=crop&q=60" }
+      ]
+    }
+  ],
+  "sale": {
+    "title": "INV-001 - First Customer Order",
+    "client_id": 101,
+    "client_name": "Global Ventures Inc.",
+    "notes": "Initial demo order created upon system setup",
+    "attachments": "",
+    "total_item_price": 5200,
+    "total_item_tax_amount": 260,
+    "total_item_discount_amount": 0,
+    "sub_total": 5460,
+    "overall_discount_amount": 0,
+    "overall_tax_amount": 0,
+    "total": 5460,
+    "payment_status": "paid",
+    "invalidated_reason": "",
+    "is_deleted": 0,
+    "lines": [
+      {
+        "product_index": 1,
+        "info": "Paracetamol 500mg (Blister Pack)",
+        "qty": 2,
+        "price": 350,
+        "tax_amount": 35,
+        "discount_amount": 0,
+        "total_amount": 735
+      },
+      {
+        "product_index": 2,
+        "info": "Digital Blood Pressure Monitor",
+        "qty": 1,
+        "price": 4500,
+        "tax_amount": 225,
+        "discount_amount": 0,
+        "total_amount": 4725
+      }
+    ]
+  },
+  "transaction": {
+    "title": "Opening Capital Deposit",
+    "notes": "Opening journal entry for business inception",
+    "txn_type": "manual",
+    "reference_id": "TXN-SETUP-001",
+    "attachments": "",
+    "is_editable": 1,
+    "is_deleted": 0,
+    "lines": [
+      {
+        "account_name": "Pharmacy Operating Account",
+        "debit_amount": 5000000,
+        "credit_amount": 0
+      },
+      {
+        "account_name": "Owner's Equity",
+        "debit_amount": 0,
+        "credit_amount": 5000000
+      }
+    ]
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "template": "small_business",
+  "name": "Small Business",
+  "description": "General retail, office goods, everyday merchandise, standard VAT & purchase rules.",
+  "accounts": [
+    { "name": "Cash on Hand", "acc_type": "assets", "info": "Petty cash and cash register", "parent_id": 0, "total_debit": 1000000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Operating Bank Account", "acc_type": "assets", "info": "Primary business bank account", "parent_id": 0, "total_debit": 5000000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Accounts Receivable", "acc_type": "assets", "info": "Money owed by customers", "parent_id": 0, "total_debit": 250000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Inventory Asset", "acc_type": "assets", "info": "Value of inventory on hand", "parent_id": 0, "total_debit": 1500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Accounts Payable", "acc_type": "liabilities", "info": "Money owed to suppliers", "parent_id": 0, "total_debit": 0, "total_credit": 300000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Sales Tax Payable", "acc_type": "liabilities", "info": "Collected sales tax to remit", "parent_id": 0, "total_debit": 0, "total_credit": 65000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Owner's Equity", "acc_type": "equity", "info": "Initial capital contribution", "parent_id": 0, "total_debit": 0, "total_credit": 6000000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Sales Revenue", "acc_type": "revenue", "info": "Revenue from product sales", "parent_id": 0, "total_debit": 0, "total_credit": 1500000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Service Income", "acc_type": "revenue", "info": "Revenue from consulting and services", "parent_id": 0, "total_debit": 0, "total_credit": 450000, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Rent Expense", "acc_type": "expenses", "info": "Monthly office rent", "parent_id": 0, "total_debit": 120000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Salaries Expense", "acc_type": "expenses", "info": "Staff payroll expenses", "parent_id": 0, "total_debit": 350000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
+    { "name": "Office Supplies Expense", "acc_type": "expenses", "info": "Stationery and supplies", "parent_id": 0, "total_debit": 15000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
+  ],
+  "taxes": [
+    { "name": "Standard Sales VAT (13%)", "ttype": "sales", "info": "Standard Value Added Tax on sales", "rate": 1300, "strict": 0, "is_deleted": 0 },
+    { "name": "Purchase VAT (13%)", "ttype": "purchase", "info": "Input VAT on purchases", "rate": 1300, "strict": 0, "is_deleted": 0 },
+    { "name": "Sales Tax (5%)", "ttype": "sales", "info": "State sales tax", "rate": 500, "strict": 0, "is_deleted": 0 },
+    { "name": "Zero Tax (0%)", "ttype": "sales", "info": "Tax exempt items", "rate": 0, "strict": 0, "is_deleted": 0 }
+  ],
+  "categories": [
+    { "name": "Office Supplies", "info": "Stationery, paper, desk equipment", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "Electronics & Gadgets", "info": "Hardware, peripherals, and electronics", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 },
+    { "name": "General Merchandise", "info": "Everyday consumables and store goods", "product_class": "physical_item", "parent_id": 0, "image": "", "is_deleted": 0 }
+  ],
+  "products": [
+    {
+      "prod": {
+        "name": "Executive Desk Notebook Set",
+        "info": "Premium hardcover dotted & ruled notebooks",
+        "category_index": 1,
+        "sales_price": 1850,
+        "image": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 120,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Hardcover Ruled (A5)", "description": "192 pages, 100gsm fountain-pen friendly paper", "sales_price": 1850, "images": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Hardcover Dotted (A5)", "description": "5mm dot grid layout, emerald ribbon bookmark", "sales_price": 1950, "images": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Ergonomic Wireless Mouse",
+        "info": "Quiet click optical rechargeable Bluetooth mouse",
+        "category_index": 2,
+        "sales_price": 2999,
+        "image": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 60,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Graphite Charcoal", "description": "Matte ergonomic grip", "sales_price": 2999, "images": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60" },
+        { "name": "Off-White Chalk", "description": "Sleek contemporary colorway", "sales_price": 2999, "images": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60" }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Artisan Whole Bean Coffee (1kg)",
+        "info": "Single origin medium roast Arabica beans",
+        "category_index": 3,
+        "sales_price": 2200,
+        "image": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 45,
+        "is_deleted": 0
+      },
+      "variants": [
+        { "name": "Whole Bean 1kg", "description": "Direct trade freshly roasted", "sales_price": 2200, "images": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60" },
+        { "name": "French Press Coarse Grind 1kg", "description": "Ground for immersion brewing", "sales_price": 2300, "images": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60" }
+      ]
+    }
+  ],
+  "sale": {
+    "title": "INV-001 - First Customer Order",
+    "client_id": 101,
+    "client_name": "Global Ventures Inc.",
+    "notes": "Initial demo order created upon system setup",
+    "attachments": "",
+    "total_item_price": 6699,
+    "total_item_tax_amount": 871,
+    "total_item_discount_amount": 200,
+    "sub_total": 7370,
+    "overall_discount_amount": 0,
+    "overall_tax_amount": 0,
+    "total": 7370,
+    "payment_status": "paid",
+    "invalidated_reason": "",
+    "is_deleted": 0,
+    "lines": [
+      {
+        "product_index": 1,
+        "info": "Item Line 1",
+        "qty": 2,
+        "price": 1850,
+        "tax_amount": 481,
+        "discount_amount": 100,
+        "total_amount": 4081
+      },
+      {
+        "product_index": 2,
+        "info": "Item Line 2",
+        "qty": 1,
+        "price": 2999,
+        "tax_amount": 390,
+        "discount_amount": 100,
+        "total_amount": 3289
+      }
+    ]
+  },
+  "transaction": {
+    "title": "Opening Capital Deposit",
+    "notes": "Opening journal entry for business inception",
+    "txn_type": "manual",
+    "reference_id": "TXN-SETUP-001",
+    "attachments": "",
+    "is_editable": 1,
+    "is_deleted": 0,
+    "lines": [
+      {
+        "account_name": "Operating Bank Account",
+        "debit_amount": 5000000,
+        "credit_amount": 0
+      },
+      {
+        "account_name": "Owner's Equity",
+        "debit_amount": 0,
+        "credit_amount": 5000000
+      }
+    ]
+  }
+}
