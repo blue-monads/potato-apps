@@ -7,6 +7,7 @@ export interface TableCoreValues {
     info: string;
     icon: string;
     color?: string;
+    default_order?: 'newest' | 'oldest';
 }
 
 interface TableCoreModalProps {
@@ -23,6 +24,7 @@ const TableCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabel
     const [info, setInfo] = useState(initialValues?.info || "");
     const [icon, setIcon] = useState(initialValues?.icon || "table");
     const [color, setColor] = useState(initialValues?.color || "blue");
+    const [defaultOrder, setDefaultOrder] = useState<'newest' | 'oldest'>(initialValues?.default_order || "oldest");
 
     return (
         <div className="space-y-4">
@@ -85,6 +87,63 @@ const TableCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabel
                         </div>
                     </div>
                 </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-surface-500 uppercase tracking-wider">
+                        Default Record Order
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setDefaultOrder("oldest")}
+                            className={`flex items-start gap-2.5 p-2.5 rounded border text-left transition-all cursor-pointer ${
+                                defaultOrder === "oldest"
+                                    ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600"
+                                    : "border-surface-200 bg-surface-50/50 hover:bg-surface-50"
+                            }`}
+                        >
+                            <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                defaultOrder === "oldest" ? "border-blue-600 bg-blue-600" : "border-surface-300 bg-white"
+                            }`}>
+                                {defaultOrder === "oldest" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                                <div className="text-xs font-semibold text-surface-800 flex items-center gap-1.5">
+                                    <i className="fa-solid fa-arrow-down-1-9 text-surface-400 text-[11px]" />
+                                    Oldest first
+                                </div>
+                                <div className="text-[11px] text-surface-500 leading-tight mt-0.5">
+                                    Records ordered from first to last (ID ascending)
+                                </div>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setDefaultOrder("newest")}
+                            className={`flex items-start gap-2.5 p-2.5 rounded border text-left transition-all cursor-pointer ${
+                                defaultOrder === "newest"
+                                    ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600"
+                                    : "border-surface-200 bg-surface-50/50 hover:bg-surface-50"
+                            }`}
+                        >
+                            <div className={`mt-0.5 w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                defaultOrder === "newest" ? "border-blue-600 bg-blue-600" : "border-surface-300 bg-white"
+                            }`}>
+                                {defaultOrder === "newest" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                                <div className="text-xs font-semibold text-surface-800 flex items-center gap-1.5">
+                                    <i className="fa-solid fa-arrow-down-9-1 text-surface-400 text-[11px]" />
+                                    Newest first
+                                </div>
+                                <div className="text-[11px] text-surface-500 leading-tight mt-0.5">
+                                    Latest records at top (ID descending)
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div className={`flex ${onDelete ? 'justify-between' : 'justify-end'} pt-4 border-t border-surface-100`}>
                 {onDelete && (
@@ -103,7 +162,7 @@ const TableCoreModal = ({ initialValues, onSave, onCancel, onDelete, submitLabel
                         Cancel
                     </button>
                     <button
-                        onClick={() => onSave({ name, info, icon, color })}
+                        onClick={() => onSave({ name, info, icon, color, default_order: defaultOrder })}
                         disabled={!name.trim()}
                         className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                     >

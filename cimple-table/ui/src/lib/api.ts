@@ -46,6 +46,7 @@ export interface Datatable {
     info: string;
     icon: string;
     color?: string;
+    default_order?: 'newest' | 'oldest';
     created_at: string;
     updated_at: string;
     is_deleted: number;
@@ -88,14 +89,14 @@ export async function getDatatable(id: number): Promise<ApiResponse<Datatable>> 
     return apiRequest<Datatable>(`/datatables/${id}`, { method: 'GET' });
 }
 
-export async function createDatatable(data: { name: string; info?: string; icon?: string; color?: string }): Promise<ApiResponse<Datatable>> {
+export async function createDatatable(data: { name: string; info?: string; icon?: string; color?: string; default_order?: 'newest' | 'oldest' }): Promise<ApiResponse<Datatable>> {
     return apiRequest<Datatable>('/datatables', {
         method: 'POST',
         body: JSON.stringify(data),
     });
 }
 
-export async function updateDatatable(id: number, data: { name?: string; info?: string; icon?: string; color?: string }): Promise<ApiResponse<Datatable>> {
+export async function updateDatatable(id: number, data: { name?: string; info?: string; icon?: string; color?: string; default_order?: 'newest' | 'oldest' }): Promise<ApiResponse<Datatable>> {
     return apiRequest<Datatable>(`/datatables/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),

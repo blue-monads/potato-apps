@@ -493,6 +493,7 @@ const Table = () => {
                     onSave={async (data) => {
                         const response = await updateDatatable(table.id, data);
                         if (!response.error) {
+                            setSort(null);
                             await loadDatatables();
                             await loadTable(table.id);
                             closeModal();

@@ -28,6 +28,7 @@ export interface TableCreateData {
     info?: string;
     icon?: string;
     color?: string;
+    default_order?: 'newest' | 'oldest';
 }
 
 interface CreateTableModalProps {
@@ -75,6 +76,7 @@ const CreateTableModal = ({ onSave, onCancel, onGroupCreated, initialTable }: Cr
     const [info, setInfo] = useState(initialTable?.description || "");
     const [icon, setIcon] = useState(initialTable?.icon || "table");
     const [color, setColor] = useState(initialTable?.color || "blue");
+    const [defaultOrder, setDefaultOrder] = useState<'newest' | 'oldest'>(initialTable?.default_order || "oldest");
 
     // Columns Builder State
     const [columns, setColumns] = useState<ColumnDraft[]>(() => {
@@ -123,6 +125,7 @@ const CreateTableModal = ({ onSave, onCancel, onGroupCreated, initialTable }: Cr
         setInfo(template.id === "blank" ? "" : template.description);
         setIcon(template.icon || "table");
         setColor(template.color || "blue");
+        setDefaultOrder(template.default_order || "oldest");
 
         setColumns(
             template.columns.map((c, i) => ({
@@ -207,7 +210,7 @@ const CreateTableModal = ({ onSave, onCancel, onGroupCreated, initialTable }: Cr
 
         setSubmitting(true);
         try {
-            await onSave({ name: name.trim(), info: info.trim(), icon, color }, validColumns);
+            await onSave({ name: name.trim(), info: info.trim(), icon, color, default_order: defaultOrder }, validColumns);
         } finally {
             setSubmitting(false);
         }
@@ -338,6 +341,63 @@ const CreateTableModal = ({ onSave, onCancel, onGroupCreated, initialTable }: Cr
                         placeholder="What will this table be used for?"
                         className="w-full bg-white border border-surface-300 rounded px-3 py-1.5 text-xs text-surface-700 outline-none focus:border-accent-600"
                     />
+                </div>
+
+                <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-surface-600 uppercase tracking-wider">
+                        Default Record Order
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setDefaultOrder("oldest")}
+                            className={`flex items-start gap-2.5 p-2 rounded border text-left transition-all cursor-pointer ${
+                                defaultOrder === "oldest"
+                                    ? "border-accent-600 bg-white ring-1 ring-accent-600"
+                                    : "border-surface-200 bg-surface-50/50 hover:bg-white"
+                            }`}
+                        >
+                            <div className={`mt-0.5 w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                defaultOrder === "oldest" ? "border-accent-600 bg-accent-600" : "border-surface-300 bg-white"
+                            }`}>
+                                {defaultOrder === "oldest" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                                <div className="text-xs font-semibold text-surface-800 flex items-center gap-1.5">
+                                    <i className="fa-solid fa-arrow-down-1-9 text-surface-400 text-[10px]" />
+                                    Oldest first
+                                </div>
+                                <div className="text-[10px] text-surface-500 leading-tight mt-0.5">
+                                    Records ordered from first to last (ID ascending)
+                                </div>
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setDefaultOrder("newest")}
+                            className={`flex items-start gap-2.5 p-2 rounded border text-left transition-all cursor-pointer ${
+                                defaultOrder === "newest"
+                                    ? "border-accent-600 bg-white ring-1 ring-accent-600"
+                                    : "border-surface-200 bg-surface-50/50 hover:bg-white"
+                            }`}
+                        >
+                            <div className={`mt-0.5 w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                defaultOrder === "newest" ? "border-accent-600 bg-accent-600" : "border-surface-300 bg-white"
+                            }`}>
+                                {defaultOrder === "newest" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                                <div className="text-xs font-semibold text-surface-800 flex items-center gap-1.5">
+                                    <i className="fa-solid fa-arrow-down-9-1 text-surface-400 text-[10px]" />
+                                    Newest first
+                                </div>
+                                <div className="text-[10px] text-surface-500 leading-tight mt-0.5">
+                                    Latest records at top (ID descending)
+                                </div>
+                            </div>
+                        </button>
+                    </div>
                 </div>
             </div>
 

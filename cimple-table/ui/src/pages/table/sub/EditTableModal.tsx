@@ -3,7 +3,7 @@ import { type Datatable } from "../../../lib/api";
 
 interface EditTableModalProps {
     table: Datatable;
-    onSave: (data: { name?: string; info?: string; icon?: string; color?: string }) => Promise<void>;
+    onSave: (data: { name?: string; info?: string; icon?: string; color?: string; default_order?: 'newest' | 'oldest' }) => Promise<void>;
     onDelete: () => Promise<void>;
     onCancel: () => void;
 }
@@ -16,6 +16,7 @@ const EditTableModal = ({ table, onSave, onDelete, onCancel }: EditTableModalPro
                 info: table.info || "",
                 icon: table.icon || "table",
                 color: table.color || "blue",
+                default_order: table.default_order || "oldest",
             }}
             onSave={onSave}
             onCancel={onCancel}

@@ -188,6 +188,7 @@ local function seed_table_group(userId, group, with_seed)
             info = tbl.description or tbl.info or "",
             icon = tbl.icon or "table",
             color = tbl.color or group.color or "blue",
+            default_order = (tbl.default_order == "newest") and "newest" or "oldest",
             is_deleted = 0
         }
         local id, err = potato.db.insert("Datatables", datatable)
@@ -504,6 +505,7 @@ function list_datatables(ctx)
         for _, dt in ipairs(datatables) do
             dt.created_at = normalize_timestamp(dt.created_at)
             dt.updated_at = normalize_timestamp(dt.updated_at)
+            dt.default_order = dt.default_order or "oldest"
         end
     end
     req.json_array(200, datatables)
@@ -520,6 +522,7 @@ function create_datatable(ctx)
         info = data.info or "",
         icon = data.icon or "table",
         color = data.color or "",
+        default_order = (data.default_order == "newest") and "newest" or "oldest",
         is_deleted = 0
     }
     
@@ -587,6 +590,7 @@ function get_datatable(ctx, table_id)
 
     datatable.created_at = normalize_timestamp(datatable.created_at)
     datatable.updated_at = normalize_timestamp(datatable.updated_at)
+    datatable.default_order = datatable.default_order or "oldest"
 
     -- Get columns
     local columns, cols_err = potato.db.find_all_by_cond("DatatableColumns", {
@@ -629,6 +633,9 @@ function update_datatable(ctx, table_id)
     if data.info ~= nil then updates.info = data.info end
     if data.icon ~= nil then updates.icon = data.icon end
     if data.color ~= nil then updates.color = data.color end
+    if data.default_order ~= nil then
+        updates.default_order = (data.default_order == "newest") and "newest" or "oldest"
+    end
 
     local err = potato.db.update_by_id("Datatables", table_id, updates)
     if err ~= nil then
@@ -644,6 +651,11 @@ function update_datatable(ctx, table_id)
             error = tostring(err)
         })
         return
+    end
+    if result ~= nil then
+        result.created_at = normalize_timestamp(result.created_at)
+        result.updated_at = normalize_timestamp(result.updated_at)
+        result.default_order = result.default_order or "oldest"
     end
     req.json(200, result)
 end
@@ -847,6 +859,7 @@ end
 -- DATATABLE ROWS CRUD
 
 function query_datatable(ctx, table_id)
+    ensure_schema_migrations()
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
@@ -996,9 +1009,14 @@ function query_datatable(ctx, table_id)
         total = tonumber(count_res.total) or tonumber(count_res["COUNT(*)"]) or 0
     end
 
-    -- Order By: default is id ASC (increasing id = latest inserted rows)
+    -- Order By: default depends on dt.default_order ("newest" -> id DESC, otherwise id ASC)
+    local default_dir = "ASC"
+    if dt.default_order and string.lower(dt.default_order) == "newest" then
+        default_dir = "DESC"
+    end
+
     local order_col = "id"
-    local order_dir = "ASC"
+    local order_dir = default_dir
     if data.sort and type(data.sort) == "table" then
         local sc = data.sort.column
         if sc and allowed_cols[sc] then

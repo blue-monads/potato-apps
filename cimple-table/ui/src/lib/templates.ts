@@ -17,6 +17,7 @@ export interface TableInGroupTemplate {
     description: string;
     icon: string;
     color?: string;
+    default_order?: 'newest' | 'oldest';
     columns: ColumnTemplate[];
 }
 
