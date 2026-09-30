@@ -53,13 +53,6 @@ function get_init_status(ctx)
         version = kv.value or kv.Value
     end
 
-    if not inited then
-        local kv2 = space_kv_get("", "INIT_VERSION")
-        if kv2 ~= nil and (kv2.value == "26-7-alpha" or kv2.Value == "26-7-alpha") then
-            inited = true
-            version = kv2.value or kv2.Value
-        end
-    end
 
     if inited then
         req.json(200, {
@@ -361,12 +354,6 @@ function init_app(ctx)
     if kv ~= nil and (kv.value == "26-7-alpha" or kv.Value == "26-7-alpha") then
         inited = true
     end
-    if not inited then
-        local kv2 = space_kv_get("", "INIT_VERSION")
-        if kv2 ~= nil and (kv2.value == "26-7-alpha" or kv2.Value == "26-7-alpha") then
-            inited = true
-        end
-    end
 
     if inited then
         req.json(200, {
@@ -400,7 +387,6 @@ function init_app(ctx)
 
     -- Record initialization in spacekv
     space_kv_upsert("SYSTEM", "INIT_VERSION", { value = "26-7-alpha" })
-    space_kv_upsert("", "INIT_VERSION", { value = "26-7-alpha" })
 
     req.json(200, {
         success = true,
