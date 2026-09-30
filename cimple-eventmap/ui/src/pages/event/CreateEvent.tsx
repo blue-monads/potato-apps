@@ -83,7 +83,7 @@ const CreateEvent = () => {
         if (typeof window === 'undefined') return;
         const win = window as unknown as { spaceFilePicker?: (token: string) => { showModal: (cb: (file: SpaceFile) => void) => void }; spaceGetToken?: (app: string) => string | null };
         if (!win.spaceFilePicker || !win.spaceGetToken) return;
-        const token = win.spaceGetToken('cimple-eventmap');
+        const token = win.spaceGetToken('cimple-mapfun');
         if (!token) return;
         const picker = win.spaceFilePicker(token);
         if (!picker) return;

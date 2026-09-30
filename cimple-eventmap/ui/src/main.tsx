@@ -57,7 +57,7 @@ const RouteErrorBoundary = () => {
 
 const RootLayout = () => (
     <Suspense fallback={<LoadingFallback />}>
-        <WithSpaceAuth spaceKey="cimple-eventmap">
+        <WithSpaceAuth spaceKey="cimple-mapfun">
           <ModalProvider>
             <Outlet />
           </ModalProvider>

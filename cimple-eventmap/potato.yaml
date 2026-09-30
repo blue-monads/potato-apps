@@ -1,10 +1,11 @@
-name: Simple Event Map
-info: Simple Event Map
-slug: cimple-eventmap
+name: Simple Map Fun
+info: Simple Map Fun
+slug: cimple-mapfun
 tags:
   - gis
   - map
   - event
+  - fun
 format_version: '0.0.2'
 author_name: Bornjre
 author_email: bornjre@gmail.com
@@ -17,7 +18,7 @@ special_pages:
   update_page: update_1.html
 
 spaces:
-  - namespace: cimple-eventmap
+  - namespace: cimple-mapfun
     executor_type: luaz
     server_file: server.lua
     is_default: true
@@ -31,7 +32,7 @@ capabilities:
   - name: xEasyWS
     type: xEasyWS
     spaces:
-      - cimple-eventmap
+      - cimple-mapfun
 
 developer:
   server_url: http://localhost:7777

@@ -29,7 +29,7 @@ function MapViewUpdater({ center, zoom }: { center: [number, number]; zoom: numb
     return null;
 }
 
-const EventMap = () => {
+const MapFun = () => {
     const navigate = useNavigate();
     const [events, setEvents] = useState<Event[]>([]);
     const [eventTypes, setEventTypes] = useState<EventType[]>([]);
@@ -286,4 +286,4 @@ const EventMap = () => {
     );
 };
 
-export default EventMap;
+export default MapFun;

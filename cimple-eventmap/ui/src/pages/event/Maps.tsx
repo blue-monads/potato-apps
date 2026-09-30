@@ -217,7 +217,7 @@ export const Maps: React.FC = () => {
     // Feature Groups (Folders) State
     const [groups, setGroups] = useState<FeatureGroup[]>(() => {
         try {
-            const saved = localStorage.getItem('cimple_eventmap_feature_groups');
+            const saved = localStorage.getItem('cimple_mapfun_feature_groups');
             if (saved) return JSON.parse(saved);
         } catch (_) {}
         return [];
@@ -231,7 +231,7 @@ export const Maps: React.FC = () => {
     // Persist groups
     useEffect(() => {
         try {
-            localStorage.setItem('cimple_eventmap_feature_groups', JSON.stringify(groups));
+            localStorage.setItem('cimple_mapfun_feature_groups', JSON.stringify(groups));
         } catch (_) {}
     }, [groups]);
 
@@ -349,7 +349,7 @@ export const Maps: React.FC = () => {
             const token = tokenResponse.easyws_cap_token;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/zz/api/capabilities/cimple-eventmap/easy-ws?token=${encodeURIComponent(token)}`;
+            const wsUrl = `${protocol}//${host}/zz/api/capabilities/cimple-mapfun/easy-ws?token=${encodeURIComponent(token)}`;
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
@@ -418,7 +418,7 @@ export const Maps: React.FC = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `eventmap-export-${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `mapfun-export-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
     };

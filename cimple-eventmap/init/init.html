@@ -4,30 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/zz/static/libspace.js"></script>
-    <title>Init Cimple Eventmap</title>
+    <title>Init Cimple Map Fun</title>
 </head>
 <body>
-    <h1>Init Cimple Eventmap</h1>
+    <h1>Init Cimple Map Fun</h1>
     <button id="runSchemaSqlButton" style="display: block;" onclick="runSchemaSql()">Run Schema SQL</button>
     <button id="goHomeButton" style="display: none;" onclick="goHome()">Go Home</button>
 
 </body>
 
 <script>
-    if (!window.spaceGetToken('cimple-eventmap')) {
-        window.spaceRedirrectToAuth('/zz/space/cimple-eventmap', 'init.html');
+    if (!window.spaceGetToken('cimple-mapfun')) {
+        window.spaceRedirrectToAuth('/zz/space/cimple-mapfun', 'init.html');
     }
 
     function goHome() {
-        window.location.href = '/zz/space/cimple-eventmap';
+        window.location.href = '/zz/space/cimple-mapfun';
     }
 
     function runSchemaSql() {
-        fetch('/zz/api/space/cimple-eventmap/run_schema_sql', {
+        fetch('/zz/api/space/cimple-mapfun/run_schema_sql', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': window.spaceGetToken('cimple-eventmap'),
+                'Authorization': window.spaceGetToken('cimple-mapfun'),
             },
         }).then(data => {
             document.getElementById('runSchemaSqlButton').style.display = 'none';

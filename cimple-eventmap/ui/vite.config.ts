@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {  
   return {
-    base: '/zz/space/cimple-eventmap/',
+    base: '/zz/space/cimple-mapfun/',
     plugins: [
       react()
     ]
