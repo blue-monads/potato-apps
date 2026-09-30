@@ -1684,6 +1684,91 @@ function delete_sale(ctx, sale_id)
     })
 end
 
+-- Settings Handlers
+function get_app_settings(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local default_tax_rate_id = nil
+    local default_sales_account_id = nil
+    local default_purchase_account_id = nil
+
+    local tax_kv = space_kv_get("CONFIG", "DEFAULT_TAX_RATE_ID")
+    if tax_kv and (tax_kv.value or tax_kv.Value) and (tax_kv.value ~= "" and tax_kv.Value ~= "") then
+        local v = tax_kv.value or tax_kv.Value
+        default_tax_rate_id = tonumber(v)
+    end
+
+    local sales_kv = space_kv_get("CONFIG", "DEFAULT_SALES_ACCOUNT_ID")
+    if sales_kv and (sales_kv.value or sales_kv.Value) and (sales_kv.value ~= "" and sales_kv.Value ~= "") then
+        local v = sales_kv.value or sales_kv.Value
+        default_sales_account_id = tonumber(v)
+    end
+
+    local purchase_kv = space_kv_get("CONFIG", "DEFAULT_PURCHASE_ACCOUNT_ID")
+    if purchase_kv and (purchase_kv.value or purchase_kv.Value) and (purchase_kv.value ~= "" and purchase_kv.Value ~= "") then
+        local v = purchase_kv.value or purchase_kv.Value
+        default_purchase_account_id = tonumber(v)
+    end
+
+    if default_tax_rate_id == nil and default_sales_account_id == nil and default_purchase_account_id == nil then
+        local cfg_kv = space_kv_get("CONFIG", "SETTINGS") or space_kv_get("CONFIG", "DEFAULTS")
+        if cfg_kv and (cfg_kv.value or cfg_kv.Value) and (cfg_kv.value ~= "" and cfg_kv.Value ~= "") then
+            local v = cfg_kv.value or cfg_kv.Value
+            local ok, parsed = pcall(json.decode, v)
+            if ok and type(parsed) == "table" then
+                if parsed.default_tax_rate_id ~= nil then
+                    default_tax_rate_id = tonumber(parsed.default_tax_rate_id)
+                end
+                if parsed.default_sales_account_id ~= nil then
+                    default_sales_account_id = tonumber(parsed.default_sales_account_id)
+                end
+                if parsed.default_purchase_account_id ~= nil then
+                    default_purchase_account_id = tonumber(parsed.default_purchase_account_id)
+                end
+            end
+        end
+    end
+
+    req.json(200, {
+        default_tax_rate_id = default_tax_rate_id,
+        default_sales_account_id = default_sales_account_id,
+        default_purchase_account_id = default_purchase_account_id
+    })
+end
+
+function update_app_settings(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local data = req.bind_json()
+    if type(data) ~= "table" then
+        req.json(400, {
+            error = "Invalid JSON payload"
+        })
+        return
+    end
+
+    local tax_rate_id = data.default_tax_rate_id and tonumber(data.default_tax_rate_id) or nil
+    local sales_acc_id = data.default_sales_account_id and tonumber(data.default_sales_account_id) or nil
+    local purchase_acc_id = data.default_purchase_account_id and tonumber(data.default_purchase_account_id) or nil
+
+    space_kv_upsert("CONFIG", "DEFAULT_TAX_RATE_ID", { value = tax_rate_id and tostring(tax_rate_id) or "" })
+    space_kv_upsert("CONFIG", "DEFAULT_SALES_ACCOUNT_ID", { value = sales_acc_id and tostring(sales_acc_id) or "" })
+    space_kv_upsert("CONFIG", "DEFAULT_PURCHASE_ACCOUNT_ID", { value = purchase_acc_id and tostring(purchase_acc_id) or "" })
+
+    local combined = {
+        default_tax_rate_id = tax_rate_id,
+        default_sales_account_id = sales_acc_id,
+        default_purchase_account_id = purchase_acc_id
+    }
+    space_kv_upsert("CONFIG", "SETTINGS", { value = json.encode(combined) })
+
+    req.json(200, combined)
+end
+
 --- HTTP ENDPOINTS ---
 --- @class HttpContext
 --- @field param fun(key: string): string
@@ -1715,6 +1800,15 @@ function on_http(ctx)
     -- Seeding route (backward compat)
     if path == "/seed" and method == "POST" then
         return init_app(ctx)
+    end
+
+    -- Settings routes
+    if path == "/settings" and method == "GET" then
+        return get_app_settings(ctx)
+    end
+
+    if path == "/settings" and (method == "POST" or method == "PUT") then
+        return update_app_settings(ctx)
     end
 
     -- Accounts routes

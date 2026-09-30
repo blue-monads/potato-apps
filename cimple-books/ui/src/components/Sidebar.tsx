@@ -8,6 +8,7 @@ import {
     FileText, 
     ReceiptText, 
     BarChart3,
+    Settings,
     PanelLeftClose,
     PanelLeftOpen
 } from 'lucide-react';
@@ -94,6 +95,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
             label: 'Reports',
             icon: BarChart3,
             path: 'reports',
+        },
+        {
+            href: `${BASE_PATH}settings`,
+            label: 'Settings',
+            icon: Settings,
+            path: 'settings',
         },
     ];
 

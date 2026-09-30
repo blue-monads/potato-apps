@@ -512,3 +512,21 @@ export const deleteSale = async (saleId: number): Promise<ApiResponse<{ message:
         method: 'DELETE',
     });
 };
+
+// Settings API
+export interface AppSettings {
+    default_tax_rate_id?: number | null;
+    default_sales_account_id?: number | null;
+    default_purchase_account_id?: number | null;
+}
+
+export const getSettings = async (): Promise<ApiResponse<AppSettings>> => {
+    return apiRequest<AppSettings>('/settings', { method: 'GET' });
+};
+
+export const updateSettings = async (settings: AppSettings): Promise<ApiResponse<AppSettings>> => {
+    return apiRequest<AppSettings>('/settings', {
+        method: 'POST',
+        body: JSON.stringify(settings),
+    });
+};

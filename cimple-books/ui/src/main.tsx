@@ -16,6 +16,7 @@ const ListTxn = lazy(() => import("./pages/txn/ListTxn"));
 const ListEstimates = lazy(() => import("./pages/estimates/ListEstimates"));
 const ListTax = lazy(() => import("./pages/tax/ListTax"));
 const ReportsList = lazy(() => import("./pages/reports/ReportsList"));
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -113,6 +114,10 @@ const router = createBrowserRouter([
                 </div>,
               },
             ],
+          },
+          {
+            path: "settings",
+            element: <SettingsPage />,
           },
         ],
       },
