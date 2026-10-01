@@ -183,6 +183,7 @@ const ListStockIn = () => {
                                         <th className="px-5 py-3.5">Received Items</th>
                                         <th className="px-5 py-3.5">Total Quantity</th>
                                         <th className="px-5 py-3.5">Total Value</th>
+                                        <th className="px-5 py-3.5">Status</th>
                                         <th className="px-5 py-3.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -190,6 +191,8 @@ const ListStockIn = () => {
                                     {filteredStockIns.map((s) => {
                                         const lineCount = s.lines ? s.lines.length : 0;
                                         const batchUnits = s.lines ? s.lines.reduce((sum, l) => sum + (l.qty || 0), 0) : 0;
+                                        const status = s.stockin_status || 'draft';
+                                        const isDraft = status === 'draft';
 
                                         return (
                                             <tr key={s.id} className="hover:bg-stone-50/60 transition-colors">
@@ -249,15 +252,33 @@ const ListStockIn = () => {
                                                 <td className="px-5 py-4 whitespace-nowrap font-bold text-stone-900">
                                                     {getCurrencySymbol()}{(s.amount / 100).toFixed(2)}
                                                 </td>
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${
+                                                        status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                        'bg-amber-50 text-amber-700 border-amber-200'
+                                                    }`}>
+                                                        {status}
+                                                    </span>
+                                                </td>
                                                 <td className="px-5 py-4 whitespace-nowrap text-right">
                                                     <div className="flex items-center justify-end gap-1.5">
-                                                        <Link
-                                                            to={`${BASE_PATH}stockin/${s.id}/edit`}
-                                                            className="p-1.5 text-stone-500 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors"
-                                                            title="Edit Stock In"
-                                                        >
-                                                            <Edit className="w-4 h-4" />
-                                                        </Link>
+                                                        {isDraft ? (
+                                                            <Link
+                                                                to={`${BASE_PATH}stockin/${s.id}/edit`}
+                                                                className="p-1.5 text-stone-500 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                                title="Edit Stock In"
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </Link>
+                                                        ) : (
+                                                            <span
+                                                                className="p-1.5 text-stone-300 cursor-not-allowed rounded-lg inline-flex"
+                                                                title="Only draft stock in entries can be edited"
+                                                            >
+                                                                <Edit className="w-4 h-4 opacity-30" />
+                                                            </span>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDelete(s.id)}

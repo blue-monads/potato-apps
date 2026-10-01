@@ -510,6 +510,7 @@ export interface ProductStockIn {
     id: number;
     info: string;
     amount: number;
+    stockin_status?: 'draft' | 'confirmed' | 'cancelled' | string;
     vendor_contact_id?: number | null;
     vendor_alt_name?: string;
     vendor_id?: number;
@@ -520,7 +521,6 @@ export interface ProductStockIn {
     updated_by: number;
     created_at: string;
     updated_at: string;
-    is_deleted?: boolean;
     lines?: ProductStockInLine[];
 }
 
@@ -620,6 +620,7 @@ export interface SalesLine {
 export interface Sale {
     id: number;
     title: string;
+    sales_status?: 'draft' | 'confirmed' | 'cancelled' | string;
     client_contact_id?: number | null;
     client_alt_name?: string;
     client_id?: number;
@@ -640,7 +641,6 @@ export interface Sale {
     updated_at: string;
     invalidated_reason: string;
     payment_status: string;
-    is_deleted: boolean;
     lines?: SalesLine[];
 }
 
@@ -658,6 +658,7 @@ export const getSale = async (saleId: number): Promise<ApiResponse<Sale>> => {
 
 export const createSale = async (sale: {
     title?: string;
+    sales_status?: string;
     client_id?: number;
     client_name?: string;
     notes?: string;
@@ -691,6 +692,7 @@ export const updateSale = async (
     saleId: number,
     sale: {
         title?: string;
+        sales_status?: string;
         client_id?: number;
         client_name?: string;
         notes?: string;

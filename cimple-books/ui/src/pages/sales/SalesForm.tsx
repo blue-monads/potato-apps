@@ -33,6 +33,7 @@ const SalesForm = () => {
     const [clientAltName, setClientAltName] = useState('');
     const [notes, setNotes] = useState('');
     const [salesDate, setSalesDate] = useState(new Date().toISOString().slice(0, 16));
+    const [salesStatus, setSalesStatus] = useState('draft');
     const [paymentStatus, setPaymentStatus] = useState('unpaid');
     const [lines, setLines] = useState<SalesLine[]>([]);
     const [overallTaxAmount, setOverallTaxAmount] = useState(0);
@@ -41,6 +42,8 @@ const SalesForm = () => {
     const { openModal } = useModal();
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const isLocked = isEditMode && (sale?.sales_status || salesStatus) !== 'draft';
 
     useEffect(() => {
         const loadSale = async () => {
@@ -68,6 +71,7 @@ const SalesForm = () => {
     useEffect(() => {
         if (sale) {
             setTitle(sale.title || '');
+            setSalesStatus(sale.sales_status || 'draft');
             setClientContactId(sale.client_contact_id || sale.client_id || null);
             setClientAltName(sale.client_alt_name || sale.client_name || '');
             setNotes(sale.notes || '');
@@ -162,6 +166,12 @@ const SalesForm = () => {
         setSaving(true);
         setError(null);
 
+        if (isLocked) {
+            setError('Cannot edit sale unless it is in draft state.');
+            setSaving(false);
+            return;
+        }
+
         if (lines.length === 0) {
             setError('Sale must have at least one line item');
             setSaving(false);
@@ -171,6 +181,7 @@ const SalesForm = () => {
         try {
             const saleData = {
                 title: title || undefined,
+                sales_status: salesStatus,
                 client_contact_id: clientContactId,
                 client_alt_name: clientAltName.trim(),
                 client_id: clientContactId || 0,
@@ -246,6 +257,12 @@ const SalesForm = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl border border-[#E1E3DB] shadow-sm p-6">
+                    {isLocked && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-medium flex items-center gap-2">
+                            <span>This sale is marked as <strong className="uppercase">{salesStatus}</strong> and cannot be edited. Only sales in <strong>draft</strong> state can be modified.</span>
+                        </div>
+                    )}
+
                     {error && (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                             {error}
@@ -260,9 +277,10 @@ const SalesForm = () => {
                     </label>
                     <input
                         type="text"
+                        disabled={isLocked}
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
                         placeholder="Sale title"
                     />
                 </div>
@@ -272,23 +290,26 @@ const SalesForm = () => {
                     </label>
                     <input
                         type="datetime-local"
+                        disabled={isLocked}
                         value={salesDate}
                         onChange={(e) => setSalesDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <ContactPicker
                         label="Client / Customer"
                         filterRelation="customer"
                         placeholder="Select client (optional)..."
                         required={false}
+                        disabled={isLocked}
                         value={clientContactId}
                         altName={clientAltName}
                         onChange={(cid, name) => {
+                            if (isLocked) return;
                             setClientContactId(cid);
                             if (cid === null && name) {
                                 setClientAltName(name);
@@ -302,8 +323,9 @@ const SalesForm = () => {
                     </label>
                     <select
                         value={paymentStatus}
+                        disabled={isLocked}
                         onChange={(e) => setPaymentStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <option value="unpaid">Unpaid</option>
                         <option value="paid">Paid</option>
@@ -320,11 +342,28 @@ const SalesForm = () => {
                     </label>
                     <input
                         type="text"
+                        disabled={isLocked}
                         value={clientAltName}
                         onChange={(e) => setClientAltName(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
                         placeholder="e.g. Cash Buyer, Walk-in, John Doe"
                     />
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
+                        Sale Status
+                    </label>
+                    <select
+                        value={salesStatus}
+                        disabled={isLocked}
+                        onChange={(e) => setSalesStatus(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        <option value="draft">Draft</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
                 </div>
             </div>
 
@@ -334,9 +373,10 @@ const SalesForm = () => {
                 </label>
                 <textarea
                     value={notes}
+                    disabled={isLocked}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
+                    className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
                     placeholder="Additional notes"
                 />
             </div>
@@ -347,14 +387,16 @@ const SalesForm = () => {
                     <label className="block text-sm font-medium text-[#1B2A21]">
                         Line Items *
                     </label>
-                    <button
-                        type="button"
-                        onClick={openItemPicker}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#2E6E52] text-white rounded-lg hover:bg-[#255842] shadow-sm transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Add Item
-                    </button>
+                    {!isLocked && (
+                        <button
+                            type="button"
+                            onClick={openItemPicker}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#2E6E52] text-white rounded-lg hover:bg-[#255842] shadow-sm transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Add Item
+                        </button>
+                    )}
                 </div>
 
                 {lines.length === 0 ? (
@@ -412,14 +454,18 @@ const SalesForm = () => {
                                                 ) × {line.qty} = <strong>{cs}{formatCurrency(line.total_amount)}</strong>
                                             </td>
                                             <td className="px-4 py-3 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeLine(index)}
-                                                    className="text-red-600 hover:text-red-700 p-1"
-                                                    title="Remove item"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {!isLocked ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeLine(index)}
+                                                        className="text-red-600 hover:text-red-700 p-1"
+                                                        title="Remove item"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                ) : (
+                                                    <span className="p-1 text-stone-300 inline-block">—</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -574,15 +620,17 @@ const SalesForm = () => {
                     to={`${BASE_PATH}sales`}
                     className="px-4 py-2 border border-[#E1E3DB] text-stone-700 bg-white hover:bg-[#F4F5F1] rounded-lg transition-colors text-sm font-medium"
                 >
-                    Cancel
+                    {isLocked ? 'Back' : 'Cancel'}
                 </Link>
-                <button
-                    type="submit"
-                    disabled={saving || lines.length === 0}
-                    className="px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
-                >
-                    {saving ? 'Saving...' : isEditMode ? 'Update Sale' : 'Create Sale'}
-                </button>
+                {!isLocked && (
+                    <button
+                        type="submit"
+                        disabled={saving || lines.length === 0}
+                        className="px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium shadow-sm"
+                    >
+                        {saving ? 'Saving...' : isEditMode ? 'Update Sale' : 'Create Sale'}
+                    </button>
+                )}
             </div>
                 </form>
             </div>

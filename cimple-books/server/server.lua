@@ -246,7 +246,7 @@ function seed_template_data(userId, template)
             updated_by = userId,
             payment_status = s.payment_status or "paid",
             invalidated_reason = s.invalidated_reason or "",
-            is_deleted = s.is_deleted or 0
+            sales_status = s.sales_status or "draft"
         }
 
         local sale_id, _ = potato.db.insert("Sales", sale_record)
@@ -1332,12 +1332,14 @@ local function calculate_product_stocks(products, variants)
         end
     end
 
-    -- Query stockin lines for inventory tracking (only active, non-deleted stockins)
-    local active_stockins, _ = potato.db.find_all_by_cond("ProductStockIn", { is_deleted = 0 })
+    -- Query stockin lines for inventory tracking (active stockins, excluding cancelled)
+    local active_stockins, _ = potato.db.find_all_by_cond("ProductStockIn", {})
     local active_sid_map = {}
     if active_stockins ~= nil then
         for _, s in ipairs(active_stockins) do
-            active_sid_map[s.id] = true
+            if s.stockin_status ~= "cancelled" then
+                active_sid_map[s.id] = true
+            end
         end
     end
 
@@ -1842,9 +1844,7 @@ function list_stockin(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local stockins, err = potato.db.find_all_by_cond("ProductStockIn", {
-        is_deleted = 0
-    })
+    local stockins, err = potato.db.find_all_by_cond("ProductStockIn", {})
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
@@ -1942,12 +1942,12 @@ function create_stockin(ctx)
     local stockin_data = {
         info = data.info or "",
         amount = total_amount,
+        stockin_status = data.stockin_status or "draft",
         vendor_contact_id = vendor_cid,
         vendor_alt_name = vendor_alt,
         stockin_date = data.stockin_date or os.date("!%Y-%m-%dT%H:%M:%SZ"),
         created_by = userId,
-        updated_by = userId,
-        is_deleted = 0
+        updated_by = userId
     }
 
     local id, err = potato.db.insert("ProductStockIn", stockin_data)
@@ -2011,7 +2011,7 @@ function get_stockin(ctx, stockin_id)
     end
 
     local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
-    if err ~= nil or stockin == nil or stockin.is_deleted == 1 then
+    if err ~= nil or stockin == nil then
         req.json(404, { error = "StockIn not found" })
         return
     end
@@ -2069,8 +2069,13 @@ function update_stockin(ctx, stockin_id)
     end
 
     local existing, err = potato.db.find_by_id("ProductStockIn", stockin_id)
-    if err ~= nil or existing == nil or existing.is_deleted == 1 then
+    if err ~= nil or existing == nil then
         req.json(404, { error = "StockIn not found" })
+        return
+    end
+
+    if (existing.stockin_status or "draft") ~= "draft" then
+        req.json(400, { error = "Cannot edit stock in unless it is in draft state" })
         return
     end
 
@@ -2080,6 +2085,7 @@ function update_stockin(ctx, stockin_id)
     }
 
     if data.info ~= nil then update_data.info = data.info end
+    if data.stockin_status ~= nil then update_data.stockin_status = data.stockin_status end
     if data.vendor_contact_id ~= nil then
         if data.vendor_contact_id == "" or data.vendor_contact_id == 0 then
             update_data.vendor_contact_id = nil
@@ -2159,10 +2165,7 @@ function delete_stockin(ctx, stockin_id)
         return
     end
 
-    local err = potato.db.update_by_id("ProductStockIn", stockin_id, {
-        is_deleted = 1,
-        updated_by = userId
-    })
+    local err = potato.db.delete_by_id("ProductStockIn", stockin_id)
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
@@ -2292,9 +2295,7 @@ function list_sales(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local sales, err = potato.db.find_all_by_cond("Sales", {
-        is_deleted = 0
-    })
+    local sales, err = potato.db.find_all_by_cond("Sales", {})
     if err ~= nil then
         req.json(400, {
             error = tostring(err)
@@ -2353,13 +2354,6 @@ function get_sale(ctx, sale_id)
         return
     end
 
-    if sale.is_deleted == 1 then
-        req.json(404, {
-            error = "Sale not found"
-        })
-        return
-    end
-
     if sale.client_contact_id ~= nil then
         local c, _ = potato.db.find_by_id("Contacts", sale.client_contact_id)
         if c ~= nil then
@@ -2412,6 +2406,7 @@ function create_sale(ctx)
     -- Create sale
     local sale_data = {
         title = data.title or "",
+        sales_status = data.sales_status or "draft",
         client_contact_id = client_cid,
         client_alt_name = client_alt,
         notes = data.notes or "",
@@ -2505,9 +2500,9 @@ function update_sale(ctx, sale_id)
         return
     end
 
-    if sale.is_deleted == 1 then
+    if (sale.sales_status or "draft") ~= "draft" then
         req.json(400, {
-            error = "Cannot update deleted sale"
+            error = "Cannot edit sale unless it is in draft state"
         })
         return
     end
@@ -2587,6 +2582,7 @@ function update_sale(ctx, sale_id)
     if data.overall_tax_amount ~= nil then update_data.overall_tax_amount = data.overall_tax_amount end
     if data.total ~= nil then update_data.total = data.total end
     if data.sales_date ~= nil then update_data.sales_date = data.sales_date end
+    if data.sales_status ~= nil then update_data.sales_status = data.sales_status end
     if data.payment_status ~= nil then update_data.payment_status = data.payment_status end
 
     local update_err = potato.db.update_by_id("Sales", sale_id, update_data)
@@ -2641,24 +2637,18 @@ function delete_sale(ctx, sale_id)
         return
     end
 
-    if sale.is_deleted == 1 then
-        req.json(400, {
-            error = "Sale already deleted"
-        })
-        return
-    end
-
-    -- Soft delete
-    local delete_err = potato.db.update_by_id("Sales", sale_id, {
-        is_deleted = 1,
-        updated_by = userId
-    })
+    local delete_err = potato.db.delete_by_id("Sales", sale_id)
     if delete_err ~= nil then
         req.json(400, {
             error = tostring(delete_err)
         })
         return
     end
+
+    potato.db.delete_by_cond("SalesLines", {
+        sale_id = sale_id
+    })
+
     req.json(200, {
         message = "Sale deleted"
     })

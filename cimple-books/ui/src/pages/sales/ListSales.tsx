@@ -128,6 +128,9 @@ const ListSales = () => {
                                         Total
                                     </th>
                                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
+                                        Payment
+                                    </th>
+                                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                         Status
                                     </th>
                                     <th className="px-5 py-3.5 text-right text-xs font-semibold text-stone-600 uppercase tracking-wider">
@@ -138,12 +141,16 @@ const ListSales = () => {
                             <tbody className="bg-white divide-y divide-[#E1E3DB]">
                                 {sales.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-stone-500">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-stone-500">
                                             No sales found. Create your first sale to get started.
                                         </td>
                                     </tr>
                                 ) : (
-                                    sales.map((sale) => (
+                                    sales.map((sale) => {
+                                        const sStatus = sale.sales_status || 'draft';
+                                        const isDraft = sStatus === 'draft';
+
+                                        return (
                                         <tr key={sale.id} className="hover:bg-[#FAFBF9] transition-colors">
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-500">
                                                 #{sale.id}
@@ -165,15 +172,33 @@ const ListSales = () => {
                                                     {sale.payment_status}
                                                 </span>
                                             </td>
+                                            <td className="px-5 py-4 whitespace-nowrap">
+                                                <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize border ${
+                                                    sStatus === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                    sStatus === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                    'bg-amber-50 text-amber-700 border-amber-200'
+                                                }`}>
+                                                    {sStatus}
+                                                </span>
+                                            </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <Link
-                                                        to={`${BASE_PATH}sales/${sale.id}/edit`}
-                                                        className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
-                                                        title="Edit sale"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                    </Link>
+                                                    {isDraft ? (
+                                                        <Link
+                                                            to={`${BASE_PATH}sales/${sale.id}/edit`}
+                                                            className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                            title="Edit sale"
+                                                        >
+                                                            <Edit className="w-4 h-4" />
+                                                        </Link>
+                                                    ) : (
+                                                        <span
+                                                            className="text-stone-300 p-1.5 cursor-not-allowed rounded-lg inline-flex"
+                                                            title="Only draft sales can be edited"
+                                                        >
+                                                            <Edit className="w-4 h-4 opacity-30" />
+                                                        </span>
+                                                    )}
                                                     <button
                                                         onClick={() => handleDelete(sale.id)}
                                                         className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
@@ -184,7 +209,8 @@ const ListSales = () => {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

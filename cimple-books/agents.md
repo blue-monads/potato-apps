@@ -80,8 +80,8 @@ cimple-books/
 - **`Transactions` & `TransactionLines`**: Double-entry journal entries. Every transaction enforces that total debits equal total credits.
 - **`Catagories`**: Categorization for products with `product_class` (`physical_item`, `service`, `digital_item`).
 - **`Products` & `ProductVariants`**: Inventory tracking. Products can have multiple variants with specific sales pricing and tracked counts.
-- **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Updates stock levels.
-- **`Sales` & `SalesLines`**: Customer sales and invoicing. Tracks line item amounts, overall taxes, discounts, and payment status (`unpaid`, `paid`, `partially_paid`, `refunded`).
+- **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Tracks intake status (`draft`, `confirmed`, `cancelled`) and updates stock levels.
+- **`Sales` & `SalesLines`**: Customer sales and invoicing. Tracks line item amounts, overall taxes, discounts, sales status (`draft`, `confirmed`, `cancelled`), and payment status (`unpaid`, `paid`, `partially_paid`, `refunded`).
 - **`Tax`**: Configurable tax rates for sales and purchases.
 - **`Estimates` & `EstimateLines`**: Quotes/estimates acting as draft precursors to sales orders.
 - **`Contacts`**: Clients, suppliers, and general contacts with addresses, phones, emails, and JSON metadata (`extra_data`).
@@ -151,8 +151,8 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Stock In** | `GET` | `/stockin` | Lists stock intake records |
 | **Stock In** | `POST` | `/stockin` | Creates stock intake record and line items |
 | **Stock In** | `GET` | `/stockin/:id` | Gets stock intake record with lines |
-| **Stock In** | `PUT`/`PATCH`/`POST` | `/stockin/:id` | Updates stock intake record |
-| **Stock In** | `DELETE` | `/stockin/:id` | Soft-deletes stock intake record |
+| **Stock In** | `PUT`/`PATCH`/`POST` | `/stockin/:id` | Updates stock intake record (allowed only if in `draft` state) |
+| **Stock In** | `DELETE` | `/stockin/:id` | Deletes stock intake record |
 | **Taxes** | `GET` | `/taxes` | Lists active tax rates |
 | **Taxes** | `POST` | `/taxes` | Creates a tax rate |
 | **Taxes** | `PUT`/`PATCH` | `/taxes/:id` | Updates a tax rate |
@@ -160,8 +160,8 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Sales** | `GET` | `/sales` | Lists sales entries |
 | **Sales** | `POST` | `/sales` | Creates sales invoice with line items |
 | **Sales** | `GET` | `/sales/:id` | Gets sale record with lines |
-| **Sales** | `PUT`/`PATCH` | `/sales/:id` | Updates sale record and lines |
-| **Sales** | `DELETE` | `/sales/:id` | Soft-deletes sale record |
+| **Sales** | `PUT`/`PATCH` | `/sales/:id` | Updates sale record and lines (allowed only if in `draft` state) |
+| **Sales** | `DELETE` | `/sales/:id` | Deletes sale record |
 
 ---
 

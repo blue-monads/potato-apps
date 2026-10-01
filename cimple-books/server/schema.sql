@@ -139,14 +139,14 @@ create table ProductStockIn(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     info TEXT NOT NULL DEFAULT '',
     amount INTEGER NOT NULL DEFAULT 0,
+    stockin_status TEXT NOT NULL DEFAULT 'draft', -- draft, confirmed, cancelled
     vendor_contact_id INTEGER,
     vendor_alt_name TEXT NOT NULL DEFAULT '',
     stockin_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 create table ProductStockInLines(
@@ -170,6 +170,7 @@ create table ProductStockInLines(
 create table Sales(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL DEFAULT '',
+    sales_status TEXT NOT NULL DEFAULT 'draft', -- draft, confirmed, cancelled
     client_contact_id INTEGER,
     client_alt_name TEXT NOT NULL DEFAULT '',
 
@@ -192,12 +193,10 @@ create table Sales(
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     invalidated_reason TEXT NOT NULL DEFAULT '',
-    payment_status TEXT NOT NULL DEFAULT 'unpaid', -- unpaid, paid, partially_paid, refunded
+    payment_status TEXT NOT NULL DEFAULT 'unpaid' -- unpaid, paid, partially_paid, refunded
 
     -- reference_id TEXT ,
     -- reference_type TEXT , -- extern_id
-
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 

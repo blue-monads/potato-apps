@@ -12,6 +12,7 @@ interface ContactPickerProps {
     label?: string;
     placeholder?: string;
     required?: boolean;
+    disabled?: boolean;
 }
 
 const ContactPicker = ({
@@ -22,6 +23,7 @@ const ContactPicker = ({
     label = 'Contact',
     placeholder = 'Search or enter contact name...',
     required = false,
+    disabled = false,
 }: ContactPickerProps) => {
     const { openModal, closeModal } = useModal();
     const [contacts, setContacts] = useState<Contact[]>([]);
@@ -137,23 +139,31 @@ const ContactPicker = ({
                     <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider">
                         {label} {required && <span className="text-red-500">*</span>}
                     </label>
-                    <button
-                        type="button"
-                        onClick={handleOpenCreateModal}
-                        className="text-xs font-semibold text-[#2E6E52] hover:text-[#255842] flex items-center gap-1"
-                    >
-                        <Plus className="w-3 h-3" />
-                        New Contact
-                    </button>
+                    {!disabled && (
+                        <button
+                            type="button"
+                            onClick={handleOpenCreateModal}
+                            className="text-xs font-semibold text-[#2E6E52] hover:text-[#255842] flex items-center gap-1"
+                        >
+                            <Plus className="w-3 h-3" />
+                            New Contact
+                        </button>
+                    )}
                 </div>
             )}
 
             {/* Input / Display Field */}
             <div className="relative">
                 <div
-                    onClick={() => setIsOpen(true)}
-                    className={`w-full flex items-center gap-2 px-3.5 py-2.5 bg-stone-50 border rounded-xl cursor-text transition-all ${
-                        isOpen ? 'ring-2 ring-[#2E6E52] bg-white border-[#2E6E52]' : 'border-[#E1E3DB] hover:bg-stone-100/70'
+                    onClick={() => {
+                        if (!disabled) setIsOpen(true);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3.5 py-2.5 bg-stone-50 border rounded-xl transition-all ${
+                        disabled
+                            ? 'opacity-60 cursor-not-allowed border-[#E1E3DB]'
+                            : isOpen
+                            ? 'cursor-text ring-2 ring-[#2E6E52] bg-white border-[#2E6E52]'
+                            : 'cursor-text border-[#E1E3DB] hover:bg-stone-100/70'
                     }`}
                 >
                     {selectedContact ? (
@@ -177,22 +187,26 @@ const ContactPicker = ({
                             <Search className="w-4 h-4 text-stone-400 flex-shrink-0" />
                             <input
                                 type="text"
+                                disabled={disabled}
                                 value={searchQuery}
                                 onChange={(e) => {
+                                    if (disabled) return;
                                     setSearchQuery(e.target.value);
                                     if (!isOpen) setIsOpen(true);
                                     // Also set altName as user types
                                     onChange(null, e.target.value);
                                 }}
-                                onFocus={() => setIsOpen(true)}
+                                onFocus={() => {
+                                    if (!disabled) setIsOpen(true);
+                                }}
                                 placeholder={placeholder}
-                                className="w-full bg-transparent text-sm focus:outline-none text-stone-900 placeholder-stone-400"
+                                className="w-full bg-transparent text-sm focus:outline-none text-stone-900 placeholder-stone-400 disabled:cursor-not-allowed"
                             />
                         </div>
                     )}
 
                     <div className="flex items-center gap-1 text-stone-400 flex-shrink-0">
-                        {(selectedContact || searchQuery) && (
+                        {!disabled && (selectedContact || searchQuery) && (
                             <button
                                 type="button"
                                 onClick={handleClear}
@@ -202,7 +216,9 @@ const ContactPicker = ({
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
-                        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        {!disabled && (
+                            <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        )}
                     </div>
                 </div>
             </div>

@@ -38,7 +38,10 @@ const StockInForm = () => {
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         return now.toISOString().slice(0, 16);
     });
+    const [stockinStatus, setStockinStatus] = useState<string>('draft');
     const [lines, setLines] = useState<FormLine[]>([]);
+
+    const isLocked = isEditMode && stockinStatus !== 'draft';
 
     useEffect(() => {
         if (!isEditMode || !id) return;
@@ -49,6 +52,7 @@ const StockInForm = () => {
                 const resp = await getStockIn(parseInt(id, 10));
                 if (resp.status === 200 && resp.data) {
                     const s = resp.data;
+                    setStockinStatus(s.stockin_status || 'draft');
                     setVendorContactId(s.vendor_contact_id || null);
                     setVendorAltName(s.vendor_alt_name || s.vendor_name || '');
                     setReferenceId(s.reference_id || '');
@@ -150,6 +154,11 @@ const StockInForm = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLocked) {
+            setError('Cannot edit stock in unless it is in draft state.');
+            return;
+        }
+
         if (lines.length === 0) {
             setError('Please add at least one product to receive into stock.');
             return;
@@ -159,6 +168,7 @@ const StockInForm = () => {
         setError(null);
 
         const payload: Partial<ProductStockIn> = {
+            stockin_status: stockinStatus,
             vendor_contact_id: vendorContactId,
             vendor_alt_name: vendorAltName.trim(),
             vendor_name: vendorAltName.trim(),
@@ -230,6 +240,12 @@ const StockInForm = () => {
                     </div>
                 </div>
 
+                {isLocked && (
+                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-medium flex items-center gap-2">
+                        <span>This stock in entry is marked as <strong className="uppercase">{stockinStatus}</strong> and cannot be edited. Only entries in <strong>draft</strong> state can be modified.</span>
+                    </div>
+                )}
+
                 {error && (
                     <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium">
                         {error}
@@ -252,7 +268,9 @@ const StockInForm = () => {
                                     placeholder="Select vendor (optional)..."
                                     value={vendorContactId}
                                     altName={vendorAltName}
+                                    disabled={isLocked}
                                     onChange={(cid, name) => {
+                                        if (isLocked) return;
                                         setVendorContactId(cid);
                                         if (cid === null && name) {
                                             setVendorAltName(name);
@@ -269,23 +287,27 @@ const StockInForm = () => {
                                 <input
                                     type="datetime-local"
                                     required
+                                    disabled={isLocked}
                                     value={stockinDate}
                                     onChange={(e) => setStockinDate(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium"
+                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
-                                    Vendor Alt Text
+                                    Status
                                 </label>
-                                <input
-                                    type="text"
-                                    value={vendorAltName}
-                                    onChange={(e) => setVendorAltName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900"
-                                    placeholder="e.g. Acme Distributors Ltd."
-                                />
+                                <select
+                                    value={stockinStatus}
+                                    disabled={isLocked}
+                                    onChange={(e) => setStockinStatus(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <option value="draft">Draft</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
                             </div>
 
                             <div>
@@ -295,10 +317,25 @@ const StockInForm = () => {
                                 </label>
                                 <input
                                     type="text"
+                                    disabled={isLocked}
                                     value={referenceId}
                                     onChange={(e) => setReferenceId(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900"
+                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 disabled:opacity-60 disabled:cursor-not-allowed"
                                     placeholder="e.g. PO-2026-081"
+                                />
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
+                                    Vendor Alt Text
+                                </label>
+                                <input
+                                    type="text"
+                                    disabled={isLocked}
+                                    value={vendorAltName}
+                                    onChange={(e) => setVendorAltName(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    placeholder="e.g. Acme Distributors Ltd."
                                 />
                             </div>
                         </div>
@@ -309,9 +346,10 @@ const StockInForm = () => {
                             </label>
                             <textarea
                                 value={info}
+                                disabled={isLocked}
                                 onChange={(e) => setInfo(e.target.value)}
                                 rows={3}
-                                className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900"
+                                className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 disabled:opacity-60 disabled:cursor-not-allowed"
                                 placeholder="Additional details about delivery condition, courier, tracking number, etc."
                             />
                         </div>
@@ -329,17 +367,19 @@ const StockInForm = () => {
                                     List the products and their respective variants received in this batch
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => openModal({
-                                    title: 'Add Product / Variant',
-                                    content: <StockInItemPicker onSave={handleAddLine} />,
-                                })}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Product / Variant
-                            </button>
+                            {!isLocked && (
+                                <button
+                                    type="button"
+                                    onClick={() => openModal({
+                                        title: 'Add Product / Variant',
+                                        content: <StockInItemPicker onSave={handleAddLine} />,
+                                    })}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-xl text-xs font-semibold transition-colors shadow-xs"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add Product / Variant
+                                </button>
+                            )}
                         </div>
 
                         {lines.length === 0 ? (
@@ -349,17 +389,19 @@ const StockInForm = () => {
                                 <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1 mb-4">
                                     Click the button below to pick products or specific variants to add to this stock receipt.
                                 </p>
-                                <button
-                                    type="button"
-                                    onClick={() => openModal({
-                                        title: 'Add Product / Variant',
-                                        content: <StockInItemPicker onSave={handleAddLine} />,
-                                    })}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Pick Product to Stock In
-                                </button>
+                                {!isLocked && (
+                                    <button
+                                        type="button"
+                                        onClick={() => openModal({
+                                            title: 'Add Product / Variant',
+                                            content: <StockInItemPicker onSave={handleAddLine} />,
+                                        })}
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Pick Product to Stock In
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div className="overflow-x-auto border border-[#E1E3DB] rounded-xl">
@@ -393,9 +435,10 @@ const StockInForm = () => {
                                                         type="number"
                                                         min="1"
                                                         step="1"
+                                                        disabled={isLocked}
                                                         value={l.qty}
                                                         onChange={(e) => handleUpdateLineQty(index, e.target.value)}
-                                                        className="w-24 px-2.5 py-1.5 bg-white border border-[#E1E3DB] rounded-lg text-sm text-stone-900 font-semibold focus:outline-none focus:ring-1 focus:ring-[#2E6E52]"
+                                                        className="w-24 px-2.5 py-1.5 bg-white border border-[#E1E3DB] rounded-lg text-sm text-stone-900 font-semibold focus:outline-none focus:ring-1 focus:ring-[#2E6E52] disabled:opacity-60 disabled:cursor-not-allowed"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3.5">
@@ -405,9 +448,10 @@ const StockInForm = () => {
                                                             type="number"
                                                             min="0"
                                                             step="0.01"
+                                                            disabled={isLocked}
                                                             value={(l.price / 100).toFixed(2)}
                                                             onChange={(e) => handleUpdateLinePrice(index, e.target.value)}
-                                                            className="w-28 pl-6 pr-2.5 py-1.5 bg-white border border-[#E1E3DB] rounded-lg text-sm text-stone-900 font-semibold focus:outline-none focus:ring-1 focus:ring-[#2E6E52]"
+                                                            className="w-28 pl-6 pr-2.5 py-1.5 bg-white border border-[#E1E3DB] rounded-lg text-sm text-stone-900 font-semibold focus:outline-none focus:ring-1 focus:ring-[#2E6E52] disabled:opacity-60 disabled:cursor-not-allowed"
                                                         />
                                                     </div>
                                                 </td>
@@ -417,6 +461,7 @@ const StockInForm = () => {
                                                 <td className="px-4 py-3.5 text-xs text-stone-500">
                                                     <input
                                                         type="text"
+                                                        disabled={isLocked}
                                                         value={l.info}
                                                         placeholder="Line remarks..."
                                                         onChange={(e) => {
@@ -427,18 +472,22 @@ const StockInForm = () => {
                                                                 return updated;
                                                             });
                                                         }}
-                                                        className="w-full px-2 py-1 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-[#E1E3DB] focus:border-[#2E6E52] rounded text-xs transition-colors"
+                                                        className="w-full px-2 py-1 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-[#E1E3DB] focus:border-[#2E6E52] rounded text-xs transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3.5 text-right">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveLine(index)}
-                                                        className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Remove item"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    {!isLocked ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveLine(index)}
+                                                            className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Remove item"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    ) : (
+                                                        <span className="p-1.5 text-stone-300 inline-block">—</span>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
@@ -455,7 +504,7 @@ const StockInForm = () => {
                                         <span className="text-stone-500 block text-xs">Total Line Items</span>
                                         <span className="font-bold text-stone-800 text-base">{lines.length}</span>
                                     </div>
-                                    <div className="h-8 w-px bg-[#E1E3DB]" />
+                                    <div className="w-px h-8 bg-[#E1E3DB]" />
                                     <div>
                                         <span className="text-stone-500 block text-xs">Total Units to Receive</span>
                                         <span className="font-bold text-emerald-800 text-base">+{totalUnits} units</span>
@@ -477,16 +526,18 @@ const StockInForm = () => {
                             to={`${BASE_PATH}stockin`}
                             className="px-5 py-2.5 border border-[#E1E3DB] bg-white hover:bg-stone-50 text-stone-700 rounded-xl text-sm font-semibold transition-colors shadow-xs"
                         >
-                            Cancel
+                            {isLocked ? 'Back' : 'Cancel'}
                         </Link>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2E6E52] hover:bg-[#255842] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                        >
-                            <Save className="w-4 h-4" />
-                            {saving ? 'Saving...' : 'Save Stock In'}
-                        </button>
+                        {!isLocked && (
+                            <button
+                                type="submit"
+                                disabled={saving || lines.length === 0}
+                                className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2E6E52] hover:bg-[#255842] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                            >
+                                <Save className="w-4 h-4" />
+                                {saving ? 'Saving...' : 'Save Stock In'}
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>
