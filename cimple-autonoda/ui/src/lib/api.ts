@@ -1,5 +1,5 @@
 import { API_BASE_PATH } from "./base";
-import type { Workflow, ExecutionRecord } from "../types/workflow";
+import type { EventTrigger, RuleBlock, Rule, Target, TriggerGraph } from "../types/workflow";
 
 const getAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -47,345 +47,255 @@ export async function apiRequest<T>(
   }
 }
 
-// Local Storage Fallback Presets
-export const DEFAULT_PRESET_WORKFLOWS: Workflow[] = [
-  {
-    id: 1,
-    name: "E-Commerce VIP & Fraud Router",
-    description: "Evaluates customer tier and order total to route high-value VIP orders through priority concierge and fulfillment.",
-    status: "active",
-    samplePayload: {
-      eventId: "evt_998124",
-      timestamp: new Date().toISOString(),
-      order: {
-        id: "ORD-58291",
-        total: 185.50,
-        currency: "USD",
-        itemsCount: 3,
-        channel: "web_checkout"
-      },
-      customer: {
-        name: "Sophia Martinez",
-        email: "sophia.m@example.com",
-        tier: "gold",
-        country: "US",
-        lifetimeOrders: 8
-      }
-    },
-    nodes: [
-      {
-        id: "node_trigger_1",
-        type: "trigger",
-        subtype: "webhook",
-        title: "New Order Placed",
-        x: 340,
-        y: 40,
-        config: {
-          eventType: "ecommerce.order.created",
-          source: "Shopify Webhook"
-        }
-      },
-      {
-        id: "node_logic_1",
-        type: "logic",
-        subtype: "condition",
-        title: "VIP Order Rule",
-        x: 340,
-        y: 220,
-        config: {
-          conditionMode: "AND",
-          rules: [
-            { field: "order.total", op: "greater_than", value: "100" },
-            { field: "customer.tier", op: "equals", value: "gold" }
-          ]
-        }
-      },
-      {
-        id: "node_action_vip",
-        type: "action",
-        subtype: "enrich",
-        title: "Enrich: VIP Perks & Tag",
-        x: 180,
-        y: 440,
-        config: {
-          enrichField: "order.isVipPriority",
-          enrichValue: "true",
-          enrichNotes: "Applied express 1-day free shipping"
-        }
-      },
-      {
-        id: "node_action_email",
-        type: "action",
-        subtype: "email",
-        title: "Send VIP Concierge Email",
-        x: 180,
-        y: 640,
-        config: {
-          recipient: "{{customer.email}}",
-          subject: "VIP Priority: Order {{order.id}} Confirmed!",
-          template: "Hello {{customer.name}}, thank you for being a Gold VIP member! Your order {{order.id}} has been expedited."
-        }
-      },
-      {
-        id: "node_action_std",
-        type: "action",
-        subtype: "webhook",
-        title: "Standard Fulfillment Webhook",
-        x: 500,
-        y: 440,
-        config: {
-          url: "https://warehouse.internal/api/orders",
-          method: "POST"
-        }
-      }
-    ],
-    wires: [
-      { id: "w1", fromNode: "node_trigger_1", fromPort: "out", toNode: "node_logic_1", toPort: "in" },
-      { id: "w2", fromNode: "node_logic_1", fromPort: "true", toNode: "node_action_vip", toPort: "in" },
-      { id: "w3", fromNode: "node_action_vip", fromPort: "out", toNode: "node_action_email", toPort: "in" },
-      { id: "w4", fromNode: "node_logic_1", fromPort: "false", toNode: "node_action_std", toPort: "in" }
-    ]
-  },
-  {
-    id: 2,
-    name: "Enterprise Lead Qualification",
-    description: "Routes inbound website contact requests based on company size and budget to Salesforce enterprise queue or self-serve nurture.",
-    status: "active",
-    samplePayload: {
-      leadId: "lead_448",
-      lead: {
-        companyName: "Apex Cloud Technologies",
-        employees: 450,
-        annualBudget: 75000,
-        industry: "Fintech",
-        contact: {
-          email: "cto@apexcloud.io",
-          fullName: "Marcus Vance"
-        }
-      }
-    },
-    nodes: [
-      {
-        id: "node_lead_start",
-        type: "trigger",
-        subtype: "webhook",
-        title: "Demo Request Submitted",
-        x: 340,
-        y: 40,
-        config: { eventType: "form.demo_request" }
-      },
-      {
-        id: "node_lead_logic",
-        type: "logic",
-        subtype: "condition",
-        title: "Enterprise Criteria",
-        x: 340,
-        y: 220,
-        config: {
-          conditionMode: "OR",
-          rules: [
-            { field: "lead.annualBudget", op: "greater_than", value: "50000" },
-            { field: "lead.employees", op: "greater_or_equal", value: "200" }
-          ]
-        }
-      },
-      {
-        id: "node_lead_crm",
-        type: "action",
-        subtype: "webhook",
-        title: "Salesforce Enterprise Queue",
-        x: 180,
-        y: 440,
-        config: {
-          url: "https://api.salesforce.com/leads/v1/enterprise",
-          method: "POST"
-        }
-      },
-      {
-        id: "node_lead_nurture",
-        type: "action",
-        subtype: "log",
-        title: "Self-Serve Nurture Campaign",
-        x: 500,
-        y: 440,
-        config: {
-          logLevel: "INFO",
-          message: "Routing lead to self-serve onboarding sequence"
-        }
-      }
-    ],
-    wires: [
-      { id: "w_lead_1", fromNode: "node_lead_start", fromPort: "out", toNode: "node_lead_logic", toPort: "in" },
-      { id: "w_lead_2", fromNode: "node_lead_logic", fromPort: "true", toNode: "node_lead_crm", toPort: "in" },
-      { id: "w_lead_3", fromNode: "node_lead_logic", fromPort: "false", toNode: "node_lead_nurture", toPort: "in" }
-    ]
-  }
-];
+// Local mock storage for standalone offline preview (new schema only)
+const STORAGE_PREFIX = 'autonoda_relational_';
 
-const LOCAL_STORAGE_KEY = 'cimple_autonoda_workflows';
-const LOCAL_STORAGE_EXECS_KEY = 'cimple_autonoda_executions';
+function getLocalGraph(triggerId: number): TriggerGraph {
+  const trigRaw = localStorage.getItem(`${STORAGE_PREFIX}trigger_${triggerId}`);
+  const rbsRaw = localStorage.getItem(`${STORAGE_PREFIX}rbs_${triggerId}`);
+  const rulesRaw = localStorage.getItem(`${STORAGE_PREFIX}rules_${triggerId}`);
+  const tgtsRaw = localStorage.getItem(`${STORAGE_PREFIX}targets_${triggerId}`);
 
-function getLocalWorkflows(): Workflow[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(DEFAULT_PRESET_WORKFLOWS));
-      return DEFAULT_PRESET_WORKFLOWS;
-    }
-    return JSON.parse(raw);
-  } catch {
-    return DEFAULT_PRESET_WORKFLOWS;
-  }
+  const trigger: EventTrigger = trigRaw
+    ? JSON.parse(trigRaw)
+    : { id: triggerId, name: 'Sample Event Trigger', description: 'Triggered upon customer events' };
+  const rule_blocks: RuleBlock[] = rbsRaw ? JSON.parse(rbsRaw) : [];
+  const rules: Rule[] = rulesRaw ? JSON.parse(rulesRaw) : [];
+  const targets: Target[] = tgtsRaw ? JSON.parse(tgtsRaw) : [];
+
+  return { trigger, rule_blocks, rules, targets };
 }
 
-function saveLocalWorkflows(workflows: Workflow[]) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(workflows));
-  } catch (err) {
-    console.warn('LocalStorage save failed:', err);
-  }
+function saveLocalGraph(graph: TriggerGraph) {
+  const tid = graph.trigger.id;
+  localStorage.setItem(`${STORAGE_PREFIX}trigger_${tid}`, JSON.stringify(graph.trigger));
+  localStorage.setItem(`${STORAGE_PREFIX}rbs_${tid}`, JSON.stringify(graph.rule_blocks));
+  localStorage.setItem(`${STORAGE_PREFIX}rules_${tid}`, JSON.stringify(graph.rules));
+  localStorage.setItem(`${STORAGE_PREFIX}targets_${tid}`, JSON.stringify(graph.targets));
 }
 
-function serializeWorkflowForServer(wf: Workflow) {
-  return {
-    name: wf.name,
-    description: wf.description,
-    status: wf.status,
-    nodes_json: JSON.stringify(wf.nodes),
-    wires_json: JSON.stringify(wf.wires),
-    sample_payload_json: JSON.stringify(wf.samplePayload || {}),
-  };
-}
-
-function deserializeWorkflowFromServer(raw: any): Workflow {
-  return {
-    id: raw.id,
-    name: raw.name || "Untitled Workflow",
-    description: raw.description || "",
-    status: raw.status || "active",
-    nodes: typeof raw.nodes_json === 'string' ? JSON.parse(raw.nodes_json || '[]') : (raw.nodes_json || []),
-    wires: typeof raw.wires_json === 'string' ? JSON.parse(raw.wires_json || '[]') : (raw.wires_json || []),
-    samplePayload: typeof raw.sample_payload_json === 'string' ? JSON.parse(raw.sample_payload_json || '{}') : (raw.sample_payload_json || {}),
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
-  };
-}
-
-export const workflowsApi = {
-  list: async (): Promise<Workflow[]> => {
-    const res = await apiRequest<any[]>('/workflows', { method: 'GET' });
-    if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
-      return res.data.map(deserializeWorkflowFromServer);
-    }
-    // Fallback to local storage
-    return getLocalWorkflows();
+export const autonodaApi = {
+  // Setup
+  runSetup: async () => {
+    return apiRequest<{ message: string }>('/setup', { method: 'POST' });
   },
 
-  get: async (id: number | string): Promise<Workflow> => {
-    const res = await apiRequest<any>(`/workflows/${id}`, { method: 'GET' });
-    if (!res.error && res.data && res.data.id) {
-      return deserializeWorkflowFromServer(res.data);
-    }
-    const locals = getLocalWorkflows();
-    const found = locals.find(w => String(w.id) === String(id));
-    if (!found) throw new Error("Workflow not found");
-    return found;
-  },
-
-  create: async (workflow: Partial<Workflow>): Promise<Workflow> => {
-    const payload = serializeWorkflowForServer(workflow as Workflow);
-    const res = await apiRequest<any>('/workflows', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.error && res.data && res.data.id) {
-      return deserializeWorkflowFromServer(res.data);
-    }
-
-    // Local save
-    const locals = getLocalWorkflows();
-    const newWf: Workflow = {
-      id: Date.now(),
-      name: workflow.name || "New Workflow",
-      description: workflow.description || "",
-      status: workflow.status || "active",
-      nodes: workflow.nodes || [],
-      wires: workflow.wires || [],
-      samplePayload: workflow.samplePayload || {},
-      created_at: new Date().toISOString(),
-    };
-    locals.push(newWf);
-    saveLocalWorkflows(locals);
-    return newWf;
-  },
-
-  update: async (id: number | string, updates: Partial<Workflow>): Promise<Workflow> => {
-    const locals = getLocalWorkflows();
-    const idx = locals.findIndex(w => String(w.id) === String(id));
-    if (idx !== -1) {
-      locals[idx] = { ...locals[idx], ...updates, updated_at: new Date().toISOString() };
-      saveLocalWorkflows(locals);
-    }
-
-    // Try backend update
-    const payload = serializeWorkflowForServer(updates as Workflow);
-    await apiRequest<any>(`/workflows/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-
-    return locals[idx] || (updates as Workflow);
-  },
-
-  delete: async (id: number | string): Promise<void> => {
-    const locals = getLocalWorkflows().filter(w => String(w.id) !== String(id));
-    saveLocalWorkflows(locals);
-
-    await apiRequest<any>(`/workflows/${id}`, {
-      method: 'DELETE',
-    });
-  },
-
-  recordExecution: async (exec: { workflow_id: number | string; status: string; duration_ms: number; initial_payload: any; final_payload: any; steps_trace: any }): Promise<void> => {
-    try {
-      const existingRaw = localStorage.getItem(LOCAL_STORAGE_EXECS_KEY);
-      const list = existingRaw ? JSON.parse(existingRaw) : [];
-      list.unshift({
-        id: Date.now(),
-        workflow_id: exec.workflow_id,
-        status: exec.status,
-        started_at: new Date().toISOString(),
-        duration_ms: exec.duration_ms,
-        initial_payload: JSON.stringify(exec.initial_payload),
-        final_payload: JSON.stringify(exec.final_payload),
-        steps_trace_json: JSON.stringify(exec.steps_trace),
-      });
-      // Keep last 30 executions
-      localStorage.setItem(LOCAL_STORAGE_EXECS_KEY, JSON.stringify(list.slice(0, 30)));
-    } catch {}
-
-    // Send to backend
-    await apiRequest<any>(`/workflows/${exec.workflow_id}/run`, {
-      method: 'POST',
-      body: JSON.stringify({
-        trigger_type: 'manual',
-        payload: exec.initial_payload,
-      }),
-    });
-  },
-
-  listExecutions: async (workflow_id: number | string): Promise<ExecutionRecord[]> => {
-    const res = await apiRequest<ExecutionRecord[]>(`/workflows/${workflow_id}/executions`, { method: 'GET' });
+  // Triggers
+  listTriggers: async (): Promise<EventTrigger[]> => {
+    const res = await apiRequest<EventTrigger[]>('/triggers', { method: 'GET' });
     if (!res.error && Array.isArray(res.data) && res.data.length > 0) {
       return res.data;
     }
-    try {
-      const existingRaw = localStorage.getItem(LOCAL_STORAGE_EXECS_KEY);
-      const list: ExecutionRecord[] = existingRaw ? JSON.parse(existingRaw) : [];
-      return list.filter(e => String(e.workflow_id) === String(workflow_id));
-    } catch {
-      return [];
+    // Fallback to local
+    const local = getLocalGraph(1);
+    return [local.trigger];
+  },
+
+  getTrigger: async (id: number): Promise<EventTrigger> => {
+    const res = await apiRequest<EventTrigger>(`/triggers/${id}`, { method: 'GET' });
+    if (!res.error && res.data) return res.data;
+    return getLocalGraph(id).trigger;
+  },
+
+  getTriggerGraph: async (id: number): Promise<TriggerGraph> => {
+    const res = await apiRequest<TriggerGraph>(`/triggers/${id}/graph`, { method: 'GET' });
+    if (!res.error && res.data) {
+      // Parse targetMeta JSON if received as string
+      if (res.data.targets) {
+        res.data.targets = res.data.targets.map(t => ({
+          ...t,
+          targetMeta: typeof t.targetMeta === 'string' ? JSON.parse(t.targetMeta || '{}') : (t.targetMeta || {})
+        }));
+      }
+      return res.data;
     }
-  }
+    return getLocalGraph(id);
+  },
+
+  saveTriggerGraph: async (id: number, graph: TriggerGraph): Promise<TriggerGraph> => {
+    saveLocalGraph(graph);
+    const res = await apiRequest<TriggerGraph>(`/triggers/${id}/graph`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        trigger: graph.trigger,
+        rule_blocks: graph.rule_blocks,
+        rules: graph.rules,
+        targets: graph.targets,
+      }),
+    });
+    if (!res.error && res.data) {
+      if (res.data.targets) {
+        res.data.targets = res.data.targets.map(t => ({
+          ...t,
+          targetMeta: typeof t.targetMeta === 'string' ? JSON.parse(t.targetMeta || '{}') : (t.targetMeta || {})
+        }));
+      }
+      return res.data;
+    }
+    return graph;
+  },
+
+  createTrigger: async (data: Partial<EventTrigger>): Promise<EventTrigger> => {
+    const res = await apiRequest<EventTrigger>('/triggers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!res.error && res.data) return res.data;
+    const newTrig: EventTrigger = {
+      id: Date.now(),
+      name: data.name || 'Untitled Trigger',
+      description: data.description || '',
+    };
+    saveLocalGraph({ trigger: newTrig, rule_blocks: [], rules: [], targets: [] });
+    return newTrig;
+  },
+
+  updateTrigger: async (id: number, updates: Partial<EventTrigger>): Promise<EventTrigger> => {
+    const res = await apiRequest<EventTrigger>(`/triggers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    const local = getLocalGraph(id);
+    local.trigger = { ...local.trigger, ...updates };
+    saveLocalGraph(local);
+    if (!res.error && res.data) return res.data;
+    return local.trigger;
+  },
+
+  deleteTrigger: async (id: number): Promise<void> => {
+    await apiRequest<void>(`/triggers/${id}`, { method: 'DELETE' });
+    localStorage.removeItem(`${STORAGE_PREFIX}trigger_${id}`);
+    localStorage.removeItem(`${STORAGE_PREFIX}rbs_${id}`);
+    localStorage.removeItem(`${STORAGE_PREFIX}rules_${id}`);
+    localStorage.removeItem(`${STORAGE_PREFIX}targets_${id}`);
+  },
+
+  // Rule Blocks
+  createRuleBlock: async (data: Partial<RuleBlock>): Promise<RuleBlock> => {
+    const res = await apiRequest<RuleBlock>('/rule-blocks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!res.error && res.data) return res.data;
+    const local = getLocalGraph(data.triggerId || 1);
+    const newRb: RuleBlock = {
+      id: Date.now(),
+      triggerId: data.triggerId || 1,
+      blockType: data.blockType || 'ALL_OF',
+      parentRuleBlockId: data.parentRuleBlockId || null,
+      branch: data.branch || 'TRUE',
+      delaySeconds: data.delaySeconds || 0,
+      rules: [],
+    };
+    local.rule_blocks.push(newRb);
+    saveLocalGraph(local);
+    return newRb;
+  },
+
+  updateRuleBlock: async (id: number, triggerId: number, updates: Partial<RuleBlock>): Promise<void> => {
+    await apiRequest<void>(`/rule-blocks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    const local = getLocalGraph(triggerId);
+    local.rule_blocks = local.rule_blocks.map(rb => rb.id === id ? { ...rb, ...updates } : rb);
+    saveLocalGraph(local);
+  },
+
+  deleteRuleBlock: async (id: number, triggerId: number): Promise<void> => {
+    await apiRequest<void>(`/rule-blocks/${id}`, { method: 'DELETE' });
+    const local = getLocalGraph(triggerId);
+    local.rule_blocks = local.rule_blocks.filter(rb => rb.id !== id);
+    local.rules = local.rules.filter(r => r.ruleBlockId !== id);
+    // Unlink targets or child blocks linked to this block
+    local.targets = local.targets.map(t => t.linkedBlockId === id ? { ...t, linkedBlockId: null } : t);
+    local.rule_blocks = local.rule_blocks.map(rb => rb.parentRuleBlockId === id ? { ...rb, parentRuleBlockId: null } : rb);
+    saveLocalGraph(local);
+  },
+
+  // Rules
+  createRule: async (data: Partial<Rule>): Promise<Rule> => {
+    const res = await apiRequest<Rule>('/rules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!res.error && res.data) return res.data;
+    const local = getLocalGraph(data.triggerId || 1);
+    const newRule: Rule = {
+      id: Date.now(),
+      triggerId: data.triggerId || 1,
+      ruleBlockId: data.ruleBlockId || 0,
+      ruleType: data.ruleType || 'EQUAL',
+      variable: data.variable || '',
+      operator: data.operator || 'equals',
+      value: data.value || '',
+      extraData: data.extraData || '',
+      order: data.order || 0,
+    };
+    local.rules.push(newRule);
+    saveLocalGraph(local);
+    return newRule;
+  },
+
+  updateRule: async (id: number, triggerId: number, updates: Partial<Rule>): Promise<void> => {
+    await apiRequest<void>(`/rules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    const local = getLocalGraph(triggerId);
+    local.rules = local.rules.map(r => r.id === id ? { ...r, ...updates } : r);
+    saveLocalGraph(local);
+  },
+
+  deleteRule: async (id: number, triggerId: number): Promise<void> => {
+    await apiRequest<void>(`/rules/${id}`, { method: 'DELETE' });
+    const local = getLocalGraph(triggerId);
+    local.rules = local.rules.filter(r => r.id !== id);
+    saveLocalGraph(local);
+  },
+
+  // Targets
+  createTarget: async (data: Partial<Target>): Promise<Target> => {
+    const res = await apiRequest<Target>('/targets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (!res.error && res.data) {
+      return {
+        ...res.data,
+        targetMeta: typeof res.data.targetMeta === 'string' ? JSON.parse(res.data.targetMeta || '{}') : (res.data.targetMeta || {})
+      };
+    }
+    const local = getLocalGraph(data.triggerId || 1);
+    const newTarget: Target = {
+      id: Date.now(),
+      triggerId: data.triggerId || 1,
+      linkedBlockId: data.linkedBlockId || null,
+      linkedTargetId: data.linkedTargetId || null,
+      branch: data.branch || 'TRUE',
+      targetType: data.targetType || 'WEBHOOK',
+      targetMeta: data.targetMeta || {},
+    };
+    local.targets.push(newTarget);
+    saveLocalGraph(local);
+    return newTarget;
+  },
+
+  updateTarget: async (id: number, triggerId: number, updates: Partial<Target>): Promise<void> => {
+    await apiRequest<void>(`/targets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    const local = getLocalGraph(triggerId);
+    local.targets = local.targets.map(t => t.id === id ? { ...t, ...updates } : t);
+    saveLocalGraph(local);
+  },
+
+  deleteTarget: async (id: number, triggerId: number): Promise<void> => {
+    await apiRequest<void>(`/targets/${id}`, { method: 'DELETE' });
+    const local = getLocalGraph(triggerId);
+    local.targets = local.targets.filter(t => t.id !== id);
+    local.targets = local.targets.map(t => t.linkedTargetId === id ? { ...t, linkedTargetId: null } : t);
+    saveLocalGraph(local);
+  },
 };

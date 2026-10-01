@@ -3,7 +3,6 @@ local potato = require("potato")
 function get_user_id(req)
     local userId, err = req.get_user_id()
     if err then
-        -- Return anonymous or 0 if unauthenticated in local testing
         return "user_default"
     end
     return userId
@@ -19,155 +18,454 @@ function run_migrations(ctx)
         return
     end
 
-    print("Migrations completed, running static seeders...")
-    local seedResult, seedErr = potato.cap.execute("xStaticSeeder", "seed", {seed_folder = "seed"})
-    if seedErr then
-        req.json(500, {error = tostring(seedErr)})
-        return
-    end
-
-    print("Seeding completed successfully")
-    req.json(200, {message = "Migrations and seeding completed successfully"})
+    print("Migrations completed successfully")
+    req.json(200, {message = "Migrations completed successfully"})
 end
 
--- ==================== WORKFLOWS CRUD ====================
+-- ==================== EVENT TRIGGERS CRUD ====================
 
-function list_workflows(ctx)
+function list_triggers(ctx)
     local req = ctx.request()
-    local workflows, err = potato.db.find_all_by_cond("Workflows", {})
+    local triggers, err = potato.db.find_all_by_cond("EventTriggers", {})
     if err then
         req.json(500, {error = tostring(err)})
         return
     end
-    req.json_array(200, workflows or {})
+    req.json_array(200, triggers or {})
 end
 
-function get_workflow(ctx, id)
+function get_trigger(ctx, id)
     local req = ctx.request()
-    local workflow, err = potato.db.find_by_id("Workflows", id)
-    if err or not workflow then
-        req.json(404, {error = "Workflow not found"})
+    local trigger, err = potato.db.find_by_id("EventTriggers", id)
+    if err or not trigger then
+        req.json(404, {error = "Trigger not found"})
         return
     end
-    req.json(200, workflow)
+    req.json(200, trigger)
 end
 
-function create_workflow(ctx)
+function get_trigger_graph(ctx, id)
+    local req = ctx.request()
+    local trigger, err = potato.db.find_by_id("EventTriggers", id)
+    if err or not trigger then
+        req.json(404, {error = "Trigger not found"})
+        return
+    end
+
+    local rule_blocks, rbErr = potato.db.find_all_by_cond("RuleBlocks", {triggerId = tonumber(id)})
+    local rules, rErr = potato.db.find_all_by_cond("Rules", {triggerId = tonumber(id)})
+    local targets, tErr = potato.db.find_all_by_cond("Targets", {triggerId = tonumber(id)})
+
+    req.json(200, {
+        trigger = trigger,
+        rule_blocks = rule_blocks or {},
+        rules = rules or {},
+        targets = targets or {}
+    })
+end
+
+function save_trigger_graph(ctx, id)
+    local req = ctx.request()
+    local tId = tonumber(id)
+    local body = req.bind_json() or {}
+
+    -- 1. Update Trigger if metadata provided
+    if body.trigger then
+        local updates = {}
+        if body.trigger.name ~= nil then updates.name = body.trigger.name end
+        if body.trigger.description ~= nil then updates.description = body.trigger.description end
+        potato.db.update_by_id("EventTriggers", tId, updates)
+    end
+
+    -- 2. Clear old nodes for this trigger
+    potato.db.delete_by_cond("Rules", {triggerId = tId})
+    potato.db.delete_by_cond("RuleBlocks", {triggerId = tId})
+    potato.db.delete_by_cond("Targets", {triggerId = tId})
+
+    -- 3. Map temporary IDs to newly inserted IDs
+    local rbIdMap = {}
+    local tgIdMap = {}
+
+    -- Insert RuleBlocks
+    if body.rule_blocks then
+        for _, rb in ipairs(body.rule_blocks) do
+            local oldId = rb.id
+            local blockData = {
+                triggerId = tId,
+                blockType = rb.blockType or "ALL_OF",
+                parentRuleBlockId = nil,
+                branch = rb.branch or "TRUE",
+                delaySeconds = tonumber(rb.delaySeconds) or 0
+            }
+            local newId, _ = potato.db.insert("RuleBlocks", blockData)
+            rbIdMap[oldId] = newId
+            rbIdMap[tostring(oldId)] = newId
+        end
+
+        -- Update parentRuleBlockId with mapped IDs
+        for _, rb in ipairs(body.rule_blocks) do
+            local newId = rbIdMap[rb.id]
+            if newId and rb.parentRuleBlockId then
+                local mappedParentId = rbIdMap[rb.parentRuleBlockId] or rbIdMap[tostring(rb.parentRuleBlockId)] or rb.parentRuleBlockId
+                potato.db.update_by_id("RuleBlocks", newId, {parentRuleBlockId = tonumber(mappedParentId)})
+            end
+        end
+    end
+
+    -- Insert Rules
+    if body.rules then
+        for _, r in ipairs(body.rules) do
+            local mappedRbId = rbIdMap[r.ruleBlockId] or rbIdMap[tostring(r.ruleBlockId)] or tonumber(r.ruleBlockId)
+            local ruleData = {
+                triggerId = tId,
+                ruleBlockId = tonumber(mappedRbId) or 0,
+                ruleType = r.ruleType or "EQUAL",
+                variable = r.variable or "",
+                operator = r.operator or "equals",
+                value = r.value or "",
+                extraData = r.extraData or "",
+                ["order"] = tonumber(r["order"]) or 0
+            }
+            potato.db.insert("Rules", ruleData)
+        end
+    end
+
+    -- Insert Targets
+    if body.targets then
+        for _, tg in ipairs(body.targets) do
+            local oldId = tg.id
+            local metaStr = "{}"
+            if type(tg.targetMeta) == "table" then
+                metaStr = potato.core.to_json(tg.targetMeta)
+            elseif type(tg.targetMeta) == "string" then
+                metaStr = tg.targetMeta
+            end
+
+            local targetData = {
+                triggerId = tId,
+                linkedBlockId = nil,
+                linkedTargetId = nil,
+                branch = tg.branch or "TRUE",
+                targetType = tg.targetType or "WEBHOOK",
+                targetMeta = metaStr
+            }
+            local newId, _ = potato.db.insert("Targets", targetData)
+            tgIdMap[oldId] = newId
+            tgIdMap[tostring(oldId)] = newId
+        end
+
+        -- Update linkedBlockId and linkedTargetId
+        for _, tg in ipairs(body.targets) do
+            local newId = tgIdMap[tg.id]
+            if newId then
+                local updates = {}
+                if tg.linkedBlockId then
+                    local mappedRbId = rbIdMap[tg.linkedBlockId] or rbIdMap[tostring(tg.linkedBlockId)] or tg.linkedBlockId
+                    updates.linkedBlockId = tonumber(mappedRbId)
+                end
+                if tg.linkedTargetId then
+                    local mappedTgId = tgIdMap[tg.linkedTargetId] or tgIdMap[tostring(tg.linkedTargetId)] or tg.linkedTargetId
+                    updates.linkedTargetId = tonumber(mappedTgId)
+                end
+                potato.db.update_by_id("Targets", newId, updates)
+            end
+        end
+    end
+
+    return get_trigger_graph(ctx, tId)
+end
+
+function create_trigger(ctx)
     local req = ctx.request()
     local body = req.bind_json() or {}
-    
-    local newWorkflow = {
-        name = body.name or "Untitled Workflow",
-        description = body.description or "",
-        status = body.status or "active",
-        nodes_json = body.nodes_json or "[]",
-        wires_json = body.wires_json or "[]",
-        sample_payload_json = body.sample_payload_json or "{}"
+
+    local newTrigger = {
+        name = body.name or "New Event Trigger",
+        description = body.description or ""
     }
 
-    local id, err = potato.db.insert("Workflows", newWorkflow)
+    local id, err = potato.db.insert("EventTriggers", newTrigger)
     if err then
         req.json(500, {error = tostring(err)})
         return
     end
 
-    local created, findErr = potato.db.find_by_id("Workflows", id)
-    if findErr then
-        req.json(201, {id = id, message = "Created"})
-        return
-    end
-    req.json(201, created)
+    local created, findErr = potato.db.find_by_id("EventTriggers", id)
+    req.json(201, created or {id = id, name = newTrigger.name})
 end
 
-function update_workflow(ctx, id)
+function update_trigger(ctx, id)
     local req = ctx.request()
     local body = req.bind_json() or {}
 
     local updates = {}
     if body.name ~= nil then updates.name = body.name end
     if body.description ~= nil then updates.description = body.description end
-    if body.status ~= nil then updates.status = body.status end
-    if body.nodes_json ~= nil then updates.nodes_json = body.nodes_json end
-    if body.wires_json ~= nil then updates.wires_json = body.wires_json end
-    if body.sample_payload_json ~= nil then updates.sample_payload_json = body.sample_payload_json end
 
-    local err = potato.db.update_by_id("Workflows", id, updates)
+    local err = potato.db.update_by_id("EventTriggers", id, updates)
     if err then
         req.json(500, {error = tostring(err)})
         return
     end
 
-    local updated, findErr = potato.db.find_by_id("Workflows", id)
+    local updated = potato.db.find_by_id("EventTriggers", id)
     req.json(200, updated or {id = id, updated = true})
 end
 
-function delete_workflow(ctx, id)
+function delete_trigger(ctx, id)
     local req = ctx.request()
-    local err = potato.db.delete_by_id("Workflows", id)
+    local tId = tonumber(id)
+
+    -- Cascade cleanup for related records
+    potato.db.delete_by_cond("Rules", {triggerId = tId})
+    potato.db.delete_by_cond("RuleBlocks", {triggerId = tId})
+    potato.db.delete_by_cond("Targets", {triggerId = tId})
+
+    local err = potato.db.delete_by_id("EventTriggers", tId)
     if err then
         req.json(500, {error = tostring(err)})
         return
     end
-    req.json(200, {message = "Workflow deleted successfully", id = id})
+
+    req.json(200, {message = "Trigger and associated nodes deleted", id = tId})
 end
 
--- ==================== WORKFLOW EXECUTION ====================
+-- ==================== RULE BLOCKS CRUD ====================
 
-function run_workflow(ctx, workflow_id)
+function create_rule_block(ctx)
     local req = ctx.request()
-    local incoming = req.bind_json() or {}
+    local body = req.bind_json() or {}
 
-    local workflow, err = potato.db.find_by_id("Workflows", workflow_id)
-    if err or not workflow then
-        req.json(404, {error = "Workflow not found"})
-        return
-    end
-
-    -- Record execution entry
-    local execRecord = {
-        workflow_id = tonumber(workflow_id),
-        status = "success",
-        trigger_type = incoming.trigger_type or "manual",
-        duration_ms = 45,
-        initial_payload = incoming.payload and potato.core.to_json(incoming.payload) or workflow.sample_payload_json,
-        final_payload = incoming.payload and potato.core.to_json(incoming.payload) or workflow.sample_payload_json,
-        steps_trace_json = "[]",
-        error_message = ""
+    local block = {
+        triggerId = tonumber(body.triggerId) or 0,
+        blockType = body.blockType or "ALL_OF",
+        parentRuleBlockId = body.parentRuleBlockId and tonumber(body.parentRuleBlockId) or nil,
+        branch = body.branch or "TRUE",
+        delaySeconds = tonumber(body.delaySeconds) or 0
     }
 
-    local execId, insertErr = potato.db.insert("Executions", execRecord)
-
-    req.json(200, {
-        execution_id = execId,
-        workflow_id = tonumber(workflow_id),
-        status = "success",
-        message = "Execution completed"
-    })
-end
-
-function list_executions(ctx, workflow_id)
-    local req = ctx.request()
-    local cond = {}
-    if workflow_id then
-        cond.workflow_id = tonumber(workflow_id)
-    end
-
-    local executions, err = potato.db.find_all_by_cond("Executions", cond)
+    local id, err = potato.db.insert("RuleBlocks", block)
     if err then
         req.json(500, {error = tostring(err)})
         return
     end
-    req.json_array(200, executions or {})
+
+    local created = potato.db.find_by_id("RuleBlocks", id)
+    req.json(201, created or {id = id})
 end
 
-function get_execution(ctx, id)
+function update_rule_block(ctx, id)
     local req = ctx.request()
-    local exec, err = potato.db.find_by_id("Executions", id)
-    if err or not exec then
-        req.json(404, {error = "Execution not found"})
+    local body = req.bind_json() or {}
+
+    local updates = {}
+    if body.blockType ~= nil then updates.blockType = body.blockType end
+    if body.branch ~= nil then updates.branch = body.branch end
+    if body.delaySeconds ~= nil then updates.delaySeconds = tonumber(body.delaySeconds) end
+    if body.parentRuleBlockId ~= nil then
+        if body.parentRuleBlockId == false or body.parentRuleBlockId == 0 or body.parentRuleBlockId == "" then
+            updates.parentRuleBlockId = nil
+        else
+            updates.parentRuleBlockId = tonumber(body.parentRuleBlockId)
+        end
+    end
+    if body.triggerId ~= nil then updates.triggerId = tonumber(body.triggerId) end
+
+    local err = potato.db.update_by_id("RuleBlocks", id, updates)
+    if err then
+        req.json(500, {error = tostring(err)})
         return
     end
-    req.json(200, exec)
+
+    local updated = potato.db.find_by_id("RuleBlocks", id)
+    req.json(200, updated or {id = id, updated = true})
+end
+
+function delete_rule_block(ctx, id)
+    local req = ctx.request()
+    local rbId = tonumber(id)
+
+    -- Clean up rules inside this block
+    potato.db.delete_by_cond("Rules", {ruleBlockId = rbId})
+
+    -- Detach any child rule blocks or targets
+    local childBlocks = potato.db.find_all_by_cond("RuleBlocks", {parentRuleBlockId = rbId})
+    if childBlocks then
+        for _, cb in ipairs(childBlocks) do
+            potato.db.update_by_id("RuleBlocks", cb.id, {parentRuleBlockId = nil})
+        end
+    end
+
+    local linkedTargets = potato.db.find_all_by_cond("Targets", {linkedBlockId = rbId})
+    if linkedTargets then
+        for _, lt in ipairs(linkedTargets) do
+            potato.db.update_by_id("Targets", lt.id, {linkedBlockId = nil})
+        end
+    end
+
+    local err = potato.db.delete_by_id("RuleBlocks", rbId)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    req.json(200, {message = "RuleBlock deleted", id = rbId})
+end
+
+-- ==================== RULES CRUD ====================
+
+function create_rule(ctx)
+    local req = ctx.request()
+    local body = req.bind_json() or {}
+
+    local rule = {
+        triggerId = tonumber(body.triggerId) or 0,
+        ruleBlockId = tonumber(body.ruleBlockId) or 0,
+        ruleType = body.ruleType or "EQUAL",
+        variable = body.variable or "",
+        operator = body.operator or "equals",
+        value = body.value or "",
+        extraData = body.extraData or "",
+        ["order"] = tonumber(body.order) or 0
+    }
+
+    local id, err = potato.db.insert("Rules", rule)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    local created = potato.db.find_by_id("Rules", id)
+    req.json(201, created or {id = id})
+end
+
+function update_rule(ctx, id)
+    local req = ctx.request()
+    local body = req.bind_json() or {}
+
+    local updates = {}
+    if body.ruleType ~= nil then updates.ruleType = body.ruleType end
+    if body.variable ~= nil then updates.variable = body.variable end
+    if body.operator ~= nil then updates.operator = body.operator end
+    if body.value ~= nil then updates.value = body.value end
+    if body.extraData ~= nil then updates.extraData = body.extraData end
+    if body.order ~= nil then updates["order"] = tonumber(body.order) end
+
+    local err = potato.db.update_by_id("Rules", id, updates)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    local updated = potato.db.find_by_id("Rules", id)
+    req.json(200, updated or {id = id, updated = true})
+end
+
+function delete_rule(ctx, id)
+    local req = ctx.request()
+    local rId = tonumber(id)
+
+    local err = potato.db.delete_by_id("Rules", rId)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    req.json(200, {message = "Rule deleted", id = rId})
+end
+
+-- ==================== TARGETS CRUD ====================
+
+function create_target(ctx)
+    local req = ctx.request()
+    local body = req.bind_json() or {}
+
+    local targetMetaStr = "{}"
+    if type(body.targetMeta) == "table" then
+        targetMetaStr = potato.core.to_json(body.targetMeta)
+    elseif type(body.targetMeta) == "string" then
+        targetMetaStr = body.targetMeta
+    end
+
+    local target = {
+        triggerId = tonumber(body.triggerId) or 0,
+        linkedBlockId = body.linkedBlockId and tonumber(body.linkedBlockId) or nil,
+        linkedTargetId = body.linkedTargetId and tonumber(body.linkedTargetId) or nil,
+        branch = body.branch or "TRUE",
+        targetType = body.targetType or "WEBHOOK",
+        ruleBlockId = body.ruleBlockId and tonumber(body.ruleBlockId) or nil,
+        targetMeta = targetMetaStr
+    }
+
+    local id, err = potato.db.insert("Targets", target)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    local created = potato.db.find_by_id("Targets", id)
+    req.json(201, created or {id = id})
+end
+
+function update_target(ctx, id)
+    local req = ctx.request()
+    local body = req.bind_json() or {}
+
+    local updates = {}
+    if body.targetType ~= nil then updates.targetType = body.targetType end
+    if body.branch ~= nil then updates.branch = body.branch end
+    if body.triggerId ~= nil then updates.triggerId = tonumber(body.triggerId) end
+    if body.linkedBlockId ~= nil then
+        if body.linkedBlockId == false or body.linkedBlockId == 0 or body.linkedBlockId == "" then
+            updates.linkedBlockId = nil
+        else
+            updates.linkedBlockId = tonumber(body.linkedBlockId)
+        end
+    end
+    if body.linkedTargetId ~= nil then
+        if body.linkedTargetId == false or body.linkedTargetId == 0 or body.linkedTargetId == "" then
+            updates.linkedTargetId = nil
+        else
+            updates.linkedTargetId = tonumber(body.linkedTargetId)
+        end
+    end
+    if body.targetMeta ~= nil then
+        if type(body.targetMeta) == "table" then
+            updates.targetMeta = potato.core.to_json(body.targetMeta)
+        else
+            updates.targetMeta = tostring(body.targetMeta)
+        end
+    end
+
+    local err = potato.db.update_by_id("Targets", id, updates)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    local updated = potato.db.find_by_id("Targets", id)
+    req.json(200, updated or {id = id, updated = true})
+end
+
+function delete_target(ctx, id)
+    local req = ctx.request()
+    local tId = tonumber(id)
+
+    -- Detach downstream targets chained to this target
+    local chainedTargets = potato.db.find_all_by_cond("Targets", {linkedTargetId = tId})
+    if chainedTargets then
+        for _, ct in ipairs(chainedTargets) do
+            potato.db.update_by_id("Targets", ct.id, {linkedTargetId = nil})
+        end
+    end
+
+    local err = potato.db.delete_by_id("Targets", tId)
+    if err then
+        req.json(500, {error = tostring(err)})
+        return
+    end
+
+    req.json(200, {message = "Target deleted", id = tId})
 end
 
 -- ==================== HTTP ROUTING ====================
@@ -182,50 +480,81 @@ function on_http(ctx)
         return run_migrations(ctx)
     end
 
-    -- Workflows Collection
-    if path == "/workflows" and method == "GET" then
-        return list_workflows(ctx)
+    -- Triggers Collection: /triggers
+    if path == "/triggers" and method == "GET" then
+        return list_triggers(ctx)
     end
 
-    if path == "/workflows" and method == "POST" then
-        return create_workflow(ctx)
+    if path == "/triggers" and method == "POST" then
+        return create_trigger(ctx)
     end
 
-    -- Specific Workflow routes: /workflows/:id
-    local wf_id_str = string.match(path, "^/workflows/(%d+)$")
-    if wf_id_str then
-        local wf_id = tonumber(wf_id_str)
+    -- Trigger Graph: /triggers/:id/graph
+    local trigger_graph_id = string.match(path, "^/triggers/(%d+)/graph$")
+    if trigger_graph_id then
         if method == "GET" then
-            return get_workflow(ctx, wf_id)
-        elseif method == "PUT" or method == "PATCH" then
-            return update_workflow(ctx, wf_id)
-        elseif method == "DELETE" then
-            return delete_workflow(ctx, wf_id)
+            return get_trigger_graph(ctx, tonumber(trigger_graph_id))
+        elseif method == "PUT" or method == "POST" then
+            return save_trigger_graph(ctx, tonumber(trigger_graph_id))
         end
     end
 
-    -- Workflow Run route: /workflows/:id/run
-    local run_wf_id_str = string.match(path, "^/workflows/(%d+)/run$")
-    if run_wf_id_str and method == "POST" then
-        return run_workflow(ctx, tonumber(run_wf_id_str))
+    -- Specific Trigger: /triggers/:id
+    local trigger_id_str = string.match(path, "^/triggers/(%d+)$")
+    if trigger_id_str then
+        local t_id = tonumber(trigger_id_str)
+        if method == "GET" then
+            return get_trigger(ctx, t_id)
+        elseif method == "PUT" or method == "PATCH" then
+            return update_trigger(ctx, t_id)
+        elseif method == "DELETE" then
+            return delete_trigger(ctx, t_id)
+        end
     end
 
-    -- Workflow Executions route: /workflows/:id/executions
-    local exec_wf_id_str = string.match(path, "^/workflows/(%d+)/executions$")
-    if exec_wf_id_str and method == "GET" then
-        return list_executions(ctx, tonumber(exec_wf_id_str))
+    -- Rule Blocks: /rule-blocks
+    if path == "/rule-blocks" and method == "POST" then
+        return create_rule_block(ctx)
     end
 
-    -- Single Execution route: /executions/:id
-    local single_exec_id_str = string.match(path, "^/executions/(%d+)$")
-    if single_exec_id_str and method == "GET" then
-        return get_execution(ctx, tonumber(single_exec_id_str))
+    local rb_id_str = string.match(path, "^/rule-blocks/(%d+)$")
+    if rb_id_str then
+        local rb_id = tonumber(rb_id_str)
+        if method == "PUT" or method == "PATCH" then
+            return update_rule_block(ctx, rb_id)
+        elseif method == "DELETE" then
+            return delete_rule_block(ctx, rb_id)
+        end
     end
 
-    -- Webhook Trigger: /webhook/:id
-    local webhook_wf_id = string.match(path, "^/webhook/(%d+)$")
-    if webhook_wf_id and method == "POST" then
-        return run_workflow(ctx, tonumber(webhook_wf_id))
+    -- Rules: /rules
+    if path == "/rules" and method == "POST" then
+        return create_rule(ctx)
+    end
+
+    local r_id_str = string.match(path, "^/rules/(%d+)$")
+    if r_id_str then
+        local r_id = tonumber(r_id_str)
+        if method == "PUT" or method == "PATCH" then
+            return update_rule(ctx, r_id)
+        elseif method == "DELETE" then
+            return delete_rule(ctx, r_id)
+        end
+    end
+
+    -- Targets: /targets
+    if path == "/targets" and method == "POST" then
+        return create_target(ctx)
+    end
+
+    local target_id_str = string.match(path, "^/targets/(%d+)$")
+    if target_id_str then
+        local target_id = tonumber(target_id_str)
+        if method == "PUT" or method == "PATCH" then
+            return update_target(ctx, target_id)
+        elseif method == "DELETE" then
+            return delete_target(ctx, target_id)
+        end
     end
 
     req.json(404, {

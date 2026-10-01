@@ -1,133 +1,156 @@
-export type NodeType = 'trigger' | 'logic' | 'action';
+export type BlockType = 'ALL_OF' | 'ANY_OF';
 
-export type TriggerSubtype = 'webhook' | 'event' | 'schedule';
-export type LogicSubtype = 'condition';
-export type ActionSubtype = 'webhook' | 'email' | 'enrich' | 'log';
-
-export type ComparisonOperator = 
-  | 'greater_than' 
-  | 'greater_or_equal' 
-  | 'less_than' 
-  | 'less_or_equal' 
-  | 'equals' 
-  | 'not_equals' 
-  | 'contains' 
-  | 'not_contains' 
-  | 'is_empty' 
+export type ComparisonOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_or_equal'
+  | 'less_or_equal'
+  | 'contains'
+  | 'not_contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'is_empty'
   | 'is_not_empty';
 
-export interface LogicRule {
-  field: string;
-  op: ComparisonOperator;
+export type TargetType = 'WEBHOOK' | 'EMAIL' | 'SMS' | 'PUSH' | 'TRANSFORM' | 'CODE';
+
+export interface EventTrigger {
+  id: number;
+  name: string;
+  description: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Rule {
+  id: number;
+  triggerId: number;
+  ruleBlockId: number;
+  ruleType: string;
+  variable: string;
+  operator: ComparisonOperator | string;
   value: string;
+  extraData?: string;
+  order: number;
 }
 
-export interface NodeConfig {
-  // Trigger config
-  eventType?: string;
-  source?: string;
-  
-  // Logic config
-  conditionMode?: 'AND' | 'OR';
-  rules?: LogicRule[];
-  
-  // Action: Webhook
-  url?: string;
-  method?: 'GET' | 'POST' | 'PUT';
-  headers?: Record<string, string>;
-  
-  // Action: Email
-  recipient?: string;
-  subject?: string;
-  template?: string;
-  
-  // Action: Enrich
-  enrichField?: string;
-  enrichValue?: string;
-  enrichNotes?: string;
-  
-  // Action: Log
-  logLevel?: 'INFO' | 'WARN' | 'DEBUG';
-  message?: string;
+export interface RuleBlock {
+  id: number;
+  triggerId: number;
+  blockType: BlockType;
+  parentRuleBlockId: number | null;
+  branch?: 'TRUE' | 'FALSE';
+  delaySeconds: number;
+  createdAt?: string;
+  updatedAt?: string;
+  rules?: Rule[];
 }
 
-export interface FlowNode {
-  id: string;
-  type: NodeType;
-  subtype: string;
+export interface Target {
+  id: number;
+  triggerId: number;
+  linkedBlockId: number | null;
+  linkedTargetId: number | null;
+  branch?: 'TRUE' | 'FALSE';
+  targetType: TargetType;
+  ruleBlockId?: number | null;
+  targetMeta: Record<string, any>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TriggerGraph {
+  trigger: EventTrigger;
+  rule_blocks: RuleBlock[];
+  rules: Rule[];
+  targets: Target[];
+}
+
+export type EditorNodeType = 'trigger' | 'rule_block' | 'target';
+
+export interface EditorNode {
+  id: string; // e.g. "trigger_1", "rule_block_2", "target_3"
+  entityId: number;
+  type: EditorNodeType;
   title: string;
   x: number;
   y: number;
-  config: NodeConfig;
+  trigger?: EventTrigger;
+  ruleBlock?: RuleBlock;
+  target?: Target;
 }
 
-export interface Wire {
+export interface InferredWire {
   id: string;
-  fromNode: string;
+  fromNodeId: string;
   fromPort: 'out' | 'true' | 'false';
-  toNode: string;
+  toNodeId: string;
   toPort: 'in';
 }
 
-export interface Workflow {
-  id: number | string;
-  name: string;
-  description: string;
-  status: 'active' | 'draft' | 'paused';
-  nodes: FlowNode[];
-  wires: Wire[];
-  samplePayload: Record<string, any>;
-  created_at?: string;
-  updated_at?: string;
-}
+export function inferWires(
+  trigger: EventTrigger | null,
+  ruleBlocks: RuleBlock[],
+  targets: Target[]
+): InferredWire[] {
+  const wires: InferredWire[] = [];
+  if (!trigger) return wires;
 
-export interface RuleEvaluationResult {
-  field: string;
-  op: string;
-  expected: string;
-  actual: any;
-  passed: boolean;
-}
+  const triggerNodeId = `trigger_${trigger.id}`;
 
-export interface ExecutionTraceStep {
-  stepId: string;
-  nodeId: string;
-  nodeTitle: string;
-  nodeType: NodeType;
-  nodeSubtype: string;
-  timestamp: string;
-  status: 'pass' | 'fail' | 'done';
-  inputPayload: Record<string, any>;
-  outputPayload: Record<string, any>;
-  details: {
-    message?: string;
-    mode?: 'AND' | 'OR';
-    rulesEvaluated?: RuleEvaluationResult[];
-    result?: 'TRUE' | 'FALSE';
-    branchTaken?: string;
-    action?: string;
-    fieldMutated?: string;
-    valueAssigned?: any;
-    to?: string;
-    subject?: string;
-    interpolatedBody?: string;
-    url?: string;
-    method?: string;
-    httpStatus?: number;
-    level?: string;
-    [key: string]: any;
-  };
-}
+  // 1. Trigger -> Root RuleBlocks (no parent rule block)
+  for (const rb of ruleBlocks) {
+    if (rb.triggerId === trigger.id && !rb.parentRuleBlockId) {
+      wires.push({
+        id: `wire_trig_${trigger.id}_rb_${rb.id}`,
+        fromNodeId: triggerNodeId,
+        fromPort: 'out',
+        toNodeId: `rule_block_${rb.id}`,
+        toPort: 'in',
+      });
+    }
+  }
 
-export interface ExecutionRecord {
-  id: number;
-  workflow_id: number;
-  status: 'success' | 'failure' | 'running';
-  trigger_type: string;
-  started_at: string;
-  duration_ms: number;
-  initial_payload: string;
-  final_payload: string;
-  steps_trace_json: string;
-  error_message?: string;
+  // 2. Parent RuleBlock -> Child RuleBlock (from TRUE or FALSE branch)
+  for (const rb of ruleBlocks) {
+    if (rb.parentRuleBlockId) {
+      wires.push({
+        id: `wire_rb_${rb.parentRuleBlockId}_rb_${rb.id}`,
+        fromNodeId: `rule_block_${rb.parentRuleBlockId}`,
+        fromPort: rb.branch === 'FALSE' ? 'false' : 'true',
+        toNodeId: `rule_block_${rb.id}`,
+        toPort: 'in',
+      });
+    }
+  }
+
+  // 3. RuleBlock -> Target (from TRUE or FALSE branch)
+  for (const tg of targets) {
+    if (tg.linkedBlockId) {
+      wires.push({
+        id: `wire_rb_${tg.linkedBlockId}_target_${tg.id}`,
+        fromNodeId: `rule_block_${tg.linkedBlockId}`,
+        fromPort: tg.branch === 'FALSE' ? 'false' : 'true',
+        toNodeId: `target_${tg.id}`,
+        toPort: 'in',
+      });
+    }
+  }
+
+  // 4. Target -> Child Target
+  for (const tg of targets) {
+    if (tg.linkedTargetId) {
+      wires.push({
+        id: `wire_target_${tg.linkedTargetId}_target_${tg.id}`,
+        fromNodeId: `target_${tg.linkedTargetId}`,
+        fromPort: 'out',
+        toNodeId: `target_${tg.id}`,
+        toPort: 'in',
+      });
+    }
+  }
+
+  return wires;
 }

@@ -1,4 +1,4 @@
-import type { FlowNode, Wire } from '../types/workflow';
+import type { EditorNode, InferredWire } from '../types/workflow';
 
 export interface AutoLayoutConfig {
   nodeWidth: number;
@@ -24,13 +24,12 @@ interface SubtreeInfo {
 }
 
 /**
- * Computes a clean vertical tree DAG layout for Autonoda workflows.
- * Handles single triggers, sequential actions, and dual-branching logic blocks (TRUE & FALSE).
- * Unconnected or auxiliary nodes are placed in a tidy auxiliary column.
+ * Computes a clean vertical tree DAG layout for Autonoda relational nodes.
+ * Accurately branches TRUE paths to the left and FALSE paths to the right.
  */
 export function computeAutoLayout(
-  nodes: FlowNode[],
-  wires: Wire[],
+  nodes: EditorNode[],
+  wires: InferredWire[],
   config: Partial<AutoLayoutConfig> = {}
 ): Record<string, { x: number; y: number }> {
   const cfg: AutoLayoutConfig = { ...DEFAULT_CONFIG, ...config };
@@ -39,8 +38,8 @@ export function computeAutoLayout(
   if (nodes.length === 0) return positions;
 
   // Build adjacency mappings
-  const incomingMap = new Map<string, Wire[]>();
-  const outgoingMap = new Map<string, Wire[]>();
+  const incomingMap = new Map<string, InferredWire[]>();
+  const outgoingMap = new Map<string, InferredWire[]>();
 
   nodes.forEach((n) => {
     incomingMap.set(n.id, []);
@@ -48,11 +47,11 @@ export function computeAutoLayout(
   });
 
   wires.forEach((w) => {
-    if (incomingMap.has(w.toNode)) {
-      incomingMap.get(w.toNode)!.push(w);
+    if (incomingMap.has(w.toNodeId)) {
+      incomingMap.get(w.toNodeId)!.push(w);
     }
-    if (outgoingMap.has(w.fromNode)) {
-      outgoingMap.get(w.fromNode)!.push(w);
+    if (outgoingMap.has(w.fromNodeId)) {
+      outgoingMap.get(w.fromNodeId)!.push(w);
     }
   });
 
@@ -62,7 +61,6 @@ export function computeAutoLayout(
     return inc.length === 0;
   });
 
-  // If no root node (e.g. cycle), pick trigger or first node
   const effectiveRoots =
     rootNodes.length > 0
       ? rootNodes
@@ -81,33 +79,37 @@ export function computeAutoLayout(
       return { width: cfg.nodeWidth, height: cfg.nodeHeight };
     }
 
-    if (node.type === 'logic') {
-      const trueWire = outgoing.find((w) => w.fromPort === 'true');
-      const falseWire = outgoing.find((w) => w.fromPort === 'false');
+    if (node.type === 'rule_block') {
+      const trueWires = outgoing.filter((w) => w.fromPort === 'true' && !visited.has(w.toNodeId));
+      const falseWires = outgoing.filter((w) => w.fromPort === 'false' && !visited.has(w.toNodeId));
 
-      const trueInfo = trueWire && !visited.has(trueWire.toNode)
-        ? getSubtreeInfo(trueWire.toNode)
-        : null;
-      const falseInfo = falseWire && !visited.has(falseWire.toNode)
-        ? getSubtreeInfo(falseWire.toNode)
-        : null;
+      let leftW = 0;
+      let leftH = 0;
+      trueWires.forEach((w, i) => {
+        const inf = getSubtreeInfo(w.toNodeId);
+        leftW += inf.width + (i > 0 ? cfg.gapX : 0);
+        leftH = Math.max(leftH, inf.height);
+      });
 
-      const leftW = trueInfo ? trueInfo.width : cfg.nodeWidth;
-      const rightW = falseInfo ? falseInfo.width : cfg.nodeWidth;
-      const totalW = Math.max(cfg.nodeWidth, leftW + cfg.gapX + rightW);
-      const maxChildH = Math.max(trueInfo ? trueInfo.height : 0, falseInfo ? falseInfo.height : 0);
+      let rightW = 0;
+      let rightH = 0;
+      falseWires.forEach((w, i) => {
+        const inf = getSubtreeInfo(w.toNodeId);
+        rightW += inf.width + (i > 0 ? cfg.gapX : 0);
+        rightH = Math.max(rightH, inf.height);
+      });
 
+      const totalBranchW = Math.max(cfg.nodeWidth, leftW + (leftW > 0 && rightW > 0 ? cfg.gapX : 0) + rightW);
       return {
-        width: totalW,
-        height: cfg.nodeHeight + cfg.gapY + maxChildH,
+        width: totalBranchW,
+        height: cfg.nodeHeight + cfg.gapY + Math.max(leftH, rightH),
       };
     }
 
-    // Linear or multi-out action/trigger node
     let totalChildW = 0;
     let maxChildH = 0;
     const validChildren = outgoing
-      .map((w) => w.toNode)
+      .map((w) => w.toNodeId)
       .filter((id) => !visited.has(id));
 
     if (validChildren.length === 0) {
@@ -146,31 +148,46 @@ export function computeAutoLayout(
 
     const nextY = y + cfg.nodeHeight + cfg.gapY;
 
-    if (node.type === 'logic') {
-      const trueWire = outgoing.find((w) => w.fromPort === 'true');
-      const falseWire = outgoing.find((w) => w.fromPort === 'false');
+    if (node.type === 'rule_block') {
+      const trueWires = outgoing.filter((w) => w.fromPort === 'true' && !placed.has(w.toNodeId));
+      const falseWires = outgoing.filter((w) => w.fromPort === 'false' && !placed.has(w.toNodeId));
 
-      // Temporarily compute widths for remaining
+      let leftW = 0;
       visited.clear();
-      const trueW = trueWire && !placed.has(trueWire.toNode) ? getSubtreeInfo(trueWire.toNode).width : cfg.nodeWidth;
+      trueWires.forEach((w, i) => {
+        const inf = getSubtreeInfo(w.toNodeId);
+        leftW += inf.width + (i > 0 ? cfg.gapX : 0);
+      });
+
+      let rightW = 0;
       visited.clear();
-      const falseW = falseWire && !placed.has(falseWire.toNode) ? getSubtreeInfo(falseWire.toNode).width : cfg.nodeWidth;
+      falseWires.forEach((w, i) => {
+        const inf = getSubtreeInfo(w.toNodeId);
+        rightW += inf.width + (i > 0 ? cfg.gapX : 0);
+      });
 
-      const totalBranchW = trueW + cfg.gapX + falseW;
-      const leftStartX = x + (allocatedWidth - totalBranchW) / 2;
-      const rightStartX = leftStartX + trueW + cfg.gapX;
+      const totalW = Math.max(cfg.nodeWidth, leftW + (leftW > 0 && rightW > 0 ? cfg.gapX : 0) + rightW);
+      let curLeftX = x + (allocatedWidth - totalW) / 2;
+      let curRightX = curLeftX + leftW + (leftW > 0 && rightW > 0 ? cfg.gapX : 0);
 
-      if (trueWire && !placed.has(trueWire.toNode)) {
-        assignPositions(trueWire.toNode, leftStartX, nextY, trueW);
-      }
-      if (falseWire && !placed.has(falseWire.toNode)) {
-        assignPositions(falseWire.toNode, rightStartX, nextY, falseW);
-      }
+      trueWires.forEach((w) => {
+        visited.clear();
+        const inf = getSubtreeInfo(w.toNodeId);
+        assignPositions(w.toNodeId, curLeftX, nextY, inf.width);
+        curLeftX += inf.width + cfg.gapX;
+      });
+
+      falseWires.forEach((w) => {
+        visited.clear();
+        const inf = getSubtreeInfo(w.toNodeId);
+        assignPositions(w.toNodeId, curRightX, nextY, inf.width);
+        curRightX += inf.width + cfg.gapX;
+      });
       return;
     }
 
-    // Non-logic children
-    const unplacedChildren = outgoing.map((w) => w.toNode).filter((id) => !placed.has(id));
+    const unplacedChildren = outgoing.map((w) => w.toNodeId).filter((id) => !placed.has(id));
+
     if (unplacedChildren.length === 1) {
       assignPositions(unplacedChildren[0], x, nextY, allocatedWidth);
     } else if (unplacedChildren.length > 1) {

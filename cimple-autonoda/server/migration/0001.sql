@@ -1,25 +1,43 @@
-CREATE TABLE IF NOT EXISTS Workflows (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'active',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    nodes_json TEXT NOT NULL DEFAULT '[]',
-    wires_json TEXT NOT NULL DEFAULT '[]',
-    sample_payload_json TEXT NOT NULL DEFAULT '{}'
+CREATE TABLE IF NOT EXISTS  EventTriggers  (
+     id  INTEGER PRIMARY KEY AUTOINCREMENT,
+     name  TEXT NOT NULL,
+     description  TEXT NOT NULL DEFAULT '',
+     createdAt  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     updatedAt  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS Executions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    workflow_id INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'success',
-    trigger_type TEXT NOT NULL DEFAULT 'manual',
-    started_at TEXT NOT NULL DEFAULT (datetime('now')),
-    duration_ms INTEGER NOT NULL DEFAULT 0,
-    initial_payload TEXT NOT NULL DEFAULT '{}',
-    final_payload TEXT NOT NULL DEFAULT '{}',
-    steps_trace_json TEXT NOT NULL DEFAULT '[]',
-    error_message TEXT DEFAULT '',
-    FOREIGN KEY(workflow_id) REFERENCES Workflows(id) ON DELETE CASCADE
+CREATE TABLE IF NOT EXISTS  RuleBlocks  (
+     id  INTEGER PRIMARY KEY AUTOINCREMENT,
+     triggerId  INTEGER NOT NULL,
+     blockType  TEXT NOT NULL CHECK ( blockType  IN ('ALL_OF', 'ANY_OF')),
+     parentRuleBlockId  INTEGER,
+     branch  TEXT NOT NULL DEFAULT 'TRUE' CHECK ( branch  IN ('TRUE', 'FALSE')),
+     delaySeconds  INTEGER NOT NULL DEFAULT 0,
+     createdAt  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     updatedAt  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS  Rules  (
+     id  INTEGER PRIMARY KEY AUTOINCREMENT,
+     triggerId  INTEGER NOT NULL,
+     ruleBlockId  INTEGER NOT NULL,
+     ruleType  TEXT NOT NULL,
+     variable  TEXT NOT NULL,
+     operator  TEXT NOT NULL,
+     value  TEXT NOT NULL,
+     extraData  TEXT,
+     order  INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS  Targets  (
+     id  INTEGER PRIMARY KEY AUTOINCREMENT,
+     triggerId  INTEGER NOT NULL,
+     linkedBlockId  INTEGER,
+     linkedTargetId  INTEGER,
+     branch  TEXT NOT NULL DEFAULT 'TRUE' CHECK ( branch  IN ('TRUE', 'FALSE')),
+     targetType  TEXT NOT NULL,
+     ruleBlockId  INTEGER,
+     targetMeta  JSON NOT NULL DEFAULT '{}',
+     createdAt  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     updatedAt  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

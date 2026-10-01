@@ -1,447 +1,337 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import type { Workflow, FlowNode, NodeType } from '../types/workflow';
-import { workflowsApi } from '../lib/api';
-import { simulateWorkflowExecution } from '../lib/simulator';
+import { useState, useEffect, useCallback } from 'react';
+import type {
+  EventTrigger,
+  RuleBlock,
+  Rule,
+  Target,
+  TriggerGraph,
+  EditorNode,
+  InferredWire,
+} from '../types/workflow';
+import { inferWires } from '../types/workflow';
+import { autonodaApi } from '../lib/api';
 import { computeAutoLayout } from '../lib/layout';
 import { Header } from '../components/Header';
 import { Canvas } from '../components/Canvas';
 import { InspectorDrawer } from '../components/InspectorDrawer';
-import { TraceDrawer } from '../components/TraceDrawer';
-import { PayloadModal } from '../components/PayloadModal';
-import { HistoryModal } from '../components/HistoryModal';
+import { TriggerList } from '../pages/TriggerList';
 
 export default function Home() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [activeWorkflowId, setActiveWorkflowId] = useState<string | number | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'editor'>('list');
+  const [activeTriggerId, setActiveTriggerId] = useState<number | null>(null);
 
-  // UI layout states (cimple-eventmap inspired)
-  const [autoAlignEnabled, setAutoAlignEnabled] = useState<boolean>(true);
-  const [fitViewTrigger, setFitViewTrigger] = useState<number>(0);
-
-  // Execution & Simulation state
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [activeWireId, setActiveWireId] = useState<string | null>(null);
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
-  const [nodeExecStatuses, setNodeExecStatuses] = useState<
-    Record<string, 'pass' | 'fail' | 'done' | 'running'>
-  >({});
-  const [trace, setTrace] = useState<any[]>([]);
-  const [isTraceOpen, setIsTraceOpen] = useState<boolean>(false);
-
-  // Modals state
-  const [isPayloadModalOpen, setIsPayloadModalOpen] = useState<boolean>(false);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+  // Lazy in-memory graph state for snappy canvas editing
+  const [graph, setGraph] = useState<TriggerGraph | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'ready'>('ready');
 
-  // Debounce auto-save ref
-  const saveTimeoutRef = useRef<any>(null);
+  const [nodes, setNodes] = useState<EditorNode[]>([]);
+  const [wires, setWires] = useState<InferredWire[]>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [fitViewTrigger, setFitViewTrigger] = useState<number>(0);
 
-  // Initial load
-  useEffect(() => {
-    workflowsApi.list().then((list) => {
-      setWorkflows(list);
-      if (list.length > 0) {
-        setActiveWorkflowId(list[0].id);
-      }
-    });
+  // Synchronize EditorNodes & InferredWires whenever local graph changes
+  const syncNodesFromGraph = useCallback((currentGraph: TriggerGraph) => {
+    const inferred = inferWires(currentGraph.trigger, currentGraph.rule_blocks, currentGraph.targets);
+    setWires(inferred);
+
+    const editorNodes: EditorNode[] = [];
+
+    // Trigger Node
+    if (currentGraph.trigger) {
+      editorNodes.push({
+        id: `trigger_${currentGraph.trigger.id}`,
+        entityId: currentGraph.trigger.id,
+        type: 'trigger',
+        title: currentGraph.trigger.name,
+        x: 400,
+        y: 60,
+        trigger: currentGraph.trigger,
+      });
+    }
+
+    // Rule Block Nodes
+    for (const rb of currentGraph.rule_blocks) {
+      const rbRules = currentGraph.rules.filter((r) => r.ruleBlockId === rb.id);
+      editorNodes.push({
+        id: `rule_block_${rb.id}`,
+        entityId: rb.id,
+        type: 'rule_block',
+        title: `Rule Block #${rb.id}`,
+        x: 400,
+        y: 240,
+        ruleBlock: { ...rb, rules: rbRules },
+      });
+    }
+
+    // Target Nodes
+    for (const tg of currentGraph.targets) {
+      editorNodes.push({
+        id: `target_${tg.id}`,
+        entityId: tg.id,
+        type: 'target',
+        title: `${tg.targetType} Target`,
+        x: 400,
+        y: 440,
+        target: tg,
+      });
+    }
+
+    // Apply auto layout positions
+    const layoutPositions = computeAutoLayout(editorNodes, inferred);
+    const positioned = editorNodes.map((n) => ({
+      ...n,
+      x: layoutPositions[n.id]?.x ?? n.x,
+      y: layoutPositions[n.id]?.y ?? n.y,
+    }));
+
+    setNodes(positioned);
   }, []);
 
-  const activeWorkflow = workflows.find((w) => String(w.id) === String(activeWorkflowId)) || null;
-  const selectedNode = activeWorkflow?.nodes.find((n) => n.id === selectedNodeId) || null;
+  // 2. Load Active Trigger Graph from backend
+  const loadGraph = useCallback(async (triggerId: number) => {
+    const data = await autonodaApi.getTriggerGraph(triggerId);
+    setGraph(data);
+    setHasUnsavedChanges(false);
+    syncNodesFromGraph(data);
+  }, [syncNodesFromGraph]);
 
-  // Auto-save helper
-  const triggerAutoSave = (updated: Workflow) => {
-    setSaveStatus('saving');
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-      workflowsApi.update(updated.id, updated).then(() => {
-        setSaveStatus('saved');
-      });
-    }, 600);
-  };
+  useEffect(() => {
+    if (activeTriggerId && view === 'editor') {
+      loadGraph(activeTriggerId);
+      setSelectedNodeId(null);
+    }
+  }, [activeTriggerId, view, loadGraph]);
 
-  const updateActiveWorkflow = (updates: Partial<Workflow>) => {
-    if (!activeWorkflow) return;
-    const updated: Workflow = {
-      ...activeWorkflow,
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
-    setWorkflows((prev) => prev.map((w) => (w.id === activeWorkflow.id ? updated : w)));
-    triggerAutoSave(updated);
-  };
+  // Selected item
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
 
-  // Auto-Layout Execution
-  const applyAutoLayout = useCallback(
-    (customNodes?: FlowNode[], customWires?: any[]) => {
-      if (!activeWorkflow) return;
-      const targetNodes = customNodes || activeWorkflow.nodes;
-      const targetWires = customWires || activeWorkflow.wires;
-
-      const newPositions = computeAutoLayout(targetNodes, targetWires);
-      const updatedNodes = targetNodes.map((n) => {
-        const pos = newPositions[n.id];
-        return pos ? { ...n, x: pos.x, y: pos.y } : n;
-      });
-
-      updateActiveWorkflow({ nodes: updatedNodes });
-    },
-    [activeWorkflow]
-  );
-
-  // Node operations
-  const handleUpdateNodePosition = (nodeId: string, x: number, y: number) => {
-    if (!activeWorkflow) return;
-    const newNodes = activeWorkflow.nodes.map((n) => (n.id === nodeId ? { ...n, x, y } : n));
-    updateActiveWorkflow({ nodes: newNodes });
-  };
-
-  const handleUpdateNode = (nodeId: string, updates: Partial<FlowNode>) => {
-    if (!activeWorkflow) return;
-    const newNodes = activeWorkflow.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n));
-    updateActiveWorkflow({ nodes: newNodes });
-  };
-
-  const handleDeleteNode = (nodeId: string) => {
-    if (!activeWorkflow) return;
-    const newNodes = activeWorkflow.nodes.filter((n) => n.id !== nodeId);
-    const newWires = activeWorkflow.wires.filter(
-      (w) => w.fromNode !== nodeId && w.toNode !== nodeId
+  // Auto layout helper
+  const handleAutoLayout = useCallback(() => {
+    if (nodes.length === 0) return;
+    const layoutPositions = computeAutoLayout(nodes, wires);
+    setNodes((prev) =>
+      prev.map((n) => ({
+        ...n,
+        x: layoutPositions[n.id]?.x ?? n.x,
+        y: layoutPositions[n.id]?.y ?? n.y,
+      }))
     );
-    if (selectedNodeId === nodeId) setSelectedNodeId(null);
+  }, [nodes, wires]);
 
-    if (autoAlignEnabled) {
-      const newPositions = computeAutoLayout(newNodes, newWires);
-      const remappedNodes = newNodes.map((n) =>
-        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
-      );
-      updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
-    } else {
-      updateActiveWorkflow({ nodes: newNodes, wires: newWires });
-    }
+  // Node position drag update (in-memory)
+  const handleUpdateNodePosition = (nodeId: string, x: number, y: number) => {
+    setNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, x, y } : n)));
   };
 
-  const handleAddNode = (type: NodeType, subtype: string, name: string, dropX?: number, dropY?: number) => {
-    if (!activeWorkflow) return;
-    const x = dropX !== undefined ? dropX : 340;
-    const y = dropY !== undefined ? dropY : 120 + activeWorkflow.nodes.length * 150;
+  // Disconnect Wire (in-memory)
+  const handleDeleteWire = (wireId: string) => {
+    if (!graph) return;
+    const wire = wires.find((w) => w.id === wireId);
+    if (!wire) return;
 
-    let config: any = {};
-    if (type === 'trigger') {
-      config = { eventType: 'custom.event', source: 'Webhook Ingest' };
-    } else if (type === 'logic') {
-      config = {
-        conditionMode: 'AND',
-        rules: [{ field: 'order.total', op: 'greater_than', value: '100' }],
-      };
-    } else if (type === 'action') {
-      if (subtype === 'webhook') {
-        config = { url: 'https://api.example.com/webhook', method: 'POST' };
-      } else if (subtype === 'email') {
-        config = { recipient: '{{customer.email}}', subject: 'Workflow Notification' };
-      } else if (subtype === 'enrich') {
-        config = { enrichField: 'data.enriched', enrichValue: 'true' };
-      } else {
-        config = { logLevel: 'INFO', message: 'Flow checkpoint logged' };
-      }
-    }
+    const toNode = nodes.find((n) => n.id === wire.toNodeId);
+    if (!toNode) return;
 
-    const newNode: FlowNode = {
-      id: `node_${type}_${Math.random().toString(36).substr(2, 7)}`,
-      type,
-      subtype,
-      title: name,
-      x,
-      y,
-      config,
-    };
-
-    const newNodes = [...activeWorkflow.nodes, newNode];
-
-    if (autoAlignEnabled && activeWorkflow.wires.length > 0) {
-      const newPositions = computeAutoLayout(newNodes, activeWorkflow.wires);
-      const remapped = newNodes.map((n) =>
-        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
+    let updatedGraph: TriggerGraph = { ...graph };
+    if (toNode.type === 'rule_block') {
+      updatedGraph.rule_blocks = updatedGraph.rule_blocks.map((rb) =>
+        rb.id === toNode.entityId ? { ...rb, parentRuleBlockId: null } : rb
       );
-      updateActiveWorkflow({ nodes: remapped });
-    } else {
-      updateActiveWorkflow({ nodes: newNodes });
+    } else if (toNode.type === 'target') {
+      updatedGraph.targets = updatedGraph.targets.map((tg) =>
+        tg.id === toNode.entityId ? { ...tg, linkedBlockId: null, linkedTargetId: null } : tg
+      );
     }
 
-    setSelectedNodeId(newNode.id);
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
+  // Quick Add below existing node from TRUE / FALSE branch (Instant in-memory, no network reset!)
   const handleAddNodeAndConnect = (
     fromNodeId: string,
-    fromPort: 'out' | 'true' | 'false',
-    type: NodeType,
-    insertWireId?: string
+    branch: 'TRUE' | 'FALSE',
+    type: 'rule_block' | 'target'
   ) => {
-    if (!activeWorkflow) return;
+    if (!graph || !activeTriggerId) return;
+    const fromNode = nodes.find((n) => n.id === fromNodeId);
+    if (!fromNode) return;
 
-    let subtype = 'webhook';
-    let title = 'Action Block';
-    let config: any = {};
-
-    if (type === 'action') {
-      subtype = 'webhook';
-      title = 'Action Block';
-      config = {
-        url: 'https://api.example.com/webhook',
-        method: 'POST',
-      };
-    } else if (type === 'logic') {
-      subtype = 'condition';
-      title = 'Condition Logic';
-      config = {
-        conditionMode: 'AND',
-        rules: [{ field: 'order.total', op: 'greater_than', value: '100' }],
-      };
-    } else if (type === 'trigger') {
-      subtype = 'webhook';
-      title = 'Event Trigger';
-      config = {
-        eventType: 'custom.event',
-        source: 'Webhook Ingest',
-      };
-    }
-
-    const newNode: FlowNode = {
-      id: `node_${type}_${Math.random().toString(36).substr(2, 7)}`,
-      type,
-      subtype,
-      title,
-      x: 340,
-      y: 200,
-      config,
+    const newId = Date.now();
+    const updatedGraph: TriggerGraph = {
+      ...graph,
+      rule_blocks: [...graph.rule_blocks],
+      targets: [...graph.targets],
+      rules: [...graph.rules],
     };
 
-    let newWires = [...activeWorkflow.wires];
-
-    if (insertWireId) {
-      const existingWire = newWires.find((w) => w.id === insertWireId);
-      if (existingWire) {
-        newWires = newWires.filter((w) => w.id !== insertWireId);
-        newWires.push({
-          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
-          fromNode: existingWire.fromNode,
-          fromPort: existingWire.fromPort,
-          toNode: newNode.id,
-          toPort: 'in',
-        });
-        newWires.push({
-          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
-          fromNode: newNode.id,
-          fromPort: 'out',
-          toNode: existingWire.toNode,
-          toPort: existingWire.toPort,
-        });
-      }
+    if (type === 'rule_block') {
+      const parentId = fromNode.type === 'rule_block' ? fromNode.entityId : null;
+      const newRb: RuleBlock = {
+        id: newId,
+        triggerId: activeTriggerId,
+        blockType: 'ALL_OF',
+        parentRuleBlockId: parentId,
+        branch: branch,
+        delaySeconds: 0,
+        rules: [],
+      };
+      updatedGraph.rule_blocks.push(newRb);
+      setSelectedNodeId(`rule_block_${newId}`);
     } else {
-      const existingWire = newWires.find(
-        (w) => w.fromNode === fromNodeId && w.fromPort === fromPort
-      );
-      if (existingWire) {
-        // Splice in-between
-        newWires = newWires.filter((w) => w.id !== existingWire.id);
-        newWires.push({
-          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
-          fromNode: fromNodeId,
-          fromPort,
-          toNode: newNode.id,
-          toPort: 'in',
-        });
-        newWires.push({
-          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
-          fromNode: newNode.id,
-          fromPort: 'out',
-          toNode: existingWire.toNode,
-          toPort: existingWire.toPort,
-        });
-      } else {
-        // Direct connect
-        newWires.push({
-          id: `wire_${Math.random().toString(36).substr(2, 7)}`,
-          fromNode: fromNodeId,
-          fromPort,
-          toNode: newNode.id,
-          toPort: 'in',
-        });
-      }
+      const linkedBlockId = fromNode.type === 'rule_block' ? fromNode.entityId : null;
+      const linkedTargetId = fromNode.type === 'target' ? fromNode.entityId : null;
+      const newTg: Target = {
+        id: newId,
+        triggerId: activeTriggerId,
+        linkedBlockId: linkedBlockId,
+        linkedTargetId: linkedTargetId,
+        branch: branch,
+        targetType: 'WEBHOOK',
+        targetMeta: { url: 'https://api.example.com/webhook', method: 'POST' },
+      };
+      updatedGraph.targets.push(newTg);
+      setSelectedNodeId(`target_${newId}`);
     }
 
-    const newNodes = [...activeWorkflow.nodes, newNode];
-
-    // Auto-organize layout seamlessly
-    const newPositions = computeAutoLayout(newNodes, newWires);
-    const remappedNodes = newNodes.map((n) =>
-      newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
-    );
-
-    updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
-    setSelectedNodeId(newNode.id);
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
-  const handleAddTrigger = () => {
-    if (!activeWorkflow) return;
-    const newTrigger: FlowNode = {
-      id: `node_trigger_${Date.now()}`,
-      type: 'trigger',
-      subtype: 'webhook',
-      title: 'Event Trigger',
-      x: 340,
-      y: 60,
-      config: { eventType: 'custom.event', source: 'Webhook Ingest' },
+  // Node Deletion (in-memory)
+  const handleDeleteNode = (nodeId: string) => {
+    if (!graph) return;
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    let updatedGraph: TriggerGraph = {
+      ...graph,
+      rule_blocks: [...graph.rule_blocks],
+      targets: [...graph.targets],
+      rules: [...graph.rules],
     };
-    updateActiveWorkflow({ nodes: [newTrigger] });
-    setSelectedNodeId(newTrigger.id);
+
+    if (node.type === 'rule_block') {
+      updatedGraph.rule_blocks = updatedGraph.rule_blocks.filter((rb) => rb.id !== node.entityId);
+      updatedGraph.rules = updatedGraph.rules.filter((r) => r.ruleBlockId !== node.entityId);
+      // Unlink children
+      updatedGraph.rule_blocks = updatedGraph.rule_blocks.map((rb) =>
+        rb.parentRuleBlockId === node.entityId ? { ...rb, parentRuleBlockId: null } : rb
+      );
+      updatedGraph.targets = updatedGraph.targets.map((tg) =>
+        tg.linkedBlockId === node.entityId ? { ...tg, linkedBlockId: null } : tg
+      );
+    } else if (node.type === 'target') {
+      updatedGraph.targets = updatedGraph.targets.filter((tg) => tg.id !== node.entityId);
+      updatedGraph.targets = updatedGraph.targets.map((tg) =>
+        tg.linkedTargetId === node.entityId ? { ...tg, linkedTargetId: null } : tg
+      );
+    }
+
+    if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
-  // Wire operations
-  const handleConnectWire = (
-    fromNode: string,
-    fromPort: 'out' | 'true' | 'false',
-    toNode: string,
-    toPort: 'in'
-  ) => {
-    if (!activeWorkflow) return;
-    const exists = activeWorkflow.wires.some(
-      (w) =>
-        w.fromNode === fromNode &&
-        w.fromPort === fromPort &&
-        w.toNode === toNode &&
-        w.toPort === toPort
-    );
-    if (exists) return;
-
-    const newWire = {
-      id: `wire_${Math.random().toString(36).substr(2, 7)}`,
-      fromNode,
-      fromPort,
-      toNode,
-      toPort,
+  // In-memory updates from Inspector Drawer
+  const handleUpdateTrigger = (_id: number, updates: Partial<EventTrigger>) => {
+    if (!graph) return;
+    const updatedGraph = {
+      ...graph,
+      trigger: { ...graph.trigger, ...updates },
     };
-    const newWires = [...activeWorkflow.wires, newWire];
-
-    if (autoAlignEnabled) {
-      const newPositions = computeAutoLayout(activeWorkflow.nodes, newWires);
-      const remappedNodes = activeWorkflow.nodes.map((n) =>
-        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
-      );
-      updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
-    } else {
-      updateActiveWorkflow({ wires: newWires });
-    }
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
-  const handleDeleteWire = (wireId: string) => {
-    if (!activeWorkflow) return;
-    const newWires = activeWorkflow.wires.filter((w) => w.id !== wireId);
-
-    if (autoAlignEnabled) {
-      const newPositions = computeAutoLayout(activeWorkflow.nodes, newWires);
-      const remappedNodes = activeWorkflow.nodes.map((n) =>
-        newPositions[n.id] ? { ...n, x: newPositions[n.id].x, y: newPositions[n.id].y } : n
-      );
-      updateActiveWorkflow({ nodes: remappedNodes, wires: newWires });
-    } else {
-      updateActiveWorkflow({ wires: newWires });
-    }
+  const handleUpdateRuleBlock = (id: number, updates: Partial<RuleBlock>) => {
+    if (!graph) return;
+    const updatedGraph = {
+      ...graph,
+      rule_blocks: graph.rule_blocks.map((rb) => (rb.id === id ? { ...rb, ...updates } : rb)),
+    };
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
-  // Workflow management
-  const handleCreateWorkflow = async () => {
-    const created = await workflowsApi.create({
-      name: `Untitled Workflow ${workflows.length + 1}`,
-      description: 'Custom event automation pipeline',
-      nodes: [
-        {
-          id: `node_trigger_${Date.now()}`,
-          type: 'trigger',
-          subtype: 'webhook',
-          title: 'Event Trigger',
-          x: 340,
-          y: 40,
-          config: { eventType: 'custom.event' },
-        },
-      ],
-      wires: [],
-      samplePayload: { event: 'sample', value: 123 },
-    });
-    setWorkflows((prev) => [...prev, created]);
-    setActiveWorkflowId(created.id);
-    setSelectedNodeId(null);
-    setTrace([]);
+  const handleAddRule = (ruleBlockId: number, rule: Partial<Rule>) => {
+    if (!graph || !activeTriggerId) return;
+    const newRule: Rule = {
+      id: Date.now(),
+      triggerId: activeTriggerId,
+      ruleBlockId,
+      ruleType: 'EQUAL',
+      variable: rule.variable || 'data.field',
+      operator: rule.operator || 'equals',
+      value: rule.value || 'value',
+      order: graph.rules.length,
+    };
+    const updatedGraph = {
+      ...graph,
+      rules: [...graph.rules, newRule],
+    };
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
-  const handleDeleteWorkflow = async (id: string | number) => {
-    await workflowsApi.delete(id);
-    const remaining = workflows.filter((w) => w.id !== id);
-    setWorkflows(remaining);
-    if (remaining.length > 0) {
-      setActiveWorkflowId(remaining[0].id);
-    } else {
-      handleCreateWorkflow();
-    }
-    setSelectedNodeId(null);
+  const handleUpdateRule = (id: number, updates: Partial<Rule>) => {
+    if (!graph) return;
+    const updatedGraph = {
+      ...graph,
+      rules: graph.rules.map((r) => (r.id === id ? { ...r, ...updates } : r)),
+    };
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
   };
 
-  // Execute workflow
-  const handleRunWorkflow = async () => {
-    if (!activeWorkflow || isRunning) return;
+  const handleDeleteRule = (id: number) => {
+    if (!graph) return;
+    const updatedGraph = {
+      ...graph,
+      rules: graph.rules.filter((r) => r.id !== id),
+    };
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
+  };
 
-    setNodeExecStatuses({});
-    setActiveWireId(null);
-    setActiveNodeId(null);
-    setTrace([]);
-    setIsRunning(true);
-    setIsTraceOpen(true);
+  const handleUpdateTarget = (id: number, updates: Partial<Target>) => {
+    if (!graph) return;
+    const updatedGraph = {
+      ...graph,
+      targets: graph.targets.map((tg) => (tg.id === id ? { ...tg, ...updates } : tg)),
+    };
+    setGraph(updatedGraph);
+    setHasUnsavedChanges(true);
+    syncNodesFromGraph(updatedGraph);
+  };
 
-    const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-    const startTime = Date.now();
+  // Top Right Save Button: Atomic save to backend!
+  const handleSave = async () => {
+    if (!graph || !activeTriggerId) return;
+    setSaveStatus('saving');
 
     try {
-      const recordedTrace = await simulateWorkflowExecution(
-        activeWorkflow.nodes,
-        activeWorkflow.wires,
-        activeWorkflow.samplePayload || {},
-        async (step, wireId, nodeId) => {
-          setActiveWireId(wireId);
-          setActiveNodeId(nodeId);
-          setNodeExecStatuses((prev) => ({
-            ...prev,
-            [nodeId]: 'running',
-          }));
+      const savedGraph = await autonodaApi.saveTriggerGraph(activeTriggerId, graph);
+      setGraph(savedGraph);
+      setHasUnsavedChanges(false);
+      setSaveStatus('saved');
+      syncNodesFromGraph(savedGraph);
 
-          await delay(600);
-
-          setNodeExecStatuses((prev) => ({
-            ...prev,
-            [nodeId]: step.status,
-          }));
-
-          setTrace((prev) => [...prev, step]);
-        }
-      );
-
-      const durationMs = Date.now() - startTime;
-      await delay(300);
-
-      workflowsApi.recordExecution({
-        workflow_id: activeWorkflow.id,
-        status: 'success',
-        duration_ms: durationMs,
-        initial_payload: activeWorkflow.samplePayload,
-        final_payload: recordedTrace[recordedTrace.length - 1]?.outputPayload || {},
-        steps_trace: recordedTrace,
-      });
-    } catch (err: any) {
-      alert(`Simulation error: ${err.message}`);
-    } finally {
-      setIsRunning(false);
-      setActiveWireId(null);
-      setActiveNodeId(null);
+      setTimeout(() => {
+        setSaveStatus('ready');
+      }, 2000);
+    } catch (err) {
+      alert('Error saving graph changes to database');
+      setSaveStatus('ready');
     }
   };
 
@@ -456,63 +346,62 @@ export default function Home() {
           handleDeleteNode(selectedNodeId);
         }
       }
+      // Ctrl+S or Cmd+S to save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, activeWorkflow]);
+  }, [selectedNodeId, graph, activeTriggerId]);
 
-  if (!activeWorkflow) {
+  // If in Listing view, render TriggerList page
+  if (view === 'list') {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 text-slate-500 text-xs">
-        Loading Autonoda...
-      </div>
+      <TriggerList
+        onSelectTrigger={(triggerId) => {
+          setActiveTriggerId(triggerId);
+          setView('editor');
+        }}
+      />
     );
   }
 
+  // Otherwise render Flow Graph editor view
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-slate-50 font-sans">
-      {/* Top Header in cimple-eventmap style */}
+      {/* Streamlined Header with Focus Center, Auto Layout, and Save Button */}
       <Header
-        workflow={activeWorkflow}
-        allWorkflows={workflows}
-        onSelectWorkflow={(id) => {
-          setActiveWorkflowId(id);
-          setSelectedNodeId(null);
-          setTrace([]);
+        activeTrigger={graph?.trigger || null}
+        onBackToList={() => {
+          if (hasUnsavedChanges) {
+            if (!confirm('You have unsaved changes. Leave without saving?')) return;
+          }
+          setView('list');
         }}
-        onUpdateTitle={(title) => updateActiveWorkflow({ name: title })}
-        onCreateWorkflow={handleCreateWorkflow}
-        onDeleteWorkflow={handleDeleteWorkflow}
-        onAutoLayout={() => applyAutoLayout()}
+        onUpdateTitle={(title) => {
+          if (graph?.trigger) handleUpdateTrigger(graph.trigger.id, { name: title });
+        }}
+        onAutoLayout={handleAutoLayout}
         onFitView={() => setFitViewTrigger((prev) => prev + 1)}
-        onOpenPayloadModal={() => setIsPayloadModalOpen(true)}
-        onOpenHistoryModal={() => setIsHistoryModalOpen(true)}
-        onRunWorkflow={handleRunWorkflow}
-        isRunning={isRunning}
+        onSave={handleSave}
         saveStatus={saveStatus}
-        autoAlignEnabled={autoAlignEnabled}
-        onToggleAutoAlign={() => setAutoAlignEnabled((prev) => !prev)}
+        hasUnsavedChanges={hasUnsavedChanges}
       />
 
       {/* Main Workspace Area */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Visual Graph Canvas with Auto-Layout & In-Graph (+) Step Insertion */}
+        {/* Visual Graph Canvas with Dual-Branch TRUE/FALSE points */}
         <Canvas
-          nodes={activeWorkflow.nodes}
-          wires={activeWorkflow.wires}
+          nodes={nodes}
+          wires={wires}
           selectedNodeId={selectedNodeId}
-          activeWireId={activeWireId}
-          activeNodeId={activeNodeId}
-          nodeExecStatuses={nodeExecStatuses}
           onSelectNode={(id) => setSelectedNodeId(id)}
           onUpdateNodePosition={handleUpdateNodePosition}
           onDeleteNode={handleDeleteNode}
-          onConnectWire={handleConnectWire}
           onDeleteWire={handleDeleteWire}
-          onDropNewNode={(type, subtype, name, x, y) => handleAddNode(type, subtype, name, x, y)}
           onAddNodeAndConnect={handleAddNodeAndConnect}
-          onAddTrigger={handleAddTrigger}
-          onAutoLayout={() => applyAutoLayout()}
           fitViewTrigger={fitViewTrigger}
         />
 
@@ -521,36 +410,15 @@ export default function Home() {
           <InspectorDrawer
             node={selectedNode}
             onClose={() => setSelectedNodeId(null)}
-            onUpdateNode={handleUpdateNode}
+            onUpdateTrigger={handleUpdateTrigger}
+            onUpdateRuleBlock={handleUpdateRuleBlock}
+            onAddRule={handleAddRule}
+            onUpdateRule={handleUpdateRule}
+            onDeleteRule={handleDeleteRule}
+            onUpdateTarget={handleUpdateTarget}
           />
         )}
       </div>
-
-      {/* Bottom Trace & Payload Inspector */}
-      <TraceDrawer
-        trace={trace}
-        isOpen={isTraceOpen}
-        onToggle={() => setIsTraceOpen((open) => !open)}
-      />
-
-      {/* Payload Editor Modal */}
-      <PayloadModal
-        isOpen={isPayloadModalOpen}
-        payload={activeWorkflow.samplePayload || {}}
-        onClose={() => setIsPayloadModalOpen(false)}
-        onSave={(newPayload) => updateActiveWorkflow({ samplePayload: newPayload })}
-      />
-
-      {/* Execution History Modal */}
-      <HistoryModal
-        isOpen={isHistoryModalOpen}
-        workflowId={activeWorkflow.id}
-        onClose={() => setIsHistoryModalOpen(false)}
-        onLoadTrace={(loadedTrace) => {
-          setTrace(loadedTrace);
-          setIsTraceOpen(true);
-        }}
-      />
     </div>
   );
 }

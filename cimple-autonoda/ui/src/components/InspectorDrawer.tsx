@@ -1,454 +1,371 @@
-import React from 'react';
-import type { FlowNode, LogicRule, ComparisonOperator, ActionSubtype } from '../types/workflow';
-import { X, Plus, Trash2, GitFork, Bell, Globe, Mail, Sparkles, Terminal } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import type { EditorNode, EventTrigger, RuleBlock, Rule, Target, ComparisonOperator, TargetType, BlockType } from '../types/workflow';
+import { X, Plus, Trash2, Clock, Bell, GitFork, Globe } from 'lucide-react';
 
 interface InspectorDrawerProps {
-  node: FlowNode | null;
+  node: EditorNode;
   onClose: () => void;
-  onUpdateNode: (id: string, updates: Partial<FlowNode>) => void;
+  onUpdateTrigger: (id: number, updates: Partial<EventTrigger>) => void;
+  onUpdateRuleBlock: (id: number, updates: Partial<RuleBlock>) => void;
+  onAddRule: (ruleBlockId: number, rule: Partial<Rule>) => void;
+  onUpdateRule: (id: number, updates: Partial<Rule>) => void;
+  onDeleteRule: (id: number) => void;
+  onUpdateTarget: (id: number, updates: Partial<Target>) => void;
 }
 
 export const InspectorDrawer: React.FC<InspectorDrawerProps> = ({
   node,
   onClose,
-  onUpdateNode,
+  onUpdateTrigger,
+  onUpdateRuleBlock,
+  onAddRule,
+  onUpdateRule,
+  onDeleteRule,
+  onUpdateTarget,
 }) => {
-  if (!node) return null;
+  const [triggerName, setTriggerName] = useState('');
+  const [triggerDesc, setTriggerDesc] = useState('');
 
-  const updateConfig = (newConfig: Partial<typeof node.config>) => {
-    onUpdateNode(node.id, {
-      config: {
-        ...node.config,
-        ...newConfig,
-      },
-    });
-  };
+  const [rbBlockType, setRbBlockType] = useState<BlockType>('ALL_OF');
+  const [rbDelay, setRbDelay] = useState<number>(0);
 
-  const handleActionTypeChange = (newSubtype: ActionSubtype) => {
-    const defaultTitles: Record<string, string> = {
-      webhook: 'Webhook Action',
-      email: 'Send Email',
-      enrich: 'Enrich Data',
-      log: 'Log Record',
-    };
-    const defaultOldTitles = ['Webhook Action', 'Send Email', 'Enrich Data', 'Log Record', 'Action Block', 'Action'];
-    const shouldUpdateTitle = defaultOldTitles.some((t) => node.title.toLowerCase().includes(t.toLowerCase()));
+  const [targetType, setTargetType] = useState<TargetType>('WEBHOOK');
+  const [targetMeta, setTargetMeta] = useState<Record<string, any>>({});
 
-    const newConfig = { ...node.config };
-    if (newSubtype === 'webhook' && !newConfig.url) {
-      newConfig.url = 'https://api.example.com/webhook';
-      newConfig.method = newConfig.method || 'POST';
-    } else if (newSubtype === 'email' && !newConfig.recipient) {
-      newConfig.recipient = '{{customer.email}}';
-      newConfig.subject = 'Workflow Notification';
-      newConfig.template = 'Hello {{customer.name}}, order {{order.id}} received.';
-    } else if (newSubtype === 'enrich' && !newConfig.enrichField) {
-      newConfig.enrichField = 'data.enriched';
-      newConfig.enrichValue = 'true';
-    } else if (newSubtype === 'log' && !newConfig.message) {
-      newConfig.logLevel = newConfig.logLevel || 'INFO';
-      newConfig.message = 'Flow checkpoint logged';
+  useEffect(() => {
+    if (node.type === 'trigger' && node.trigger) {
+      setTriggerName(node.trigger.name || '');
+      setTriggerDesc(node.trigger.description || '');
+    } else if (node.type === 'rule_block' && node.ruleBlock) {
+      setRbBlockType(node.ruleBlock.blockType || 'ALL_OF');
+      setRbDelay(node.ruleBlock.delaySeconds || 0);
+    } else if (node.type === 'target' && node.target) {
+      setTargetType(node.target.targetType || 'WEBHOOK');
+      setTargetMeta(node.target.targetMeta || {});
     }
-
-    onUpdateNode(node.id, {
-      subtype: newSubtype,
-      title: shouldUpdateTitle ? defaultTitles[newSubtype] : node.title,
-      config: newConfig,
-    });
-  };
-
-  // Logic block helpers
-  const rules = node.config.rules || [];
-  const handleAddRule = () => {
-    const newRules: LogicRule[] = [
-      ...rules,
-      { field: 'order.total', op: 'greater_than', value: '100' },
-    ];
-    updateConfig({ rules: newRules });
-  };
-
-  const handleUpdateRule = (index: number, updates: Partial<LogicRule>) => {
-    const newRules = [...rules];
-    newRules[index] = { ...newRules[index], ...updates };
-    updateConfig({ rules: newRules });
-  };
-
-  const handleRemoveRule = (index: number) => {
-    const newRules = rules.filter((_, i) => i !== index);
-    updateConfig({ rules: newRules });
-  };
-
-  let Icon = Globe;
-  let categoryLabel = 'ACTION BLOCK';
-  if (node.type === 'trigger') {
-    Icon = Bell;
-    categoryLabel = 'TRIGGER BLOCK';
-  } else if (node.type === 'logic') {
-    Icon = GitFork;
-    categoryLabel = 'LOGIC BLOCK';
-  } else {
-    if (node.subtype === 'email') Icon = Mail;
-    else if (node.subtype === 'enrich') Icon = Sparkles;
-    else if (node.subtype === 'log') Icon = Terminal;
-    else Icon = Globe;
-    categoryLabel = 'ACTION BLOCK';
-  }
+  }, [node]);
 
   return (
-    <aside className="w-80 sm:w-96 bg-white border-l border-slate-200 flex flex-col z-30 shadow-lg select-none">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-md bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-            <Icon className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              {categoryLabel}
-            </div>
-            <div className="text-sm font-bold text-slate-800 truncate">{node.title}</div>
-          </div>
+    <aside className="w-80 bg-white border-l border-slate-200 flex flex-col h-full shadow-sm z-20 overflow-y-auto">
+      {/* Drawer Header - Modern Minimalist */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/70">
+        <div className="flex items-center gap-2">
+          {node.type === 'trigger' && <Bell className="w-3.5 h-3.5 text-blue-600" />}
+          {node.type === 'rule_block' && <GitFork className="w-3.5 h-3.5 text-slate-700" />}
+          {node.type === 'target' && <Globe className="w-3.5 h-3.5 text-emerald-600" />}
+          <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
+            {node.type === 'trigger' ? 'Event Trigger' : node.type === 'rule_block' ? 'Rule Block' : 'Target Action'}
+          </h3>
         </div>
         <button
           onClick={onClose}
-          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
-          title="Close drawer"
+          className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Form Content */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-xs">
-        {/* Block Title */}
-        <div className="flex flex-col gap-1.5">
-          <label className="font-semibold text-slate-700">Block Title</label>
-          <input
-            type="text"
-            value={node.title}
-            onChange={(e) => onUpdateNode(node.id, { title: e.target.value })}
-            className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-hidden"
-          />
-        </div>
-
-        {/* Trigger Config */}
-        {node.type === 'trigger' && (
+      {/* Drawer Content */}
+      <div className="p-4 flex flex-col gap-4 flex-1">
+        {/* ================= TRIGGER INSPECTOR ================= */}
+        {node.type === 'trigger' && node.trigger && (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-700">Event Type Identifier</label>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 block mb-1">Trigger Name</label>
               <input
                 type="text"
-                value={node.config.eventType || ''}
-                onChange={(e) => updateConfig({ eventType: e.target.value })}
-                placeholder="e.g. ecommerce.order.created"
-                className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-hidden"
+                value={triggerName}
+                onChange={(e) => {
+                  setTriggerName(e.target.value);
+                  onUpdateTrigger(node.entityId, { name: e.target.value });
+                }}
+                className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:border-slate-800"
+                placeholder="e.g. Order Placed Webhook"
               />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-700">Source Name</label>
-              <input
-                type="text"
-                value={node.config.source || ''}
-                onChange={(e) => updateConfig({ source: e.target.value })}
-                placeholder="e.g. Inbound Webhook"
-                className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-hidden"
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 block mb-1">Description</label>
+              <textarea
+                value={triggerDesc}
+                onChange={(e) => {
+                  setTriggerDesc(e.target.value);
+                  onUpdateTrigger(node.entityId, { description: e.target.value });
+                }}
+                rows={3}
+                className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:border-slate-800"
+                placeholder="Trigger details and ingestion notes"
               />
-            </div>
-
-            <div className="p-3 bg-sky-50 border border-sky-200 rounded-lg text-sky-800 text-[11px] leading-relaxed">
-              ℹ️ <strong>Event Origin:</strong> Ingests the incoming JSON payload into the flow. You can customize the sample test event in the top <strong>Test Payload</strong> editor.
             </div>
           </div>
         )}
 
-        {/* Logic Block Config */}
-        {node.type === 'logic' && (
+        {/* ================= RULE BLOCK INSPECTOR ================= */}
+        {node.type === 'rule_block' && node.ruleBlock && (
           <div className="flex flex-col gap-4">
-            {/* AND / OR Segmented Mode */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-slate-700 flex items-center justify-between">
-                <span>Evaluation Mode</span>
-                <span className="text-[10px] text-slate-400 font-normal">Condition logic</span>
-              </label>
-              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-lg gap-1 border border-slate-200">
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 block mb-1">Evaluation Mode</label>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => updateConfig({ conditionMode: 'AND' })}
-                  className={`py-1 rounded-md text-xs font-bold transition-all ${
-                    (node.config.conditionMode || 'AND') === 'AND'
-                      ? 'bg-white text-blue-600 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-800'
+                  onClick={() => {
+                    setRbBlockType('ALL_OF');
+                    onUpdateRuleBlock(node.entityId, { blockType: 'ALL_OF' });
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
+                    rbBlockType === 'ALL_OF'
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  AND (All Match)
+                  ALL_OF (AND)
                 </button>
                 <button
                   type="button"
-                  onClick={() => updateConfig({ conditionMode: 'OR' })}
-                  className={`py-1 rounded-md text-xs font-bold transition-all ${
-                    node.config.conditionMode === 'OR'
-                      ? 'bg-white text-blue-600 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-800'
+                  onClick={() => {
+                    setRbBlockType('ANY_OF');
+                    onUpdateRuleBlock(node.entityId, { blockType: 'ANY_OF' });
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
+                    rbBlockType === 'ANY_OF'
+                      ? 'bg-slate-900 text-white border-slate-900'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  OR (Any Matches)
+                  ANY_OF (OR)
                 </button>
               </div>
             </div>
 
-            {/* Rules List */}
-            <div className="flex flex-col gap-2">
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 flex items-center gap-1 mb-1">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                Delay (Seconds)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={rbDelay}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  setRbDelay(val);
+                  onUpdateRuleBlock(node.entityId, { delaySeconds: val });
+                }}
+                className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:border-slate-800 font-mono"
+              />
+            </div>
+
+            {/* Rules list */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
               <div className="flex items-center justify-between">
-                <label className="font-semibold text-slate-700">Rules ({rules.length})</label>
+                <label className="text-[11px] font-semibold text-slate-700">Conditions ({node.ruleBlock.rules?.length || 0})</label>
                 <button
-                  onClick={handleAddRule}
-                  className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                  type="button"
+                  onClick={() =>
+                    onAddRule(node.entityId, {
+                      triggerId: node.ruleBlock?.triggerId,
+                      ruleBlockId: node.entityId,
+                      variable: 'data.field',
+                      operator: 'equals',
+                      value: 'value',
+                    })
+                  }
+                  className="inline-flex items-center gap-1 text-[11px] text-slate-900 hover:text-blue-600 font-semibold cursor-pointer"
                 >
-                  <Plus className="w-3 h-3" />
-                  <span>Add Rule</span>
+                  <Plus className="w-3 h-3" /> Add Rule
                 </button>
               </div>
 
-              <div className="flex flex-col gap-2.5">
-                {rules.map((rule, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col gap-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">
-                        Rule #{idx + 1}
-                      </span>
-                      {rules.length > 1 && (
+              {(node.ruleBlock.rules || []).length === 0 ? (
+                <div className="text-center py-4 bg-slate-50/70 border border-dashed border-slate-200 rounded text-slate-400 text-xs">
+                  No rules configured. Click "Add Rule" to define criteria.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {node.ruleBlock.rules?.map((rule, idx) => (
+                    <div
+                      key={rule.id || idx}
+                      className="p-2.5 bg-slate-50/70 border border-slate-200 rounded-md flex flex-col gap-1.5 relative group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-500">Condition #{idx + 1}</span>
                         <button
-                          onClick={() => handleRemoveRule(idx)}
-                          className="text-slate-400 hover:text-red-500 p-0.5 rounded"
-                          title="Remove rule"
+                          type="button"
+                          onClick={() => onDeleteRule(rule.id)}
+                          className="p-0.5 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                          title="Delete rule"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-slate-500">Variable (dot path)</span>
                       <input
                         type="text"
-                        value={rule.field}
-                        onChange={(e) => handleUpdateRule(idx, { field: e.target.value })}
-                        placeholder="order.total"
-                        className="px-2 py-1 text-xs rounded border border-slate-200 bg-white focus:border-blue-500 outline-hidden font-mono"
+                        value={rule.variable}
+                        onChange={(e) => onUpdateRule(rule.id, { variable: e.target.value })}
+                        placeholder="field (e.g. order.total)"
+                        className="text-[11px] font-mono px-2 py-1 bg-white border border-slate-200 rounded focus:border-slate-800 outline-none"
+                      />
+
+                      <select
+                        value={rule.operator}
+                        onChange={(e) => onUpdateRule(rule.id, { operator: e.target.value as ComparisonOperator })}
+                        className="text-[11px] px-2 py-1 bg-white border border-slate-200 rounded focus:border-slate-800 outline-none cursor-pointer"
+                      >
+                        <option value="equals">equals (==)</option>
+                        <option value="not_equals">not equals (!=)</option>
+                        <option value="greater_than">greater than (&gt;)</option>
+                        <option value="less_than">less than (&lt;)</option>
+                        <option value="greater_or_equal">greater or equal (&gt;=)</option>
+                        <option value="less_or_equal">less or equal (&lt;=)</option>
+                        <option value="contains">contains</option>
+                        <option value="not_contains">not contains</option>
+                        <option value="starts_with">starts with</option>
+                        <option value="ends_with">ends with</option>
+                        <option value="is_empty">is empty</option>
+                        <option value="is_not_empty">is not empty</option>
+                      </select>
+
+                      <input
+                        type="text"
+                        value={rule.value}
+                        onChange={(e) => onUpdateRule(rule.id, { value: e.target.value })}
+                        placeholder="target value"
+                        className="text-[11px] font-mono px-2 py-1 bg-white border border-slate-200 rounded focus:border-slate-800 outline-none"
                       />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-500">Operator</span>
-                        <select
-                          value={rule.op}
-                          onChange={(e) =>
-                            handleUpdateRule(idx, { op: e.target.value as ComparisonOperator })
-                          }
-                          className="px-2 py-1 text-xs rounded border border-slate-200 bg-white focus:border-blue-500 outline-hidden cursor-pointer"
-                        >
-                          <option value="greater_than">greater_than (&gt;)</option>
-                          <option value="greater_or_equal">greater_or_equal (&gt;=)</option>
-                          <option value="less_than">less_than (&lt;)</option>
-                          <option value="less_or_equal">less_or_equal (&lt;=)</option>
-                          <option value="equals">equals (==)</option>
-                          <option value="not_equals">not_equals (!=)</option>
-                          <option value="contains">contains</option>
-                          <option value="not_contains">not_contains</option>
-                          <option value="is_empty">is_empty</option>
-                          <option value="is_not_empty">is_not_empty</option>
-                        </select>
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[10px] text-slate-500">Value</span>
-                        <input
-                          type="text"
-                          value={rule.value}
-                          onChange={(e) => handleUpdateRule(idx, { value: e.target.value })}
-                          placeholder="100"
-                          className="px-2 py-1 text-xs rounded border border-slate-200 bg-white focus:border-blue-500 outline-hidden font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Branching Explanation */}
-            <div className="grid grid-cols-2 gap-2 mt-1">
-              <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px]">
-                <strong className="block text-emerald-700 font-bold mb-0.5">● TRUE Port (Green):</strong>
-                Path taken when evaluated condition passes.
-              </div>
-              <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[10px]">
-                <strong className="block text-rose-700 font-bold mb-0.5">● FALSE Port (Red):</strong>
-                Path taken when evaluated condition fails.
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Action Config */}
-        {node.type === 'action' && (
+        {/* ================= TARGET INSPECTOR ================= */}
+        {node.type === 'target' && node.target && (
           <div className="flex flex-col gap-3">
-            {/* Action Type Selector */}
-            <div className="flex flex-col gap-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
-              <label className="font-semibold text-slate-700 flex items-center justify-between text-xs">
-                <span>Action Type</span>
-                <span className="text-[10px] text-teal-700 font-mono font-bold uppercase bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded">
-                  {node.subtype || 'webhook'}
-                </span>
-              </label>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 block mb-1">Target Action Type</label>
               <select
-                value={node.subtype || 'webhook'}
-                onChange={(e) => handleActionTypeChange(e.target.value as ActionSubtype)}
-                className="w-full px-2.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 font-medium focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-hidden cursor-pointer text-xs transition-colors"
+                value={targetType}
+                onChange={(e) => {
+                  const newType = e.target.value as TargetType;
+                  setTargetType(newType);
+                  onUpdateTarget(node.entityId, { targetType: newType });
+                }}
+                className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none font-medium cursor-pointer"
               >
-                <option value="webhook">🌐 Webhook (HTTP Request)</option>
-                <option value="email">✉️ Send Email</option>
-                <option value="enrich">✨ Enrich Data (Transform Payload)</option>
-                <option value="log">📝 Log to Console</option>
+                <option value="WEBHOOK">WEBHOOK (HTTP Dispatch)</option>
+                <option value="EMAIL">EMAIL (Send Mail)</option>
+                <option value="SMS">SMS (Text Alert)</option>
+                <option value="PUSH">PUSH (Mobile Notification)</option>
+                <option value="TRANSFORM">TRANSFORM (Payload Mutation)</option>
+                <option value="CODE">CODE (Custom Script)</option>
               </select>
-              <span className="text-[10px] text-slate-400">
-                Choose what action to execute. Settings for this type appear below.
-              </span>
             </div>
 
-            {node.subtype === 'webhook' && (
+            {targetType === 'WEBHOOK' && (
               <>
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">HTTP Method</label>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 block mb-1">HTTP Method</label>
                   <select
-                    value={node.config.method || 'POST'}
-                    onChange={(e) => updateConfig({ method: e.target.value as any })}
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden cursor-pointer"
+                    value={targetMeta.method || 'POST'}
+                    onChange={(e) => {
+                      const updated = { ...targetMeta, method: e.target.value };
+                      setTargetMeta(updated);
+                      onUpdateTarget(node.entityId, { targetMeta: updated });
+                    }}
+                    className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none"
                   >
-                    <option value="POST">POST</option>
                     <option value="GET">GET</option>
+                    <option value="POST">POST</option>
                     <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Endpoint URL</label>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 block mb-1">Endpoint URL</label>
                   <input
                     type="text"
-                    value={node.config.url || ''}
-                    onChange={(e) => updateConfig({ url: e.target.value })}
-                    placeholder="https://api.crm.com/v1/orders"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden font-mono text-xs"
+                    value={targetMeta.url || ''}
+                    onChange={(e) => {
+                      const updated = { ...targetMeta, url: e.target.value };
+                      setTargetMeta(updated);
+                      onUpdateTarget(node.entityId, { targetMeta: updated });
+                    }}
+                    placeholder="https://api.example.com/events"
+                    className="w-full text-xs font-mono px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none"
                   />
                 </div>
               </>
             )}
 
-            {node.subtype === 'email' && (
+            {targetType === 'EMAIL' && (
               <>
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Recipient</label>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 block mb-1">Recipient</label>
                   <input
                     type="text"
-                    value={node.config.recipient || ''}
-                    onChange={(e) => updateConfig({ recipient: e.target.value })}
-                    placeholder="{{customer.email}}"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden"
+                    value={targetMeta.recipient || ''}
+                    onChange={(e) => {
+                      const updated = { ...targetMeta, recipient: e.target.value };
+                      setTargetMeta(updated);
+                      onUpdateTarget(node.entityId, { targetMeta: updated });
+                    }}
+                    placeholder="e.g. {{customer.email}} or team@org.com"
+                    className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Subject</label>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 block mb-1">Subject</label>
                   <input
                     type="text"
-                    value={node.config.subject || ''}
-                    onChange={(e) => updateConfig({ subject: e.target.value })}
-                    placeholder="Order Alert"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden"
+                    value={targetMeta.subject || ''}
+                    onChange={(e) => {
+                      const updated = { ...targetMeta, subject: e.target.value };
+                      setTargetMeta(updated);
+                      onUpdateTarget(node.entityId, { targetMeta: updated });
+                    }}
+                    placeholder="Notification subject"
+                    className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Message Body</label>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 block mb-1">Message Template</label>
                   <textarea
-                    rows={3}
-                    value={node.config.template || ''}
-                    onChange={(e) => updateConfig({ template: e.target.value })}
-                    placeholder="Hello {{customer.name}}, order {{order.id}} received."
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden font-mono text-xs"
+                    rows={4}
+                    value={targetMeta.template || ''}
+                    onChange={(e) => {
+                      const updated = { ...targetMeta, template: e.target.value };
+                      setTargetMeta(updated);
+                      onUpdateTarget(node.entityId, { targetMeta: updated });
+                    }}
+                    placeholder="Hello {{customer.name}}..."
+                    className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none font-mono"
                   />
                 </div>
               </>
             )}
 
-            {node.subtype === 'enrich' && (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Enrich Variable Path</label>
-                  <input
-                    type="text"
-                    value={node.config.enrichField || ''}
-                    onChange={(e) => updateConfig({ enrichField: e.target.value })}
-                    placeholder="order.isVipPriority"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden font-mono"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Assigned Value</label>
-                  <input
-                    type="text"
-                    value={node.config.enrichValue || ''}
-                    onChange={(e) => updateConfig({ enrichValue: e.target.value })}
-                    placeholder="true"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden font-mono"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Annotation Notes</label>
-                  <input
-                    type="text"
-                    value={node.config.enrichNotes || ''}
-                    onChange={(e) => updateConfig({ enrichNotes: e.target.value })}
-                    placeholder="Reason for transformation"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden"
-                  />
-                </div>
-              </>
-            )}
-
-            {node.subtype === 'log' && (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Log Level</label>
-                  <select
-                    value={node.config.logLevel || 'INFO'}
-                    onChange={(e) => updateConfig({ logLevel: e.target.value as any })}
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden cursor-pointer"
-                  >
-                    <option value="INFO">INFO</option>
-                    <option value="WARN">WARN</option>
-                    <option value="DEBUG">DEBUG</option>
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-semibold text-slate-700">Log Message</label>
-                  <input
-                    type="text"
-                    value={node.config.message || ''}
-                    onChange={(e) => updateConfig({ message: e.target.value })}
-                    placeholder="Workflow log checkpoint"
-                    className="w-full px-2.5 py-1.5 rounded-md border border-slate-200 bg-white text-slate-800 focus:border-blue-500 outline-hidden"
-                  />
-                </div>
-              </>
+            {(targetType === 'TRANSFORM' || targetType === 'CODE') && (
+              <div>
+                <label className="text-[11px] font-medium text-slate-600 block mb-1">Config JSON</label>
+                <textarea
+                  rows={6}
+                  value={JSON.stringify(targetMeta, null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const parsed = JSON.parse(e.target.value);
+                      setTargetMeta(parsed);
+                      onUpdateTarget(node.entityId, { targetMeta: parsed });
+                    } catch {}
+                  }}
+                  className="w-full text-xs font-mono px-2.5 py-1.5 border border-slate-200 rounded-md focus:border-slate-800 outline-none"
+                />
+              </div>
             )}
           </div>
         )}

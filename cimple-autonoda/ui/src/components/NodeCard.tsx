@@ -1,53 +1,55 @@
 import React from 'react';
-import type { FlowNode } from '../types/workflow';
-import { Bell, GitFork, Globe, Mail, Sparkles, Terminal, X, Check, AlertCircle, ArrowDown, Plus } from 'lucide-react';
+import type { EditorNode } from '../types/workflow';
+import {
+  Bell,
+  GitFork,
+  Globe,
+  Mail,
+  MessageSquare,
+  Sparkles,
+  Terminal,
+  X,
+  Plus,
+  Clock,
+  Zap,
+} from 'lucide-react';
 
 interface NodeCardProps {
-  node: FlowNode;
+  node: EditorNode;
   isSelected: boolean;
-  isExecuting: boolean;
   isDragging?: boolean;
-  execStatus?: 'pass' | 'fail' | 'done' | 'running';
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
-  onStartWire: (nodeId: string, port: 'out' | 'true' | 'false', e: React.MouseEvent) => void;
-  onEndWire: (nodeId: string, port: 'in') => void;
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
-  onOpenAddMenu: (nodeId: string, port: 'out' | 'true' | 'false', clientX: number, clientY: number) => void;
+  onOpenBranchMenu: (nodeId: string, branch: 'TRUE' | 'FALSE', clientX: number, clientY: number) => void;
 }
 
 export const NodeCard: React.FC<NodeCardProps> = ({
   node,
   isSelected,
-  isExecuting,
   isDragging = false,
-  execStatus,
   onSelect,
   onDelete,
-  onStartWire,
-  onEndWire,
   onDragStart,
-  onOpenAddMenu,
+  onOpenBranchMenu,
 }) => {
-  // Category styling
-  let headerBg = 'bg-slate-50/90 border-slate-200';
-  let iconBg = 'bg-slate-700 text-white';
-  let Icon = Globe;
+  let Icon = Zap;
+  let iconColor = 'text-slate-600 bg-slate-100';
 
   if (node.type === 'trigger') {
-    headerBg = 'bg-sky-50/90 border-sky-200';
-    iconBg = 'bg-sky-600 text-white';
     Icon = Bell;
-  } else if (node.type === 'logic') {
-    headerBg = 'bg-purple-50/90 border-purple-200';
-    iconBg = 'bg-purple-600 text-white';
+    iconColor = 'text-blue-600 bg-blue-50';
+  } else if (node.type === 'rule_block') {
     Icon = GitFork;
+    iconColor = 'text-slate-700 bg-slate-100';
   } else {
-    headerBg = 'bg-teal-50/90 border-teal-200';
-    iconBg = 'bg-teal-600 text-white';
-    if (node.subtype === 'email') Icon = Mail;
-    else if (node.subtype === 'enrich') Icon = Sparkles;
-    else if (node.subtype === 'log') Icon = Terminal;
+    const tgType = node.target?.targetType;
+    if (tgType === 'EMAIL') Icon = Mail;
+    else if (tgType === 'SMS') Icon = MessageSquare;
+    else if (tgType === 'TRANSFORM') Icon = Sparkles;
+    else if (tgType === 'CODE') Icon = Terminal;
+    else Icon = Globe;
+    iconColor = 'text-emerald-700 bg-emerald-50';
   }
 
   const opSymbols: Record<string, string> = {
@@ -59,6 +61,8 @@ export const NodeCard: React.FC<NodeCardProps> = ({
     not_equals: '!=',
     contains: 'contains',
     not_contains: '!contains',
+    starts_with: 'starts with',
+    ends_with: 'ends with',
     is_empty: 'is empty',
     is_not_empty: 'is not empty',
   };
@@ -74,235 +78,173 @@ export const NodeCard: React.FC<NodeCardProps> = ({
         left: `${node.x}px`,
         top: `${node.y}px`,
       }}
-      className={`flow-node-card absolute w-64 bg-white rounded-xl border select-none ${
-        isDragging ? 'dragging shadow-lg' : 'shadow-xs hover:shadow-md'
+      className={`flow-node-card absolute w-64 bg-white rounded-lg border select-none transition-shadow ${
+        isDragging ? 'shadow-md border-slate-300' : 'shadow-xs hover:shadow-sm'
       } ${
         isSelected
-          ? 'ring-2 ring-indigo-500 shadow-md border-transparent'
-          : 'border-slate-200/90 hover:border-slate-300'
-      } ${
-        isExecuting
-          ? 'scale-102 ring-3 ring-indigo-400 shadow-lg'
-          : ''
+          ? 'ring-2 ring-slate-900 border-transparent'
+          : 'border-slate-200 hover:border-slate-300'
       }`}
     >
-      {/* Top Input Port Handle (In) - Vertical Flow */}
-      {node.type !== 'trigger' && (
-        <div
-          onMouseUp={(e) => {
-            e.stopPropagation();
-            onEndWire(node.id, 'in');
-          }}
-          className="port-handle -top-[6px] left-1/2 -translate-x-1/2 flex items-center justify-center group"
-          title="Flow Input (from step above)"
-        >
-          <ArrowDown className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      )}
-
-      {/* Node Header (Draggable Handle) */}
+      {/* Node Header (Draggable Handle) - Modern Airtable Aesthetic */}
       <div
         onMouseDown={(e) => onDragStart(node.id, e)}
-        className={`flex items-center justify-between px-3 py-2 border-b rounded-t-xl cursor-move ${headerBg}`}
+        className="flex items-center justify-between px-3 py-2 border-b border-slate-100 rounded-t-lg bg-slate-50/80 cursor-move"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 shadow-2xs ${iconBg}`}>
+          <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${iconColor}`}>
             <Icon className="w-3 h-3" />
           </div>
-          <span className="text-xs font-bold text-slate-800 truncate" title={node.title}>
+          <span className="text-xs font-semibold text-slate-800 truncate" title={node.title}>
             {node.title}
           </span>
         </div>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(node.id);
-          }}
-          className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-          title="Delete block"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        {node.type !== 'trigger' && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(node.id);
+            }}
+            className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+            title="Delete block"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Node Body */}
-      <div className="p-3 text-xs text-slate-600 flex flex-col gap-1.5 relative">
+      <div className="p-3 text-xs text-slate-600 flex flex-col gap-2 relative">
+        {/* Trigger Node Body */}
         {node.type === 'trigger' && (
           <>
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-sky-50 text-sky-700 font-medium text-[11px] truncate border border-sky-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-              <span>{node.config.eventType || 'Event Dispatched'}</span>
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50/70 text-blue-800 font-medium text-[11px] truncate border border-blue-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+              <span>{node.trigger?.name || 'Event Trigger'}</span>
             </div>
-            <div className="text-[10px] text-slate-400">Emits payload downwards</div>
+            <div className="text-[11px] text-slate-500 truncate">
+              {node.trigger?.description || 'Starts execution when event occurs'}
+            </div>
           </>
         )}
 
-        {node.type === 'logic' && (
+        {/* Rule Block Node Body */}
+        {node.type === 'rule_block' && (
           <>
             <div className="flex items-center justify-between">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
-                {node.config.conditionMode || 'AND'} MODE
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                {node.ruleBlock?.blockType || 'ALL_OF'}
               </span>
-              <span className="text-[10px] text-slate-400">
-                {(node.config.rules || []).length} rule(s)
-              </span>
+              <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                {node.ruleBlock && node.ruleBlock.delaySeconds > 0 && (
+                  <span className="flex items-center gap-0.5 text-amber-700 font-medium">
+                    <Clock className="w-2.5 h-2.5" />
+                    {node.ruleBlock.delaySeconds}s
+                  </span>
+                )}
+                <span>{(node.ruleBlock?.rules || []).length} rule(s)</span>
+              </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-1.5 text-[10px] font-mono flex flex-col gap-1 max-h-20 overflow-y-auto">
-              {(node.config.rules || []).length === 0 ? (
-                <span className="text-slate-400 italic">No rules defined</span>
+            <div className="bg-slate-50/70 border border-slate-200/80 rounded p-1.5 text-[10px] font-mono flex flex-col gap-1 max-h-24 overflow-y-auto">
+              {(node.ruleBlock?.rules || []).length === 0 ? (
+                <span className="text-slate-400 italic">No conditions added</span>
               ) : (
-                node.config.rules?.map((r, i) => (
-                  <div key={i} className="truncate text-slate-700">
-                    <span className="text-purple-600">{r.field}</span>{' '}
-                    <strong>{opSymbols[r.op] || r.op}</strong>{' '}
-                    <span className="text-emerald-600">{r.value}</span>
+                node.ruleBlock?.rules?.map((r, i) => (
+                  <div key={r.id || i} className="truncate text-slate-700">
+                    <span className="text-slate-900 font-medium">{r.variable || 'field'}</span>{' '}
+                    <span className="text-slate-500 font-bold">{opSymbols[r.operator] || r.operator}</span>{' '}
+                    <span className="text-blue-700 font-medium">{r.value}</span>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Bottom Branch Bar for Vertical Logic Splitting */}
-            <div className="grid grid-cols-2 gap-2 pt-2 mt-1 border-t border-slate-100 text-center">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold uppercase text-emerald-600 tracking-wider">
-                  TRUE
-                </span>
-                <span className="text-[9px] text-slate-400">If passed</span>
+            {/* Bottom Dual-Branch Bar for TRUE and FALSE Paths - Modern Airtable Split */}
+            <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100 text-center select-none">
+              {/* TRUE Path Point */}
+              <div
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onOpenBranchMenu(node.id, 'TRUE', rect.left + rect.width / 2, rect.bottom + 6);
+                }}
+                className="group flex items-center justify-between px-2 py-1 rounded bg-emerald-50/70 hover:bg-emerald-100/80 border border-emerald-200/80 cursor-pointer transition-colors"
+                title="Add step on TRUE path"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                  <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide">
+                    TRUE
+                  </span>
+                </div>
+                <Plus className="w-3 h-3 text-emerald-700 group-hover:scale-110 transition-transform" />
               </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-bold uppercase text-rose-600 tracking-wider">
-                  FALSE
-                </span>
-                <span className="text-[9px] text-slate-400">If failed</span>
+
+              {/* FALSE Path Point */}
+              <div
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onOpenBranchMenu(node.id, 'FALSE', rect.left + rect.width / 2, rect.bottom + 6);
+                }}
+                className="group flex items-center justify-between px-2 py-1 rounded bg-rose-50/70 hover:bg-rose-100/80 border border-rose-200/80 cursor-pointer transition-colors"
+                title="Add step on FALSE path"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                  <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wide">
+                    FALSE
+                  </span>
+                </div>
+                <Plus className="w-3 h-3 text-rose-700 group-hover:scale-110 transition-transform" />
               </div>
             </div>
           </>
         )}
 
-        {node.type === 'action' && (
+        {/* Target Node Body */}
+        {node.type === 'target' && (
           <>
-            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-teal-50 text-teal-800 font-medium text-[11px] truncate border border-teal-100">
-              {node.subtype === 'webhook' && (
-                <span>
-                  <strong>{node.config.method || 'POST'}</strong>{' '}
-                  {(node.config.url || '').replace(/^https?:\/\//, '') || 'URL'}
+            <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 text-slate-800 font-medium text-[11px] truncate border border-slate-200">
+              <span className="font-bold text-[10px] text-slate-600">{node.target?.targetType || 'TARGET'}</span>
+              {node.target?.targetType === 'WEBHOOK' && (
+                <span className="truncate text-slate-700 font-mono text-[10px]">
+                  {node.target.targetMeta?.url ? String(node.target.targetMeta.url).replace(/^https?:\/\//, '') : 'Set URL'}
                 </span>
               )}
-              {node.subtype === 'email' && (
-                <span>To: {node.config.recipient || 'Recipient'}</span>
-              )}
-              {node.subtype === 'enrich' && (
-                <span>
-                  {node.config.enrichField || 'key'} = {node.config.enrichValue || 'value'}
+              {node.target?.targetType === 'EMAIL' && (
+                <span className="truncate text-slate-700 text-[10px]">
+                  {node.target.targetMeta?.recipient ? node.target.targetMeta.recipient : 'Set recipient'}
                 </span>
-              )}
-              {node.subtype === 'log' && (
-                <span>Log: {node.config.logLevel || 'INFO'}</span>
               )}
             </div>
-            <div className="text-[10px] text-slate-400">Processes & passes payload down</div>
+            <div className="text-[10px] text-slate-400 truncate">
+              {node.target?.linkedBlockId
+                ? `Branch: ${node.target.branch || 'TRUE'} path`
+                : (node.target?.linkedTargetId ? `Chained after #${node.target.linkedTargetId}` : 'Target Step')}
+            </div>
           </>
-        )}
-
-        {/* Dynamic Execution Badge */}
-        {execStatus && (
-          <div className="mt-1 flex items-center justify-center">
-            {execStatus === 'running' && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full animate-pulse">
-                Running...
-              </span>
-            )}
-            {execStatus === 'pass' && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                <Check className="w-3 h-3 text-emerald-600 stroke-3" /> TRUE
-              </span>
-            )}
-            {execStatus === 'fail' && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                <AlertCircle className="w-3 h-3 text-rose-600 stroke-3" /> FALSE
-              </span>
-            )}
-            {execStatus === 'done' && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                <Check className="w-3 h-3 text-indigo-600 stroke-3" /> Executed
-              </span>
-            )}
-          </div>
         )}
       </div>
 
-      {/* Bottom Output Port Handle (Out) - Trigger & Action */}
-      {node.type !== 'logic' && (
-        <>
-          <div
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              onStartWire(node.id, 'out', e);
-            }}
-            className="port-handle -bottom-[6px] left-1/2 -translate-x-1/2"
-            title="Drag wire to connect output"
-          />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const rect = e.currentTarget.getBoundingClientRect();
-              onOpenAddMenu(node.id, 'out', rect.left + rect.width / 2, rect.bottom + 4);
-            }}
-            className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-slate-300 hover:border-indigo-500 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 shadow-2xs flex items-center justify-center transition-all cursor-pointer hover:scale-115 z-20 group"
-            title="Add next block"
-          >
-            <Plus className="w-3 h-3 stroke-[2.5]" />
-          </button>
-        </>
-      )}
-
-      {/* Dual Bottom Branch Ports (True & False) - Logic Block */}
-      {node.type === 'logic' && (
-        <>
-          {/* TRUE Port & (+) Add */}
-          <div
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              onStartWire(node.id, 'true', e);
-            }}
-            className="port-handle true-port -bottom-[6px] left-[25%] -translate-x-1/2"
-            title="Drag wire to connect TRUE branch"
-          />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const rect = e.currentTarget.getBoundingClientRect();
-              onOpenAddMenu(node.id, 'true', rect.left + rect.width / 2, rect.bottom + 4);
-            }}
-            className="absolute -bottom-6 left-[25%] -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50 text-emerald-600 shadow-2xs flex items-center justify-center transition-all cursor-pointer hover:scale-115 z-20 group"
-            title="Add block to TRUE branch"
-          >
-            <Plus className="w-3 h-3 stroke-[2.5]" />
-          </button>
-
-          {/* FALSE Port & (+) Add */}
-          <div
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              onStartWire(node.id, 'false', e);
-            }}
-            className="port-handle false-port -bottom-[6px] left-[75%] -translate-x-1/2"
-            title="Drag wire to connect FALSE branch"
-          />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              const rect = e.currentTarget.getBoundingClientRect();
-              onOpenAddMenu(node.id, 'false', rect.left + rect.width / 2, rect.bottom + 4);
-            }}
-            className="absolute -bottom-6 left-[75%] -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-rose-300 hover:border-rose-500 hover:bg-rose-50 text-rose-600 shadow-2xs flex items-center justify-center transition-all cursor-pointer hover:scale-115 z-20 group"
-            title="Add block to FALSE branch"
-          >
-            <Plus className="w-3 h-3 stroke-[2.5]" />
-          </button>
-        </>
+      {/* Bottom Point for Trigger & Target Nodes */}
+      {node.type !== 'rule_block' && (
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            onOpenBranchMenu(node.id, 'TRUE', rect.left + rect.width / 2, rect.bottom + 6);
+          }}
+          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 bg-white border border-slate-300 rounded-full shadow-2xs hover:border-slate-800 hover:text-slate-900 flex items-center justify-center text-slate-500 transition-colors z-20 cursor-pointer"
+          title="Add step below"
+        >
+          <Plus className="w-3 h-3" />
+        </button>
       )}
     </div>
   );
