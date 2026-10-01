@@ -22,7 +22,15 @@ import {
     SlidersHorizontal,
     Layers,
 } from 'lucide-react';
-import { listTransactions, deleteTransaction, listAccounts, type Transaction, type Account } from '../../lib/api';
+import { 
+    listTransactions, 
+    deleteTransaction, 
+    listAccounts, 
+    getSettings, 
+    getCurrencySymbol, 
+    type Transaction, 
+    type Account 
+} from '../../lib/api';
 import { useModal } from '../../lib/shared/modal/modal';
 import TransactionForm from './TransactionForm';
 
@@ -163,11 +171,19 @@ const ListTxn = () => {
         }
     }, [searchParams]);
 
-    // Load accounts once on mount
+    // Currency Symbol state
+    const [currencySymbol, setCurrencySymbol] = useState<string>(getCurrencySymbol());
+
+    // Load accounts and settings once on mount
     useEffect(() => {
         listAccounts().then((res) => {
             if (res.status === 200) {
                 setAccounts(res.data || []);
+            }
+        });
+        getSettings().then((res) => {
+            if (res.status === 200 && res.data?.currency_symbol) {
+                setCurrencySymbol(res.data.currency_symbol);
             }
         });
     }, []);
@@ -429,7 +445,7 @@ const ListTxn = () => {
                     <div className="bg-white p-4 rounded-2xl border border-[#E1E3DB] shadow-xs">
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Total Debits</span>
                         <span className="text-2xl font-black text-emerald-800 font-display mt-1 block">
-                            ${formatCurrency(metrics.totalDebit)}
+                            {currencySymbol}{formatCurrency(metrics.totalDebit)}
                         </span>
                         <span className="text-xs text-stone-400 mt-0.5 block">Cumulative Dr side</span>
                     </div>
@@ -437,7 +453,7 @@ const ListTxn = () => {
                     <div className="bg-white p-4 rounded-2xl border border-[#E1E3DB] shadow-xs">
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Total Credits</span>
                         <span className="text-2xl font-black text-blue-800 font-display mt-1 block">
-                            ${formatCurrency(metrics.totalCredit)}
+                            {currencySymbol}{formatCurrency(metrics.totalCredit)}
                         </span>
                         <span className="text-xs text-stone-400 mt-0.5 block">Cumulative Cr side</span>
                     </div>
@@ -808,7 +824,7 @@ const ListTxn = () => {
                                                     Batch Total
                                                 </span>
                                                 <span className="text-lg font-black text-stone-900 font-display">
-                                                    ${formatCurrency(amount)}
+                                                    {currencySymbol}{formatCurrency(amount)}
                                                 </span>
                                             </div>
 
@@ -920,7 +936,7 @@ const ListTxn = () => {
                                                                     <td className="px-4 py-3 text-right font-mono text-xs">
                                                                         {line.debit_amount > 0 ? (
                                                                             <span className="font-bold text-emerald-800 bg-emerald-50/70 px-2 py-0.5 rounded border border-emerald-200">
-                                                                                ${formatCurrency(line.debit_amount)}
+                                                                                {currencySymbol}{formatCurrency(line.debit_amount)}
                                                                             </span>
                                                                         ) : (
                                                                             <span className="text-stone-300">—</span>
@@ -929,7 +945,7 @@ const ListTxn = () => {
                                                                     <td className="px-4 py-3 text-right font-mono text-xs">
                                                                         {line.credit_amount > 0 ? (
                                                                             <span className="font-bold text-blue-800 bg-blue-50/70 px-2 py-0.5 rounded border border-blue-200">
-                                                                                ${formatCurrency(line.credit_amount)}
+                                                                                {currencySymbol}{formatCurrency(line.credit_amount)}
                                                                             </span>
                                                                         ) : (
                                                                             <span className="text-stone-300">—</span>
@@ -945,10 +961,10 @@ const ListTxn = () => {
                                                                 Journal Total
                                                             </td>
                                                             <td className="px-4 py-2.5 text-right font-mono text-emerald-900">
-                                                                ${formatCurrency(amount)}
+                                                                {currencySymbol}{formatCurrency(amount)}
                                                             </td>
                                                             <td className="px-4 py-2.5 text-right font-mono text-blue-900">
-                                                                ${formatCurrency(amount)}
+                                                                {currencySymbol}{formatCurrency(amount)}
                                                             </td>
                                                         </tr>
                                                     </tfoot>

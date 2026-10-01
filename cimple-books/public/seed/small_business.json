@@ -3,18 +3,6 @@
   "name": "Small Business",
   "description": "General retail, office goods, everyday merchandise, standard VAT & purchase rules.",
   "accounts": [
-    { "name": "Cash on Hand", "acc_type": "assets", "info": "Petty cash and cash register", "parent_id": 0, "total_debit": 1000000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Operating Bank Account", "acc_type": "assets", "info": "Primary business bank account", "parent_id": 0, "total_debit": 5000000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Accounts Receivable", "acc_type": "assets", "info": "Money owed by customers", "parent_id": 0, "total_debit": 250000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Inventory Asset", "acc_type": "assets", "info": "Value of inventory on hand", "parent_id": 0, "total_debit": 1500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Accounts Payable", "acc_type": "liabilities", "info": "Money owed to suppliers", "parent_id": 0, "total_debit": 0, "total_credit": 300000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Sales Tax Payable", "acc_type": "liabilities", "info": "Collected sales tax to remit", "parent_id": 0, "total_debit": 0, "total_credit": 65000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Owner's Equity", "acc_type": "equity", "info": "Initial capital contribution", "parent_id": 0, "total_debit": 0, "total_credit": 6000000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Sales Revenue", "acc_type": "revenue", "info": "Revenue from product sales", "parent_id": 0, "total_debit": 0, "total_credit": 1500000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Service Income", "acc_type": "revenue", "info": "Revenue from consulting and services", "parent_id": 0, "total_debit": 0, "total_credit": 450000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Rent Expense", "acc_type": "expenses", "info": "Monthly office rent", "parent_id": 0, "total_debit": 120000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Salaries Expense", "acc_type": "expenses", "info": "Staff payroll expenses", "parent_id": 0, "total_debit": 350000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Office Supplies Expense", "acc_type": "expenses", "info": "Stationery and supplies", "parent_id": 0, "total_debit": 15000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
   ],
   "taxes": [
     { "name": "Standard Sales VAT (13%)", "ttype": "sales", "info": "Standard Value Added Tax on sales", "rate": 1300, "strict": 0, "is_deleted": 0 },

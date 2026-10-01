@@ -3,17 +3,6 @@
   "name": "Tech & Electronics",
   "description": "Computers, gadgets, peripherals, tech support & hardware repair service lines.",
   "accounts": [
-    { "name": "Cash Register", "acc_type": "assets", "info": "Store floor cash drawer", "parent_id": 0, "total_debit": 500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Tech Venture Bank Account", "acc_type": "assets", "info": "Primary operating checking", "parent_id": 0, "total_debit": 6500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Merchant Account Clearing", "acc_type": "assets", "info": "Credit card & stripe payments", "parent_id": 0, "total_debit": 450000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Hardware Inventory Asset", "acc_type": "assets", "info": "Computers, components, gadgets", "parent_id": 0, "total_debit": 3800000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Accounts Payable - OEMs", "acc_type": "liabilities", "info": "Suppliers and component vendors", "parent_id": 0, "total_debit": 0, "total_credit": 600000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Warranty Reserve", "acc_type": "liabilities", "info": "Provision for device repairs", "parent_id": 0, "total_debit": 0, "total_credit": 120000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Founder's Capital", "acc_type": "equity", "info": "Equity investment", "parent_id": 0, "total_debit": 0, "total_credit": 9000000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Hardware Sales Revenue", "acc_type": "revenue", "info": "Sales of electronics & laptops", "parent_id": 0, "total_debit": 0, "total_credit": 2500000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Repair & Support Revenue", "acc_type": "revenue", "info": "Technical repairs & diagnostics", "parent_id": 0, "total_debit": 0, "total_credit": 480000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Store Lease Expense", "acc_type": "expenses", "info": "Retail showroom lease", "parent_id": 0, "total_debit": 180000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Engineering & Tech Salaries", "acc_type": "expenses", "info": "Repair techs and sales reps", "parent_id": 0, "total_debit": 380000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
   ],
   "taxes": [
     { "name": "Consumer Electronics VAT (13%)", "ttype": "sales", "info": "Hardware standard VAT", "rate": 1300, "strict": 0, "is_deleted": 0 },

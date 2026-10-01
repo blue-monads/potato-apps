@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import { Link } from 'react-router';
-import { listSales, deleteSale, type Sale } from '../../lib/api';
+import { listSales, deleteSale, getCurrencySymbol, type Sale } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 
 const ListSales = () => {
@@ -158,7 +158,7 @@ const ListSales = () => {
                                                 {formatDate(sale.sales_date)}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-stone-900">
-                                                ${formatCurrency(sale.total)}
+                                                {getCurrencySymbol()}{formatCurrency(sale.total)}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap">
                                                 <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border border-[#E1E3DB] ${getPaymentStatusColor(sale.payment_status)}`}>

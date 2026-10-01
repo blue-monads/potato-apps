@@ -117,8 +117,6 @@ function seed_template_data(userId, template)
                 acc_type = acc.acc_type,
                 info = acc.info or "",
                 parent_id = acc.parent_id or 0,
-                total_debit = acc.total_debit or 0,
-                total_credit = acc.total_credit or 0,
                 contact_id = acc.contact_id or 0,
                 is_deleted = acc.is_deleted or 0
             }
@@ -2672,9 +2670,15 @@ function get_app_settings(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
+    local currency_symbol = "$"
     local default_tax_rate_id = nil
     local default_sales_account_id = nil
     local default_purchase_account_id = nil
+
+    local cur_kv = space_kv_get("CONFIG", "CURRENCY_SYMBOL")
+    if cur_kv and (cur_kv.value or cur_kv.Value) and (cur_kv.value ~= "" and cur_kv.Value ~= "") then
+        currency_symbol = cur_kv.value or cur_kv.Value
+    end
 
     local tax_kv = space_kv_get("CONFIG", "DEFAULT_TAX_RATE_ID")
     if tax_kv and (tax_kv.value or tax_kv.Value) and (tax_kv.value ~= "" and tax_kv.Value ~= "") then
@@ -2700,6 +2704,9 @@ function get_app_settings(ctx)
             local v = cfg_kv.value or cfg_kv.Value
             local ok, parsed = pcall(json.decode, v)
             if ok and type(parsed) == "table" then
+                if parsed.currency_symbol ~= nil and parsed.currency_symbol ~= "" then
+                    currency_symbol = tostring(parsed.currency_symbol)
+                end
                 if parsed.default_tax_rate_id ~= nil then
                     default_tax_rate_id = tonumber(parsed.default_tax_rate_id)
                 end
@@ -2714,6 +2721,7 @@ function get_app_settings(ctx)
     end
 
     req.json(200, {
+        currency_symbol = currency_symbol,
         default_tax_rate_id = default_tax_rate_id,
         default_sales_account_id = default_sales_account_id,
         default_purchase_account_id = default_purchase_account_id
@@ -2733,15 +2741,19 @@ function update_app_settings(ctx)
         return
     end
 
+    local currency_symbol = data.currency_symbol and tostring(data.currency_symbol):match("^%s*(.-)%s*$") or "$"
+    if currency_symbol == "" then currency_symbol = "$" end
     local tax_rate_id = data.default_tax_rate_id and tonumber(data.default_tax_rate_id) or nil
     local sales_acc_id = data.default_sales_account_id and tonumber(data.default_sales_account_id) or nil
     local purchase_acc_id = data.default_purchase_account_id and tonumber(data.default_purchase_account_id) or nil
 
+    space_kv_upsert("CONFIG", "CURRENCY_SYMBOL", { value = currency_symbol })
     space_kv_upsert("CONFIG", "DEFAULT_TAX_RATE_ID", { value = tax_rate_id and tostring(tax_rate_id) or "" })
     space_kv_upsert("CONFIG", "DEFAULT_SALES_ACCOUNT_ID", { value = sales_acc_id and tostring(sales_acc_id) or "" })
     space_kv_upsert("CONFIG", "DEFAULT_PURCHASE_ACCOUNT_ID", { value = purchase_acc_id and tostring(purchase_acc_id) or "" })
 
     local combined = {
+        currency_symbol = currency_symbol,
         default_tax_rate_id = tax_rate_id,
         default_sales_account_id = sales_acc_id,
         default_purchase_account_id = purchase_acc_id

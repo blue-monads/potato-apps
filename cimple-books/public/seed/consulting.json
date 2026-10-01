@@ -3,14 +3,6 @@
   "name": "Professional Services",
   "description": "Accounting, tax preparation, monthly retainers, client advisory & escrow.",
   "accounts": [
-    { "name": "Operating Bank Account", "acc_type": "assets", "info": "Primary business bank account", "parent_id": 0, "total_debit": 5500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Accounts Receivable - Clients", "acc_type": "assets", "info": "Uncollected client invoices", "parent_id": 0, "total_debit": 850000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Client Retainer Escrow", "acc_type": "liabilities", "info": "Unearned retainer deposits", "parent_id": 0, "total_debit": 0, "total_credit": 400000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Partner Equity", "acc_type": "equity", "info": "Partner capital contributions", "parent_id": 0, "total_debit": 0, "total_credit": 5000000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Professional Advisory Fees", "acc_type": "revenue", "info": "Consulting and advisory revenue", "parent_id": 0, "total_debit": 0, "total_credit": 2800000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Monthly Retainer Income", "acc_type": "revenue", "info": "Ongoing client retainers", "parent_id": 0, "total_debit": 0, "total_credit": 950000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Office Space Rent", "acc_type": "expenses", "info": "Executive suite lease", "parent_id": 0, "total_debit": 140000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Software & SaaS Tooling", "acc_type": "expenses", "info": "Cloud accounting & research tools", "parent_id": 0, "total_debit": 45000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
   ],
   "taxes": [
     { "name": "Professional Services VAT (13%)", "ttype": "sales", "info": "Standard advisory VAT", "rate": 1300, "strict": 0, "is_deleted": 0 },

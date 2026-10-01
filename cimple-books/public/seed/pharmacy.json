@@ -3,20 +3,6 @@
   "name": "Pharmacy",
   "description": "Rx and OTC drugs, healthcare supplies, clinical consultations, pharma accounts.",
   "accounts": [
-    { "name": "Pharmacy Cash Register", "acc_type": "assets", "info": "Point-of-sale cash counter", "parent_id": 0, "total_debit": 800000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Pharmacy Operating Account", "acc_type": "assets", "info": "Main bank account", "parent_id": 0, "total_debit": 4500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Accounts Receivable - Insurance", "acc_type": "assets", "info": "Claims pending reimbursement", "parent_id": 0, "total_debit": 320000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Prescription Medicine Inventory", "acc_type": "assets", "info": "Value of Rx drugs in stock", "parent_id": 0, "total_debit": 2500000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "OTC & Health Inventory", "acc_type": "assets", "info": "Over the counter medicine stock", "parent_id": 0, "total_debit": 1200000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Accounts Payable - Distributors", "acc_type": "liabilities", "info": "Pharma wholesalers payable", "parent_id": 0, "total_debit": 0, "total_credit": 450000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Sales Tax Payable", "acc_type": "liabilities", "info": "Collected healthcare sales tax", "parent_id": 0, "total_debit": 0, "total_credit": 35000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Owner's Equity", "acc_type": "equity", "info": "Initial capital investment", "parent_id": 0, "total_debit": 0, "total_credit": 8000000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Prescription Sales Revenue", "acc_type": "revenue", "info": "Income from Rx dispensary", "parent_id": 0, "total_debit": 0, "total_credit": 1800000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "OTC Sales Revenue", "acc_type": "revenue", "info": "General health & wellness retail", "parent_id": 0, "total_debit": 0, "total_credit": 650000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Clinical Consultation Income", "acc_type": "revenue", "info": "Health checkup and consultation", "parent_id": 0, "total_debit": 0, "total_credit": 210000, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Staff Pharmacist Salaries", "acc_type": "expenses", "info": "Pharmacist and tech payroll", "parent_id": 0, "total_debit": 420000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Pharmacy Store Rent", "acc_type": "expenses", "info": "Commercial premises rent", "parent_id": 0, "total_debit": 150000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 },
-    { "name": "Medical Waste Disposal", "acc_type": "expenses", "info": "Biohazard and expired drug disposal", "parent_id": 0, "total_debit": 25000, "total_credit": 0, "contact_id": 0, "is_deleted": 0 }
   ],
   "taxes": [
     { "name": "Prescription Drugs (0%)", "ttype": "sales", "info": "Exempt essential medicines", "rate": 0, "strict": 0, "is_deleted": 0 },

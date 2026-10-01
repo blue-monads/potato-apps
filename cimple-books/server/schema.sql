@@ -7,10 +7,7 @@ create table Accounts(
     info TEXT NOT NULL DEFAULT '',
     acc_type TEXT NOT NULL DEFAULT 'expenses', -- expenses, revenue, assets, liabilities, equity
     parent_id INTEGER,
-    total_debit INTEGER NOT NULL DEFAULT 0,
-    total_credit INTEGER NOT NULL DEFAULT 0,
     contact_id INTEGER NOT NULL DEFAULT 0,
-    calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE

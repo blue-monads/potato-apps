@@ -6,10 +6,7 @@ export interface Account {
     info: string;
     acc_type: string;
     parent_id: number;
-    total_debit: number;
-    total_credit: number;
     contact_id: number;
-    calculated_at: string;
     created_at: string;
     updated_at: string;
     is_deleted: boolean;
@@ -732,18 +729,43 @@ export const deleteSale = async (saleId: number): Promise<ApiResponse<{ message:
 
 // Settings API
 export interface AppSettings {
+    currency_symbol?: string | null;
     default_tax_rate_id?: number | null;
     default_sales_account_id?: number | null;
     default_purchase_account_id?: number | null;
 }
 
+export const getCurrencySymbol = (): string => {
+    try {
+        return localStorage.getItem('cimple_books_currency_symbol') || '$';
+    } catch {
+        return '$';
+    }
+};
+
 export const getSettings = async (): Promise<ApiResponse<AppSettings>> => {
-    return apiRequest<AppSettings>('/settings', { method: 'GET' });
+    const resp = await apiRequest<AppSettings>('/settings', { method: 'GET' });
+    if (resp.status === 200 && resp.data?.currency_symbol) {
+        try {
+            localStorage.setItem('cimple_books_currency_symbol', resp.data.currency_symbol);
+        } catch {
+            // ignore
+        }
+    }
+    return resp;
 };
 
 export const updateSettings = async (settings: AppSettings): Promise<ApiResponse<AppSettings>> => {
-    return apiRequest<AppSettings>('/settings', {
+    const resp = await apiRequest<AppSettings>('/settings', {
         method: 'POST',
         body: JSON.stringify(settings),
     });
+    if (resp.status === 200 && resp.data?.currency_symbol) {
+        try {
+            localStorage.setItem('cimple_books_currency_symbol', resp.data.currency_symbol);
+        } catch {
+            // ignore
+        }
+    }
+    return resp;
 };

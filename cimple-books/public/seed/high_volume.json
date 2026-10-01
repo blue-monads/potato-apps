@@ -8,8 +8,6 @@
       "acc_type": "assets",
       "info": "Petty cash and cash register",
       "parent_id": 0,
-      "total_debit": 1000000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -18,8 +16,6 @@
       "acc_type": "assets",
       "info": "Primary business bank account",
       "parent_id": 0,
-      "total_debit": 5000000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -28,8 +24,6 @@
       "acc_type": "assets",
       "info": "Money owed by customers",
       "parent_id": 0,
-      "total_debit": 250000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -38,8 +32,6 @@
       "acc_type": "assets",
       "info": "Value of inventory on hand",
       "parent_id": 0,
-      "total_debit": 1500000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -48,8 +40,6 @@
       "acc_type": "liabilities",
       "info": "Money owed to suppliers",
       "parent_id": 0,
-      "total_debit": 0,
-      "total_credit": 300000,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -58,8 +48,6 @@
       "acc_type": "liabilities",
       "info": "Collected sales tax to remit",
       "parent_id": 0,
-      "total_debit": 0,
-      "total_credit": 65000,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -68,8 +56,6 @@
       "acc_type": "equity",
       "info": "Initial capital contribution",
       "parent_id": 0,
-      "total_debit": 0,
-      "total_credit": 6000000,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -78,8 +64,6 @@
       "acc_type": "revenue",
       "info": "Revenue from product sales",
       "parent_id": 0,
-      "total_debit": 0,
-      "total_credit": 1500000,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -88,8 +72,6 @@
       "acc_type": "revenue",
       "info": "Revenue from consulting and services",
       "parent_id": 0,
-      "total_debit": 0,
-      "total_credit": 450000,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -98,8 +80,6 @@
       "acc_type": "expenses",
       "info": "Monthly office rent",
       "parent_id": 0,
-      "total_debit": 120000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -108,8 +88,6 @@
       "acc_type": "expenses",
       "info": "Staff payroll expenses",
       "parent_id": 0,
-      "total_debit": 350000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     },
@@ -118,8 +96,6 @@
       "acc_type": "expenses",
       "info": "Stationery and supplies",
       "parent_id": 0,
-      "total_debit": 15000,
-      "total_credit": 0,
       "contact_id": 0,
       "is_deleted": 0
     }

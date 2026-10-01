@@ -137,12 +137,6 @@ const ListAccount = () => {
                                     <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                         Info
                                     </th>
-                                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                                        Debit
-                                    </th>
-                                    <th className="px-5 py-3.5 text-left text-xs font-semibold text-stone-600 uppercase tracking-wider">
-                                        Credit
-                                    </th>
                                     <th className="px-5 py-3.5 text-right text-xs font-semibold text-stone-600 uppercase tracking-wider">
                                         Actions
                                     </th>
@@ -151,7 +145,7 @@ const ListAccount = () => {
                             <tbody className="bg-white divide-y divide-[#E1E3DB]">
                                 {accounts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-6 py-12 text-center text-stone-500">
+                                        <td colSpan={5} className="px-6 py-12 text-center text-stone-500">
                                             No accounts found. Create your first account to get started.
                                         </td>
                                     </tr>
@@ -176,12 +170,6 @@ const ListAccount = () => {
                                             </td>
                                             <td className="px-5 py-4 text-sm text-stone-500 max-w-xs truncate">
                                                 {account.info || '-'}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-stone-900">
-                                                ${(account.total_debit / 100).toFixed(2)}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-stone-900">
-                                                ${(account.total_credit / 100).toFixed(2)}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-1">
