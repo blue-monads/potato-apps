@@ -12,9 +12,7 @@ interface ContactFormProps {
 const RELATION_OPTIONS: { value: ContactRelationType; label: string; desc: string }[] = [
     { value: 'customer', label: 'Customer / Client', desc: 'Buyer of products or services' },
     { value: 'supplier', label: 'Supplier / Vendor', desc: 'Provides goods or services for stock in' },
-    { value: 'employee', label: 'Employee / Staff', desc: 'Internal team member or contractor' },
-    { value: 'partner', label: 'Partner', desc: 'Business collaborator or affiliate' },
-    { value: 'other', label: 'Other', desc: 'General contact' },
+    { value: 'general', label: 'General', desc: 'Can be used as both customer and supplier' },
 ];
 
 const ContactForm = ({ contact, initialRelationType = 'customer', onSave, onCancel }: ContactFormProps) => {
@@ -96,7 +94,7 @@ const ContactForm = ({ contact, initialRelationType = 'customer', onSave, onCanc
                         {isEdit ? `Edit Contact: ${contact?.name}` : 'New Contact'}
                     </h2>
                     <p className="text-xs text-stone-500 mt-0.5">
-                        Add customers, vendors, suppliers, or partner details
+                        Add customers, suppliers, or general contacts
                     </p>
                 </div>
             </div>

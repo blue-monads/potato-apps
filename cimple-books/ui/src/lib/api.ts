@@ -221,7 +221,7 @@ export const deleteCategory = async (categoryId: number): Promise<ApiResponse<{ 
 
 // Contacts API
 export type ContactType = 'individual' | 'company';
-export type ContactRelationType = 'customer' | 'supplier' | 'employee' | 'partner' | 'other';
+export type ContactRelationType = 'customer' | 'supplier' | 'general';
 
 export interface Contact {
     id: number;
@@ -427,7 +427,9 @@ export interface ProductStockIn {
     id: number;
     info: string;
     amount: number;
-    vendor_id: number;
+    vendor_contact_id?: number | null;
+    vendor_alt_name?: string;
+    vendor_id?: number;
     vendor_name?: string;
     reference_id?: string;
     stockin_date?: string;
@@ -535,8 +537,10 @@ export interface SalesLine {
 export interface Sale {
     id: number;
     title: string;
-    client_id: number;
-    client_name: string;
+    client_contact_id?: number | null;
+    client_alt_name?: string;
+    client_id?: number;
+    client_name?: string;
     notes: string;
     attachments: string;
     total_item_price: number;

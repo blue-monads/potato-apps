@@ -77,7 +77,7 @@ create table Contacts(
     info TEXT NOT NULL DEFAULT '',
     images TEXT NOT NULL DEFAULT '',
     contact_type TEXT NOT NULL DEFAULT 'individual', -- individual, company
-    relation_type TEXT NOT NULL DEFAULT 'customer', -- customer, supplier, employee, partner, other
+    relation_type TEXT NOT NULL DEFAULT 'customer', -- customer, supplier, general
 
     primary_email TEXT NOT NULL DEFAULT '',
     primary_phone TEXT NOT NULL DEFAULT '',
@@ -112,8 +112,6 @@ create table Products(
     purchase_account_id INTEGER,
     tax_id INTEGER,
 
-    
-
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -144,8 +142,8 @@ create table ProductStockIn(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     info TEXT NOT NULL DEFAULT '',
     amount INTEGER NOT NULL DEFAULT 0,
-    vendor_id INTEGER NOT NULL DEFAULT 0,
-    vendor_name TEXT NOT NULL DEFAULT '',
+    vendor_contact_id INTEGER,
+    vendor_alt_name TEXT NOT NULL DEFAULT '',
     stockin_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,
@@ -159,7 +157,7 @@ create table ProductStockInLines(
     info TEXT NOT NULL DEFAULT '',
     product_stockin_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
-    variant_id INTEGER NOT NULL DEFAULT 0,
+    variant_id INTEGER,
     qty INTEGER NOT NULL DEFAULT 0,
     price INTEGER NOT NULL DEFAULT 0,
     amount INTEGER NOT NULL DEFAULT 0,
@@ -175,8 +173,8 @@ create table ProductStockInLines(
 create table Sales(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL DEFAULT '',
-    client_id INTEGER NOT NULL DEFAULT 0,
-    client_name TEXT NOT NULL DEFAULT '',
+    client_contact_id INTEGER,
+    client_alt_name TEXT NOT NULL DEFAULT '',
 
     notes TEXT NOT NULL DEFAULT '',
     attachments TEXT NOT NULL DEFAULT '',

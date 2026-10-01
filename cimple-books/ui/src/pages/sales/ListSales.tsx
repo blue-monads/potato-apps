@@ -152,7 +152,7 @@ const ListSales = () => {
                                                 {sale.title || `Sale #${sale.id}`}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
-                                                {sale.client_name || `Client #${sale.client_id}`}
+                                                {sale.client_name || sale.client_alt_name || (sale.client_contact_id ? `Client #${sale.client_contact_id}` : (sale.client_id ? `Client #${sale.client_id}` : '—'))}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-500">
                                                 {formatDate(sale.sales_date)}

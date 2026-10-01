@@ -1674,6 +1674,14 @@ function list_stockin(ctx)
         end
     end
 
+    local all_contacts, _ = potato.db.find_all_by_cond("Contacts", {})
+    local contact_map = {}
+    if all_contacts ~= nil then
+        for _, c in ipairs(all_contacts) do
+            contact_map[c.id] = c.name
+        end
+    end
+
     local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
     local lines_by_stockin = {}
     if lines ~= nil then
@@ -1692,6 +1700,11 @@ function list_stockin(ctx)
 
     for _, s in ipairs(stockins or {}) do
         s.lines = lines_by_stockin[s.id] or {}
+        if s.vendor_contact_id ~= nil and contact_map[s.vendor_contact_id] ~= nil then
+            s.vendor_name = contact_map[s.vendor_contact_id]
+        else
+            s.vendor_name = s.vendor_alt_name or ""
+        end
     end
 
     table.sort(stockins or {}, function(a, b)
@@ -1725,11 +1738,20 @@ function create_stockin(ctx)
         total_amount = tonumber(data.amount) or 0
     end
 
+    local vendor_cid = nil
+    if data.vendor_contact_id ~= nil and data.vendor_contact_id ~= "" then
+        vendor_cid = tonumber(data.vendor_contact_id)
+    elseif data.vendor_id ~= nil and data.vendor_id ~= "" then
+        vendor_cid = tonumber(data.vendor_id)
+    end
+
+    local vendor_alt = data.vendor_alt_name or data.vendor_name or ""
+
     local stockin_data = {
         info = data.info or "",
         amount = total_amount,
-        vendor_id = tonumber(data.vendor_id) or 0,
-        vendor_name = data.vendor_name or "",
+        vendor_contact_id = vendor_cid,
+        vendor_alt_name = vendor_alt,
         stockin_date = data.stockin_date or os.date("!%Y-%m-%dT%H:%M:%SZ"),
         created_by = userId,
         updated_by = userId,
@@ -1770,6 +1792,16 @@ function create_stockin(ctx)
     })
     if stockin ~= nil then
         stockin.lines = inserted_lines or {}
+        if stockin.vendor_contact_id ~= nil then
+            local c, _ = potato.db.find_by_id("Contacts", stockin.vendor_contact_id)
+            if c ~= nil then
+                stockin.vendor_name = c.name
+            else
+                stockin.vendor_name = stockin.vendor_alt_name or ""
+            end
+        else
+            stockin.vendor_name = stockin.vendor_alt_name or ""
+        end
     end
     req.json(200, stockin)
 end
@@ -1790,6 +1822,17 @@ function get_stockin(ctx, stockin_id)
     if err ~= nil or stockin == nil or stockin.is_deleted == 1 then
         req.json(404, { error = "StockIn not found" })
         return
+    end
+
+    if stockin.vendor_contact_id ~= nil then
+        local c, _ = potato.db.find_by_id("Contacts", stockin.vendor_contact_id)
+        if c ~= nil then
+            stockin.vendor_name = c.name
+        else
+            stockin.vendor_name = stockin.vendor_alt_name or ""
+        end
+    else
+        stockin.vendor_name = stockin.vendor_alt_name or ""
     end
 
     local all_prods, _ = potato.db.find_all_by_cond("Products", {})
@@ -1845,8 +1888,22 @@ function update_stockin(ctx, stockin_id)
     }
 
     if data.info ~= nil then update_data.info = data.info end
-    if data.vendor_id ~= nil then update_data.vendor_id = tonumber(data.vendor_id) or 0 end
-    if data.vendor_name ~= nil then update_data.vendor_name = data.vendor_name end
+    if data.vendor_contact_id ~= nil then
+        if data.vendor_contact_id == "" or data.vendor_contact_id == 0 then
+            update_data.vendor_contact_id = nil
+        else
+            update_data.vendor_contact_id = tonumber(data.vendor_contact_id)
+        end
+    elseif data.vendor_id ~= nil then
+        update_data.vendor_contact_id = tonumber(data.vendor_id) or nil
+    end
+
+    if data.vendor_alt_name ~= nil then
+        update_data.vendor_alt_name = data.vendor_alt_name
+    elseif data.vendor_name ~= nil then
+        update_data.vendor_alt_name = data.vendor_name
+    end
+
     if data.stockin_date ~= nil then update_data.stockin_date = data.stockin_date end
 
     local lines = data.lines
@@ -2053,6 +2110,14 @@ function list_sales(ctx)
         return
     end
 
+    local all_contacts, _ = potato.db.find_all_by_cond("Contacts", {})
+    local contact_map = {}
+    if all_contacts ~= nil then
+        for _, c in ipairs(all_contacts) do
+            contact_map[c.id] = c.name
+        end
+    end
+
     -- Fetch lines for each sale
     for i, sale in ipairs(sales) do
         local lines, lines_err = potato.db.find_all_by_cond("SalesLines", {
@@ -2062,6 +2127,12 @@ function list_sales(ctx)
             sale.lines = lines
         else
             sale.lines = {}
+        end
+
+        if sale.client_contact_id ~= nil and contact_map[sale.client_contact_id] ~= nil then
+            sale.client_name = contact_map[sale.client_contact_id]
+        else
+            sale.client_name = sale.client_alt_name or ""
         end
     end
 
@@ -2097,6 +2168,17 @@ function get_sale(ctx, sale_id)
         return
     end
 
+    if sale.client_contact_id ~= nil then
+        local c, _ = potato.db.find_by_id("Contacts", sale.client_contact_id)
+        if c ~= nil then
+            sale.client_name = c.name
+        else
+            sale.client_name = sale.client_alt_name or ""
+        end
+    else
+        sale.client_name = sale.client_alt_name or ""
+    end
+
     -- Fetch lines
     local lines, lines_err = potato.db.find_all_by_cond("SalesLines", {
         sale_id = sale_id
@@ -2126,11 +2208,20 @@ function create_sale(ctx)
         return
     end
 
+    local client_cid = nil
+    if data.client_contact_id ~= nil and data.client_contact_id ~= "" then
+        client_cid = tonumber(data.client_contact_id)
+    elseif data.client_id ~= nil and data.client_id ~= "" then
+        client_cid = tonumber(data.client_id)
+    end
+
+    local client_alt = data.client_alt_name or data.client_name or ""
+
     -- Create sale
     local sale_data = {
         title = data.title or "",
-        client_id = data.client_id or 0,
-        client_name = data.client_name or "",
+        client_contact_id = client_cid,
+        client_alt_name = client_alt,
         notes = data.notes or "",
         attachments = data.attachments or "",
         total_item_price = data.total_item_price or 0,
@@ -2279,8 +2370,21 @@ function update_sale(ctx, sale_id)
         updated_by = userId
     }
     if data.title ~= nil then update_data.title = data.title end
-    if data.client_id ~= nil then update_data.client_id = data.client_id end
-    if data.client_name ~= nil then update_data.client_name = data.client_name end
+    if data.client_contact_id ~= nil then
+        if data.client_contact_id == "" or data.client_contact_id == 0 then
+            update_data.client_contact_id = nil
+        else
+            update_data.client_contact_id = tonumber(data.client_contact_id)
+        end
+    elseif data.client_id ~= nil then
+        update_data.client_contact_id = tonumber(data.client_id) or nil
+    end
+
+    if data.client_alt_name ~= nil then
+        update_data.client_alt_name = data.client_alt_name
+    elseif data.client_name ~= nil then
+        update_data.client_alt_name = data.client_name
+    end
     if data.notes ~= nil then update_data.notes = data.notes end
     if data.attachments ~= nil then update_data.attachments = data.attachments end
     if data.total_item_price ~= nil then update_data.total_item_price = data.total_item_price end

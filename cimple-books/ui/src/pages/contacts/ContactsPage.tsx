@@ -4,7 +4,7 @@ import { listContacts, deleteContact, type Contact, type ContactRelationType } f
 import { useModal } from '../../lib/shared/modal/modal';
 import ContactForm from './ContactForm';
 
-type FilterTab = 'all' | 'customer' | 'supplier' | 'employee' | 'other';
+type FilterTab = 'all' | 'customer' | 'supplier' | 'general';
 
 const ContactsPage = () => {
     const { openModal, closeModal } = useModal();
@@ -57,7 +57,7 @@ const ContactsPage = () => {
             content: (
                 <ContactForm
                     contact={contact || null}
-                    initialRelationType={defaultRelation || (activeTab !== 'all' && activeTab !== 'other' ? activeTab : 'customer')}
+                    initialRelationType={defaultRelation || (activeTab !== 'all' ? (activeTab as ContactRelationType) : 'customer')}
                     onSave={() => {
                         closeModal();
                         loadContacts();
@@ -79,25 +79,19 @@ const ContactsPage = () => {
             case 'supplier':
                 return (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-                        Vendor / Supplier
+                        Supplier / Vendor
                     </span>
                 );
-            case 'employee':
-                return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                        Employee
-                    </span>
-                );
-            case 'partner':
+            case 'general':
                 return (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200">
-                        Partner
+                        General
                     </span>
                 );
             default:
                 return (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-stone-100 text-stone-700 border border-stone-200">
-                        {relation || 'Other'}
+                        {relation || 'General'}
                     </span>
                 );
         }
@@ -111,11 +105,10 @@ const ContactsPage = () => {
     };
 
     const filteredContacts = contacts.filter((c) => {
-        // Tab filter
-        if (activeTab === 'customer' && c.relation_type !== 'customer') return false;
-        if (activeTab === 'supplier' && c.relation_type !== 'supplier') return false;
-        if (activeTab === 'employee' && c.relation_type !== 'employee') return false;
-        if (activeTab === 'other' && (c.relation_type === 'customer' || c.relation_type === 'supplier' || c.relation_type === 'employee')) return false;
+        // Tab filter: general contacts show in any case
+        if (activeTab === 'customer' && c.relation_type !== 'customer' && c.relation_type !== 'general') return false;
+        if (activeTab === 'supplier' && c.relation_type !== 'supplier' && c.relation_type !== 'general') return false;
+        if (activeTab === 'general' && c.relation_type !== 'general') return false;
 
         // Search query
         if (searchQuery.trim()) {
@@ -134,7 +127,7 @@ const ContactsPage = () => {
     const totalCount = contacts.length;
     const customerCount = contacts.filter((c) => c.relation_type === 'customer').length;
     const supplierCount = contacts.filter((c) => c.relation_type === 'supplier').length;
-    const employeeCount = contacts.filter((c) => c.relation_type === 'employee').length;
+    const generalCount = contacts.filter((c) => c.relation_type === 'general').length;
 
     if (loading) {
         return (
@@ -204,14 +197,14 @@ const ContactsPage = () => {
                     </div>
 
                     <div
-                        onClick={() => setActiveTab('employee')}
+                        onClick={() => setActiveTab('general')}
                         className={`bg-white p-4 rounded-2xl border transition-all cursor-pointer ${
-                            activeTab === 'employee' ? 'border-[#2E6E52] ring-1 ring-[#2E6E52] shadow-xs' : 'border-[#E1E3DB] hover:border-stone-400'
+                            activeTab === 'general' ? 'border-[#2E6E52] ring-1 ring-[#2E6E52] shadow-xs' : 'border-[#E1E3DB] hover:border-stone-400'
                         }`}
                     >
-                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Employees / Staff</span>
-                        <span className="text-2xl font-black text-amber-800 font-display mt-1 block">{employeeCount}</span>
-                        <span className="text-xs text-stone-400 mt-0.5 block">Team members</span>
+                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">General</span>
+                        <span className="text-2xl font-black text-purple-800 font-display mt-1 block">{generalCount}</span>
+                        <span className="text-xs text-stone-400 mt-0.5 block">Customer & Supplier</span>
                     </div>
                 </div>
 
@@ -260,25 +253,14 @@ const ContactsPage = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => setActiveTab('employee')}
+                            onClick={() => setActiveTab('general')}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                                activeTab === 'employee'
+                                activeTab === 'general'
                                     ? 'bg-white text-stone-900 shadow-xs'
                                     : 'text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            Employees ({employeeCount})
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('other')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                                activeTab === 'other'
-                                    ? 'bg-white text-stone-900 shadow-xs'
-                                    : 'text-stone-600 hover:text-stone-900'
-                            }`}
-                        >
-                            Partners / Other
+                            General ({generalCount})
                         </button>
                     </div>
 

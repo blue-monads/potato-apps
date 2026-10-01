@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ArrowLeft, Plus, Trash2, Save, Package, Layers, Calendar, User, FileText, Hash } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Package, Layers, Calendar, FileText, Hash } from 'lucide-react';
 import { createStockIn, updateStockIn, getStockIn, type ProductStockIn, type ProductStockInLine } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import StockInItemPicker, { type SelectedStockInLine } from './components/StockInItemPicker';
+import ContactPicker from '../../components/ContactPicker';
 
 interface FormLine {
     product_id: number;
@@ -28,7 +29,8 @@ const StockInForm = () => {
     const [error, setError] = useState<string | null>(null);
 
     // Form fields
-    const [vendorName, setVendorName] = useState('');
+    const [vendorContactId, setVendorContactId] = useState<number | null>(null);
+    const [vendorAltName, setVendorAltName] = useState('');
     const [referenceId, setReferenceId] = useState('');
     const [info, setInfo] = useState('');
     const [stockinDate, setStockinDate] = useState(() => {
@@ -47,7 +49,8 @@ const StockInForm = () => {
                 const resp = await getStockIn(parseInt(id, 10));
                 if (resp.status === 200 && resp.data) {
                     const s = resp.data;
-                    setVendorName(s.vendor_name || '');
+                    setVendorContactId(s.vendor_contact_id || null);
+                    setVendorAltName(s.vendor_alt_name || s.vendor_name || '');
                     setReferenceId(s.reference_id || '');
                     setInfo(s.info || '');
                     if (s.stockin_date) {
@@ -156,7 +159,9 @@ const StockInForm = () => {
         setError(null);
 
         const payload: Partial<ProductStockIn> = {
-            vendor_name: vendorName.trim(),
+            vendor_contact_id: vendorContactId,
+            vendor_alt_name: vendorAltName.trim(),
+            vendor_name: vendorAltName.trim(),
             reference_id: referenceId.trim(),
             info: info.trim(),
             stockin_date: new Date(stockinDate).toISOString(),
@@ -221,21 +226,7 @@ const StockInForm = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <Link
-                            to={`${BASE_PATH}stockin`}
-                            className="px-4 py-2 border border-[#E1E3DB] bg-white hover:bg-stone-50 text-stone-700 rounded-lg text-sm font-semibold transition-colors shadow-xs"
-                        >
-                            Cancel
-                        </Link>
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={saving}
-                            className="inline-flex items-center gap-2 px-5 py-2 bg-[#2E6E52] hover:bg-[#255842] disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
-                        >
-                            <Save className="w-4 h-4" />
-                            {saving ? 'Saving...' : 'Save Stock In'}
-                        </button>
+                        
                     </div>
                 </div>
 
@@ -253,16 +244,45 @@ const StockInForm = () => {
                             Receipt & Vendor Details
                         </h2>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <ContactPicker
+                                    label="Vendor / Supplier"
+                                    filterRelation="supplier"
+                                    placeholder="Select vendor (optional)..."
+                                    value={vendorContactId}
+                                    altName={vendorAltName}
+                                    onChange={(cid, name) => {
+                                        setVendorContactId(cid);
+                                        if (cid === null && name) {
+                                            setVendorAltName(name);
+                                        }
+                                    }}
+                                />
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                    <User className="w-3.5 h-3.5 text-stone-400" />
-                                    Vendor / Supplier Name
+                                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                                    Date Received <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    required
+                                    value={stockinDate}
+                                    onChange={(e) => setStockinDate(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
+                                    Vendor Alt Text
                                 </label>
                                 <input
                                     type="text"
-                                    value={vendorName}
-                                    onChange={(e) => setVendorName(e.target.value)}
+                                    value={vendorAltName}
+                                    onChange={(e) => setVendorAltName(e.target.value)}
                                     className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900"
                                     placeholder="e.g. Acme Distributors Ltd."
                                 />
@@ -281,30 +301,16 @@ const StockInForm = () => {
                                     placeholder="e.g. PO-2026-081"
                                 />
                             </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                                    Date Received <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="datetime-local"
-                                    required
-                                    value={stockinDate}
-                                    onChange={(e) => setStockinDate(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium"
-                                />
-                            </div>
                         </div>
 
-                        <div className="mt-4">
+                        <div className="mt-5">
                             <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
                                 Notes / Shipment Remarks
                             </label>
-                            <input
-                                type="text"
+                            <textarea
                                 value={info}
                                 onChange={(e) => setInfo(e.target.value)}
+                                rows={3}
                                 className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900"
                                 placeholder="Additional details about delivery condition, courier, tracking number, etc."
                             />

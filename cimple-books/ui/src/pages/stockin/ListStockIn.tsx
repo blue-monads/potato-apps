@@ -63,6 +63,7 @@ const ListStockIn = () => {
     const filteredStockIns = stockins.filter(s => {
         const q = searchQuery.toLowerCase();
         if (s.vendor_name && s.vendor_name.toLowerCase().includes(q)) return true;
+        if (s.vendor_alt_name && s.vendor_alt_name.toLowerCase().includes(q)) return true;
         if (s.reference_id && s.reference_id.toLowerCase().includes(q)) return true;
         if (s.info && s.info.toLowerCase().includes(q)) return true;
         if (s.lines && s.lines.some(l => 
@@ -200,10 +201,10 @@ const ListStockIn = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap">
-                                                    {s.vendor_name ? (
+                                                    {(s.vendor_name || s.vendor_alt_name) ? (
                                                         <div className="font-semibold text-stone-900 flex items-center gap-1.5">
                                                             <User className="w-3.5 h-3.5 text-stone-400" />
-                                                            {s.vendor_name}
+                                                            {s.vendor_name || s.vendor_alt_name}
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-stone-400 italic">No vendor specified</span>

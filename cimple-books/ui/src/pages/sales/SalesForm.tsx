@@ -5,6 +5,7 @@ import { createSale, updateSale, getSale, type Sale } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import SalesItemPicker from './components/SalesItemPicker';
+import ContactPicker from '../../components/ContactPicker';
 // import OverallDiscountPicker from './components/OverallDiscountPicker';
 // import OverallTaxPicker from './components/OverallTaxPicker';
 
@@ -28,8 +29,8 @@ const SalesForm = () => {
     const [sale, setSale] = useState<Sale | null>(null);
     const [loading, setLoading] = useState(isEditMode);
     const [title, setTitle] = useState('');
-    const [clientId, setClientId] = useState(0);
-    const [clientName, setClientName] = useState('');
+    const [clientContactId, setClientContactId] = useState<number | null>(null);
+    const [clientAltName, setClientAltName] = useState('');
     const [notes, setNotes] = useState('');
     const [salesDate, setSalesDate] = useState(new Date().toISOString().slice(0, 16));
     const [paymentStatus, setPaymentStatus] = useState('unpaid');
@@ -67,8 +68,8 @@ const SalesForm = () => {
     useEffect(() => {
         if (sale) {
             setTitle(sale.title || '');
-            setClientId(sale.client_id || 0);
-            setClientName(sale.client_name || '');
+            setClientContactId(sale.client_contact_id || sale.client_id || null);
+            setClientAltName(sale.client_alt_name || sale.client_name || '');
             setNotes(sale.notes || '');
             setSalesDate(sale.sales_date ? new Date(sale.sales_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16));
             setPaymentStatus(sale.payment_status || 'unpaid');
@@ -89,8 +90,8 @@ const SalesForm = () => {
             }
         } else if (!isEditMode) {
             setTitle('');
-            setClientId(0);
-            setClientName('');
+            setClientContactId(null);
+            setClientAltName('');
             setNotes('');
             setSalesDate(new Date().toISOString().slice(0, 16));
             setPaymentStatus('unpaid');
@@ -165,17 +166,13 @@ const SalesForm = () => {
             return;
         }
 
-        if (!clientId && !clientName) {
-            setError('Please select or enter a client');
-            setSaving(false);
-            return;
-        }
-
         try {
             const saleData = {
                 title: title || undefined,
-                client_id: clientId || 0,
-                client_name: clientName || undefined,
+                client_contact_id: clientContactId,
+                client_alt_name: clientAltName.trim(),
+                client_id: clientContactId || 0,
+                client_name: clientAltName.trim() || undefined,
                 notes: notes || undefined,
                 total_item_price: totalItemPrice,
                 total_item_tax_amount: totalItemTaxAmount,
@@ -282,18 +279,19 @@ const SalesForm = () => {
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-1">
-                        Client Name
-                    </label>
-                    <input
-                        type="text"
-                        value={clientName}
-                        onChange={(e) => {
-                            setClientName(e.target.value);
-                            if (!clientId) setClientId(0);
+                    <ContactPicker
+                        label="Client / Customer"
+                        filterRelation="customer"
+                        placeholder="Select client (optional)..."
+                        required={false}
+                        value={clientContactId}
+                        altName={clientAltName}
+                        onChange={(cid, name) => {
+                            setClientContactId(cid);
+                            if (cid === null && name) {
+                                setClientAltName(name);
+                            }
                         }}
-                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
-                        placeholder="Client name"
                     />
                 </div>
                 <div>
@@ -310,6 +308,21 @@ const SalesForm = () => {
                         <option value="partially_paid">Partially Paid</option>
                         <option value="refunded">Refunded</option>
                     </select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-1">
+                        Client Alt Text
+                    </label>
+                    <input
+                        type="text"
+                        value={clientAltName}
+                        onChange={(e) => setClientAltName(e.target.value)}
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20"
+                        placeholder="e.g. Cash Buyer, Walk-in, John Doe"
+                    />
                 </div>
             </div>
 
