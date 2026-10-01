@@ -86,8 +86,8 @@ cimple-table/
 - **`Datatables`**: Table definitions (`name`, `info`, `icon`, `color`, `default_order`).
 - **`DatatableColumns`**: Column schemas (`name`, `slug`, `column_type`, `icon`, `order_index`, `options` JSON).
   - Supported `column_type` values: `text`, `number`, `date`, `datetime`, `time`, `duration`, `image`, `file`, `link`, `dropdown`, `multiselect`, `checkbox`, `radio`, `textarea`, `barcode`, `ref`, `multiref`, `reverse_ref`.
-- **`DatatableRows`**: Row entity records with optional cached `row_data` JSON.
-- **`DatatableCells`**: Individual cell storage (`table_id`, `row_id`, `column_id`, `value`, `color`, `meta`). Enables sparse updates without locking whole rows.
+- **`DatatableRows`**: Reserved for future row-level metadata (e.g. storing row color or custom styling).
+
 - **`AutoDash` & `AutoDashItem`**: Conversation history and generated HTML dashboards.
 - **`AutoForm` & `AutoFormItem`**: Conversation history and generated HTML forms.
 
