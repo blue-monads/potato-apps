@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { ArrowLeft, Plus, Trash2, Save, Package, Layers, Calendar, FileText, Hash } from 'lucide-react';
-import { createStockIn, updateStockIn, getStockIn, type ProductStockIn, type ProductStockInLine } from '../../lib/api';
+import { createStockIn, updateStockIn, getStockIn, getCurrencySymbol, type ProductStockIn, type ProductStockInLine } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import StockInItemPicker, { type SelectedStockInLine } from './components/StockInItemPicker';
@@ -412,7 +412,7 @@ const StockInForm = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3.5 font-bold text-stone-900">
-                                                    ${(l.amount / 100).toFixed(2)}
+                                                    {getCurrencySymbol()}{(l.amount / 100).toFixed(2)}
                                                 </td>
                                                 <td className="px-4 py-3.5 text-xs text-stone-500">
                                                     <input
@@ -464,7 +464,7 @@ const StockInForm = () => {
                                 <div className="text-right">
                                     <span className="text-stone-500 text-xs block">Total Stock In Value</span>
                                     <span className="text-2xl font-black text-stone-900 font-display">
-                                        ${(totalAmountCents / 100).toFixed(2)}
+                                        {getCurrencySymbol()}{(totalAmountCents / 100).toFixed(2)}
                                     </span>
                                 </div>
                             </div>

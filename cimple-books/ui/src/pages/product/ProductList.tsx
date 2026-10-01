@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Package, Layers, ArrowDownToLine } from 'lucide-react';
 import { Link } from 'react-router';
-import { listProducts, deleteProduct, listCategories, type Product, type Category } from '../../lib/api';
+import { listProducts, deleteProduct, listCategories, getCurrencySymbol, type Product, type Category } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 
 const ProductList = () => {
@@ -179,7 +179,7 @@ const ProductList = () => {
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-stone-900">
-                                                ${formatPrice(product.sales_price)}
+                                                {getCurrencySymbol()}{formatPrice(product.sales_price)}
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-700">
                                                 <div className="flex flex-col items-start gap-0.5">

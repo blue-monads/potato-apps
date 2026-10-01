@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, Search, ArrowLeft, Plus, Check, Layers } from 'lucide-react';
-import { listProducts, type Product, type ProductVariant } from '../../../lib/api';
+import { listProducts, getCurrencySymbol, type Product, type ProductVariant } from '../../../lib/api';
 import { useModal } from '../../../lib/shared/modal/modal';
 
 export interface SelectedStockInLine {
@@ -179,7 +179,7 @@ const StockInItemPicker = ({ onSave }: StockInItemPickerProps) => {
                                                     <div className="flex items-center gap-3 text-xs text-stone-500 mt-0.5">
                                                         <span>Current Stock: <strong className="text-stone-700 font-semibold">{p.stock_count || 0}</strong></span>
                                                         <span>•</span>
-                                                        <span>Price: ${(p.sales_price / 100).toFixed(2)}</span>
+                                                        <span>Price: {getCurrencySymbol()}{(p.sales_price / 100).toFixed(2)}</span>
                                                         {p.track_inventory === false && (
                                                             <>
                                                                 <span>•</span>
@@ -217,7 +217,7 @@ const StockInItemPicker = ({ onSave }: StockInItemPickerProps) => {
                                                             <div className="w-2 h-2 rounded-full bg-[#2E6E52]" />
                                                             <span className="text-xs font-semibold text-stone-800">{v.name}</span>
                                                             <span className="text-[11px] text-stone-500">
-                                                                (Stock: {v.stock_count || 0}, ${(v.sales_price / 100).toFixed(2)})
+                                                                (Stock: {v.stock_count || 0}, {getCurrencySymbol()}{(v.sales_price / 100).toFixed(2)})
                                                             </span>
                                                         </div>
                                                         <button
@@ -331,7 +331,7 @@ const StockInItemPicker = ({ onSave }: StockInItemPickerProps) => {
                         <div className="p-3.5 bg-stone-50 rounded-xl border border-[#E1E3DB] flex items-center justify-between">
                             <span className="text-xs font-medium text-stone-600">Calculated Line Total:</span>
                             <span className="text-base font-bold text-stone-900">
-                                ${((parseInt(qty, 10) || 0) * (parseFloat(unitCost || '0'))).toFixed(2)}
+                                {getCurrencySymbol()}{((parseInt(qty, 10) || 0) * (parseFloat(unitCost || '0'))).toFixed(2)}
                             </span>
                         </div>
                     </div>

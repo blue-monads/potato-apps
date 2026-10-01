@@ -13,6 +13,7 @@ import {
     uploadProductImage,
     listAccounts,
     listTaxes,
+    getCurrencySymbol,
     type Product, 
     type ProductVariant, 
     type Category,
@@ -420,7 +421,7 @@ const ProductFormPage = () => {
 
                                 <div>
                                     <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                                        Sales Price ($) *
+                                        Sales Price ({getCurrencySymbol()}) *
                                     </label>
                                     <input
                                         type="number"
@@ -754,7 +755,7 @@ const ProductFormPage = () => {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                                Sales Price ($)
+                                                Sales Price ({getCurrencySymbol()})
                                             </label>
                                             <input
                                                 type="number"
@@ -878,7 +879,7 @@ const ProductFormPage = () => {
                                                         <span>{v.name}</span>
                                                     </td>
                                                     <td className="px-4 py-3 font-semibold text-stone-900">
-                                                        ${(v.sales_price / 100).toFixed(2)}
+                                                        {getCurrencySymbol()}{(v.sales_price / 100).toFixed(2)}
                                                     </td>
                                                     <td className="px-4 py-3 text-stone-700">
                                                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${(v.stock_count || 0) > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-600'}`}>

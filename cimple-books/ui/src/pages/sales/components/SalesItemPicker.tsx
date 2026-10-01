@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Check, Package } from 'lucide-react';
-import { listProducts, type Product, type ProductVariant } from '../../../lib/api';
+import { listProducts, getCurrencySymbol, type Product, type ProductVariant } from '../../../lib/api';
 import { useModal } from '../../../lib/shared/modal/modal';
 
 interface SalesItemLine {
@@ -85,6 +85,8 @@ const SalesItemPicker = ({ onSave }: SalesItemPickerProps) => {
         return (amount / 100).toFixed(2);
     };
 
+    const cs = getCurrencySymbol();
+
     const getFirstImage = (item: { image?: string; images?: string }) => {
         if (item.images) {
             const list = item.images.split(',').map(s => s.trim()).filter(Boolean);
@@ -141,7 +143,7 @@ const SalesItemPicker = ({ onSave }: SalesItemPickerProps) => {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-stone-600 max-w-xs truncate">{product.info || '-'}</td>
-                                        <td className="px-4 py-3 text-sm font-semibold text-stone-900">${formatCurrency(product.sales_price)}</td>
+                                        <td className="px-4 py-3 text-sm font-semibold text-stone-900">{cs}{formatCurrency(product.sales_price)}</td>
                                         <td className="px-4 py-3 text-sm text-stone-500">
                                             {hasVariants ? (
                                                 <div className="flex flex-col gap-1">
@@ -153,7 +155,7 @@ const SalesItemPicker = ({ onSave }: SalesItemPickerProps) => {
                                                             className="text-left text-xs px-2 py-1 bg-[#EEF0EA] hover:bg-[#2E6E52] hover:text-white rounded transition-colors text-stone-700 flex justify-between gap-2"
                                                         >
                                                             <span>{v.name}</span>
-                                                            <span className="font-semibold">${formatCurrency(v.sales_price)}</span>
+                                                            <span className="font-semibold">{cs}{formatCurrency(v.sales_price)}</span>
                                                         </button>
                                                     ))}
                                                 </div>
@@ -193,7 +195,7 @@ const SalesItemPicker = ({ onSave }: SalesItemPickerProps) => {
                     </label>
                     <div className="px-3 py-2 bg-[#F4F5F1] border border-[#E1E3DB] rounded-lg text-sm flex justify-between items-center text-stone-900 font-medium">
                         <span>{selectedProduct?.name} {selectedVariant ? `— ${selectedVariant.name}` : ''}</span>
-                        <span className="font-semibold">${formatCurrency(price)}</span>
+                        <span className="font-semibold">{cs}{formatCurrency(price)}</span>
                     </div>
                 </div>
 
@@ -229,7 +231,7 @@ const SalesItemPicker = ({ onSave }: SalesItemPickerProps) => {
                         required
                     />
                     <p className="mt-1 text-xs text-stone-500">
-                        Sales Price: ${formatCurrency(price)} | Discount: ${formatCurrency(price - amount)}
+                        Sales Price: {cs}{formatCurrency(price)} | Discount: {cs}{formatCurrency(price - amount)}
                     </p>
                 </div>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
-import { createSale, updateSale, getSale, type Sale } from '../../lib/api';
+import { createSale, updateSale, getSale, getCurrencySymbol, type Sale } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import SalesItemPicker from './components/SalesItemPicker';
@@ -154,6 +154,8 @@ const SalesForm = () => {
     const formatCurrency = (amount: number) => {
         return (amount / 100).toFixed(2);
     };
+
+    const cs = getCurrencySymbol();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -380,7 +382,7 @@ const SalesForm = () => {
                                                 {line.info}
                                                 {line.discount_amount > 0 && (
                                                     <div className="text-xs text-[#5C645D] mt-1">
-                                                        Original: ${formatCurrency(line.price)} - Discount: ${formatCurrency(line.discount_amount)}
+                                                        Original: {cs}{formatCurrency(line.price)} - Discount: {cs}{formatCurrency(line.discount_amount)}
                                                     </div>
                                                 )}
                                             </td>
@@ -389,25 +391,25 @@ const SalesForm = () => {
                                             </td>
                                             <td className="px-4 py-3 text-sm text-right text-[#1B2A21]">
                                                 {line.amount === line.price ? (
-                                                    <span>${formatCurrency(line.amount)}</span>
+                                                    <span>{cs}{formatCurrency(line.amount)}</span>
                                                 ) : (
                                                     <span>
-                                                        <span className="line-through text-stone-400">${formatCurrency(line.price)}</span>
-                                                        {' '}- ({formatCurrency(line.discount_amount)}) = <strong>${formatCurrency(line.amount)}</strong>
+                                                        <span className="line-through text-stone-400">{cs}{formatCurrency(line.price)}</span>
+                                                        {' '}- ({formatCurrency(line.discount_amount)}) = <strong>{cs}{formatCurrency(line.amount)}</strong>
                                                     </span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-right text-[#1B2A21]">
-                                                {line.tax_amount > 0 ? `$${formatCurrency(line.tax_amount)}` : '-'}
+                                                {line.tax_amount > 0 ? `${cs}${formatCurrency(line.tax_amount)}` : '-'}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-right font-medium text-[#1B2A21]">
                                                 (
                                                 <span>
-                                                    ${formatCurrency(line.price)}
-                                                    {line.discount_amount > 0 && ` - $${formatCurrency(line.discount_amount)}`}
-                                                    {line.tax_amount > 0 && ` + $${formatCurrency(line.tax_amount)}`}
+                                                    {cs}{formatCurrency(line.price)}
+                                                    {line.discount_amount > 0 && ` - ${cs}${formatCurrency(line.discount_amount)}`}
+                                                    {line.tax_amount > 0 && ` + ${cs}${formatCurrency(line.tax_amount)}`}
                                                 </span>
-                                                ) × {line.qty} = <strong>${formatCurrency(line.total_amount)}</strong>
+                                                ) × {line.qty} = <strong>{cs}{formatCurrency(line.total_amount)}</strong>
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <button
@@ -491,19 +493,19 @@ const SalesForm = () => {
                             <tr>
                                 <td className="px-2 py-2 border border-gray-400">Total Items Tax</td>
                                 <td className="px-2 py-2 border border-gray-400 text-right">
-                                    ${formatCurrency(totalItemTaxAmount)}
+                                    {cs}{formatCurrency(totalItemTaxAmount)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="px-2 py-2 border border-gray-400">Total Items Discount</td>
                                 <td className="px-2 py-2 border border-gray-400 text-right">
-                                    ${formatCurrency(totalItemDiscountAmount)}
+                                    {cs}{formatCurrency(totalItemDiscountAmount)}
                                 </td>
                             </tr>
                             <tr>
                                 <td className="px-2 py-2 border border-gray-400 border-b-gray-800 font-semibold">Sub Total</td>
                                 <td className="px-2 py-2 border border-gray-400 border-b-gray-800 text-right font-semibold">
-                                    ${formatCurrency(subTotal)}
+                                    {cs}{formatCurrency(subTotal)}
                                 </td>
                             </tr>
                             {/* <tr>
@@ -522,7 +524,7 @@ const SalesForm = () => {
                                         onClick={openOverallTaxPicker}
                                         className="underline hover:no-underline"
                                     >
-                                        <strong>${formatCurrency(overallTaxAmount)}</strong>
+                                        <strong>{cs}{formatCurrency(overallTaxAmount)}</strong>
                                         {overallTaxAmount > 0 && subTotal > 0 && (
                                             <span className="text-xs text-gray-500 ml-1">
                                                 [{((overallTaxAmount / subTotal) * 100).toFixed(2)}%]
@@ -547,7 +549,7 @@ const SalesForm = () => {
                                         onClick={openOverallDiscountPicker}
                                         className="underline hover:no-underline"
                                     >
-                                        <strong>${formatCurrency(overallDiscountAmount)}</strong>
+                                        <strong>{cs}{formatCurrency(overallDiscountAmount)}</strong>
                                         {overallDiscountAmount > 0 && subTotal > 0 && (
                                             <span className="text-xs text-gray-500 ml-1">
                                                 [{((overallDiscountAmount / subTotal) * 100).toFixed(2)}%]
@@ -559,7 +561,7 @@ const SalesForm = () => {
                             <tr>
                                 <td className="px-2 py-2 border border-gray-800 font-semibold text-lg">Total</td>
                                 <td className="px-2 py-2 border border-gray-800 text-right font-semibold text-lg">
-                                    ${formatCurrency(total)}
+                                    {cs}{formatCurrency(total)}
                                 </td>
                             </tr>
                         </tbody>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Search, Calendar, User, ArrowDownToLine, Layers } from 'lucide-react';
 import { Link } from 'react-router';
-import { listStockIn, deleteStockIn, type ProductStockIn } from '../../lib/api';
+import { listStockIn, deleteStockIn, getCurrencySymbol, type ProductStockIn } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 
 const ListStockIn = () => {
@@ -125,7 +125,7 @@ const ListStockIn = () => {
                     <div className="bg-white p-5 rounded-2xl border border-[#E1E3DB] shadow-xs">
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Total Received Value</span>
                         <span className="text-2xl font-black text-stone-900 font-display mt-1 block">
-                            ${(totalValueCents / 100).toFixed(2)}
+                            {getCurrencySymbol()}{(totalValueCents / 100).toFixed(2)}
                         </span>
                         <span className="text-xs text-stone-400 mt-1 block">Cumulative purchase amount</span>
                     </div>
@@ -247,7 +247,7 @@ const ListStockIn = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap font-bold text-stone-900">
-                                                    ${(s.amount / 100).toFixed(2)}
+                                                    {getCurrencySymbol()}{(s.amount / 100).toFixed(2)}
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap text-right">
                                                     <div className="flex items-center justify-end gap-1.5">

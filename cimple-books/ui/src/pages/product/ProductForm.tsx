@@ -10,6 +10,7 @@ import {
     uploadProductImage,
     listAccounts,
     listTaxes,
+    getCurrencySymbol,
     type Product, 
     type ProductVariant, 
     type Category,
@@ -331,7 +332,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
 
                     <div>
                         <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                            Sales Price ($) *
+                            Sales Price ({getCurrencySymbol()}) *
                         </label>
                         <input
                             type="number"
@@ -590,7 +591,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                                         step="0.01"
                                         value={variantPrice}
                                         onChange={(e) => setVariantPrice(e.target.value)}
-                                        placeholder="Price ($)"
+                                        placeholder={`Price (${getCurrencySymbol()})`}
                                         className="px-2.5 py-1.5 text-xs border rounded-lg"
                                     />
                                     <input
@@ -635,7 +636,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                                     <div key={v.id} className="flex items-center justify-between p-2 bg-white rounded border border-[#E1E3DB] text-xs">
                                         <div className="font-semibold text-stone-800">{v.name}</div>
                                         <div className="flex items-center gap-3">
-                                            <span>${(v.sales_price / 100).toFixed(2)}</span>
+                                            <span>{getCurrencySymbol()}{(v.sales_price / 100).toFixed(2)}</span>
                                             <span className="px-1.5 py-0.5 bg-stone-100 rounded text-stone-600">
                                                 {v.stock_count || 0} in stock
                                             </span>

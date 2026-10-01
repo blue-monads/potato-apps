@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useModal } from '../../../lib/shared/modal/modal';
+import { getCurrencySymbol } from '../../../lib/api';
 
 interface OverallDiscountPickerProps {
     subTotal: number;
@@ -23,6 +24,8 @@ const OverallDiscountPicker = ({ subTotal, currentDiscount, onSet }: OverallDisc
     const formatCurrency = (amount: number) => {
         return (amount / 100).toFixed(2);
     };
+
+    const cs = getCurrencySymbol();
 
     const handleSubmit = () => {
         const discount = subTotal - discountedAmount;
@@ -52,7 +55,7 @@ const OverallDiscountPicker = ({ subTotal, currentDiscount, onSet }: OverallDisc
                         required
                     />
                     <p className="mt-1 text-xs text-stone-500">
-                        Subtotal: ${formatCurrency(subTotal)}
+                        Subtotal: {cs}{formatCurrency(subTotal)}
                     </p>
                 </div>
 

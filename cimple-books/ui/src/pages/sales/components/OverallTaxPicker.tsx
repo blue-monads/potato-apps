@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useModal } from '../../../lib/shared/modal/modal';
+import { getCurrencySymbol } from '../../../lib/api';
 
 interface OverallTaxPickerProps {
     subTotal: number;
@@ -15,6 +16,8 @@ const OverallTaxPicker = ({ subTotal, currentTax, onSet }: OverallTaxPickerProps
     const formatCurrency = (amount: number) => {
         return (amount / 100).toFixed(2);
     };
+
+    const cs = getCurrencySymbol();
 
     const handleTaxAmountChange = (value: number) => {
         setTaxAmount(value);
@@ -76,7 +79,7 @@ const OverallTaxPicker = ({ subTotal, currentTax, onSet }: OverallTaxPickerProps
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-stone-600">Subtotal:</span>
                         <span className="font-semibold text-[#1B2A21]">
-                            ${formatCurrency(subTotal)}
+                            {cs}{formatCurrency(subTotal)}
                         </span>
                     </div>
                 </div>
