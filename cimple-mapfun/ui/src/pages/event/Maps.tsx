@@ -349,7 +349,7 @@ export const Maps: React.FC = () => {
             const token = tokenResponse.easyws_cap_token;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
-            const wsUrl = `${protocol}//${host}/zz/api/capabilities/cimple-mapfun/easy-ws?token=${encodeURIComponent(token)}`;
+            const wsUrl = `${protocol}//${host}/zz/api/capabilities/cimple-mapfun/xEasyWS?token=${encodeURIComponent(token)}`;
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
