@@ -410,10 +410,12 @@
                     </div>
                 </div>
 
-                <button class="btn-launch" onclick="goHome()">
-                    <span>Launch Cimple Books</span>
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
+                <div style="margin-top: 14px;">
+                    <button class="btn-launch" onclick="goHome()" style="width: 100%;">
+                        <span>Launch Cimple Books</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Initialization Wizard View -->
@@ -423,6 +425,23 @@
                 </p>
 
                 <div class="template-grid">
+                    <!-- High Volume (50+ Txns) -->
+                    <div class="template-card" onclick="selectTemplate('high_volume', this)">
+                        <div class="template-badge-rec" style="background: #2563eb;">50+ Txns</div>
+                        <div>
+                            <div class="template-header">
+                                <div class="template-icon" style="color: #2563eb;"><i class="fa-solid fa-layer-group"></i></div>
+                                <div class="template-name">High Volume (50+ Txns)</div>
+                            </div>
+                            <div class="template-desc">
+                                Complete small business dataset packed with 50+ diverse, balanced journal transactions, sales, and stock-ins for pagination testing.
+                            </div>
+                        </div>
+                        <div class="template-meta">
+                            <i class="fa-solid fa-receipt"></i> 12 Accounts • 55 Transactions
+                        </div>
+                    </div>
+
                     <!-- Small Business -->
                     <div class="template-card active" onclick="selectTemplate('small_business', this)">
                         <div class="template-badge-rec">Recommended</div>

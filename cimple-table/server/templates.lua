@@ -1,5 +1,6 @@
 local M = {}
 local json = require("json")
+local potato = require("potato")
 
 -- Helper to read template files via package filesystem or direct disk
 local function read_template_file(rel_path)

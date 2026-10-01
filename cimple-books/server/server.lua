@@ -77,45 +77,11 @@ function seed_database(ctx)
 end
 
 local function read_seed_file(file_name)
-    local rel_paths = {
-        "public/seed/" .. file_name,
-        "seed/" .. file_name,
-        file_name
-    }
-
-    -- 1. Try reading via potato.core.read_package_file (packaged runtime)
-    if potato and potato.core and potato.core.read_package_file then
-        for _, p in ipairs(rel_paths) do
-            local c, _ = potato.core.read_package_file(p)
-            if c ~= nil and c ~= "" then
-                return c
-            end
-        end
+    local content, err = potato.core.read_package_file("public/seed/" .. file_name)
+    if err ~= nil or content == nil or content == "" then
+        error("Failed to read seed file 'public/seed/" .. tostring(file_name) .. "' via potato.core.read_package_file: " .. tostring(err))
     end
-
-    -- 2. Try direct filesystem read (for dev/local execution)
-    local disk_prefixes = {
-        "",
-        "cimple-books/",
-        "potato-apps/cimple-books/",
-        "/home/bigbird/zhome/code/blue-monads/potato-apps/cimple-books/",
-        "../",
-        "../../"
-    }
-    for _, p in ipairs(rel_paths) do
-        for _, prefix in ipairs(disk_prefixes) do
-            local f = io.open(prefix .. p, "r")
-            if f then
-                local content = f:read("*all")
-                f:close()
-                if content ~= nil and content ~= "" then
-                    return content
-                end
-            end
-        end
-    end
-
-    return nil
+    return content
 end
 
 local function load_template_data(template)
@@ -123,30 +89,12 @@ local function load_template_data(template)
         template = "small_business"
     end
 
-    -- 1. Try template-specific JSON file (e.g. small_business.json)
     local raw = read_seed_file(template .. ".json")
-    if raw ~= nil and raw ~= "" then
-        local ok, data = pcall(json.decode, raw)
-        if ok and type(data) == "table" then
-            return data
-        end
+    local ok, data = pcall(json.decode, raw)
+    if not ok or type(data) ~= "table" then
+        error("Failed to parse JSON for seed template '" .. tostring(template) .. "': " .. tostring(data))
     end
-
-    -- 2. Try consolidated seed.json
-    local combined_raw = read_seed_file("seed.json")
-    if combined_raw ~= nil and combined_raw ~= "" then
-        local ok, combined_data = pcall(json.decode, combined_raw)
-        if ok and type(combined_data) == "table" and type(combined_data[template]) == "table" then
-            return combined_data[template]
-        end
-    end
-
-    -- 3. Fallback to small_business if requested template was not found
-    if template ~= "small_business" then
-        return load_template_data("small_business")
-    end
-
-    return nil
+    return data
 end
 
 function seed_template_data(userId, template)
@@ -325,24 +273,70 @@ function seed_template_data(userId, template)
         end
     end
 
-    -- 6. Sample Initial Capital Transaction
-    if seed_data.transaction then
-        local tx = seed_data.transaction
+    -- 5b. Sample Contacts
+    if seed_data.contacts then
+        for _, c in ipairs(seed_data.contacts) do
+            local contact_record = {
+                name = c.name,
+                contact_type = c.contact_type or "company",
+                relation_type = c.relation_type or "customer",
+                primary_email = c.primary_email or "",
+                primary_phone = c.primary_phone or "",
+                primary_address = c.primary_address or "",
+                notes = c.notes or "",
+                extra_data = "{}",
+                created_by = userId,
+                updated_by = userId,
+                is_deleted = 0
+            }
+            potato.db.insert("Contacts", contact_record)
+        end
+    end
+
+    -- 6. Sample Transactions (supports both array 'transactions' and single 'transaction')
+    local tx_list = {}
+    if seed_data.transactions and #seed_data.transactions > 0 then
+        tx_list = seed_data.transactions
+    elseif seed_data.transaction then
+        table.insert(tx_list, seed_data.transaction)
+    end
+
+    -- Also query existing accounts from DB in case some were created earlier
+    local db_accounts = potato.db.find_all_by_cond("Accounts", { is_deleted = 0 })
+    if db_accounts then
+        for _, acc in ipairs(db_accounts) do
+            if acc.name and acc.name ~= "" and not created_accounts[acc.name] then
+                created_accounts[acc.name] = acc.id
+            end
+        end
+    end
+
+    local fallback_acc_id = 1
+    for _, id in pairs(created_accounts) do
+        fallback_acc_id = id
+        break
+    end
+
+    for _, tx in ipairs(tx_list) do
         local txn_record = {
-            title = tx.title or "Opening Capital Deposit",
-            notes = tx.notes or "Opening journal entry for business inception",
+            title = tx.title or "Journal Entry",
+            notes = tx.notes or "",
             txn_type = tx.txn_type or "manual",
-            reference_id = tx.reference_id or "TXN-SETUP-001",
+            reference_id = tx.reference_id or "",
+            reference_type = tx.reference_type or "external",
             attachments = tx.attachments or "",
             created_by = userId,
             updated_by = userId,
-            is_editable = tx.is_editable or 1,
+            is_editable = tx.is_editable ~= nil and tx.is_editable or 1,
             is_deleted = tx.is_deleted or 0
         }
+        if tx.txn_date and tx.txn_date ~= "" then
+            txn_record.txn_date = tx.txn_date
+        end
         local txn_id, _ = potato.db.insert("Transactions", txn_record)
         if txn_id ~= nil and tx.lines then
             for _, tline in ipairs(tx.lines) do
-                local acc_id = created_accounts[tline.account_name] or tline.account_id or 1
+                local acc_id = created_accounts[tline.account_name] or tline.account_id or fallback_acc_id
                 local tl_record = {
                     account_id = acc_id,
                     txn_id = txn_id,
@@ -350,8 +344,8 @@ function seed_template_data(userId, template)
                     credit_amount = tline.credit_amount or 0,
                     created_by = userId,
                     updated_by = userId,
-                    linked_sales_id = 0,
-                    linked_stockin_id = 0
+                    linked_sales_id = tline.linked_sales_id or 0,
+                    linked_stockin_id = tline.linked_stockin_id or 0
                 }
                 potato.db.insert("TransactionLines", tl_record)
             end
@@ -363,6 +357,9 @@ function init_app(ctx)
     local req = ctx.request()
     local userId = get_user_id(req)
     if userId == nil then return end
+
+    local body = req.bind_json() or {}
+    local template = body.template or "small_business"
 
     -- Check if already initialized in SpaceKV
     local inited = false
@@ -383,23 +380,25 @@ function init_app(ctx)
 
     -- Run DDL schema
     local schema, err = potato.core.read_package_file("schema.sql")
-    if err ~= nil or schema == nil then
+    if err ~= nil or schema == nil or schema == "" then
         req.json(500, {
-            error = "Failed to read schema.sql: " .. tostring(err)
+            error = "Failed to read schema.sql from package via potato.core.read_package_file: " .. tostring(err)
         })
         return
     end
 
     local ddlerr = potato.db.run_ddl(schema)
     if ddlerr ~= nil then
-        -- Continue if tables already exist or partial
         print("DDL notice: " .. tostring(ddlerr))
     end
 
-    local body = req.bind_json() or {}
-    local template = body.template or "small_business"
-
-    seed_template_data(userId, template)
+    local seed_ok, seed_err = pcall(seed_template_data, userId, template)
+    if not seed_ok then
+        req.json(500, {
+            error = "Failed to seed template data: " .. tostring(seed_err)
+        })
+        return
+    end
 
     -- Record initialization in spacekv
     space_kv_upsert("SYSTEM", "INIT_VERSION", { value = "26-7-alpha" })
@@ -526,18 +525,192 @@ function transaction_list(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local transactions, err = potato.db.find_all_by_cond("Transactions", {
-        is_deleted = 0
-    })
-    if err ~= nil then
+    local unpack_fn = table.unpack or unpack
+
+    local function get_qp(name, default_val)
+        local val = req.default_query(name, default_val or "")
+        if val == nil or val == "" then
+            return default_val
+        end
+        return tostring(val)
+    end
+
+    local function run_q(sql, params)
+        if params ~= nil and #params > 0 then
+            return potato.db.run_query(sql, unpack_fn(params))
+        end
+        return potato.db.run_query(sql)
+    end
+
+    local raw_array = get_qp("raw_array", "") == "1"
+    local page = tonumber(get_qp("page", "1")) or 1
+    if page < 1 then page = 1 end
+
+    local page_size = tonumber(get_qp("pageSize", "15")) or 15
+    if page_size < 1 then page_size = 15 end
+    if page_size > 500 then page_size = 500 end
+
+    local search = get_qp("search", "") or get_qp("q", "")
+    search = search and search:match("^%s*(.-)%s*$") or ""
+
+    local account_id_str = get_qp("accountId", "")
+    local account_id = nil
+    if account_id_str ~= "" and account_id_str ~= "all" then
+        account_id = tonumber(account_id_str)
+    end
+
+    local txn_type = get_qp("txnType", "") or get_qp("type", "")
+    if txn_type == "all" then txn_type = "" end
+
+    local date_preset = get_qp("datePreset", "")
+    local start_date = get_qp("startDate", "")
+    local end_date = get_qp("endDate", "")
+    local sort_by = get_qp("sortBy", "date_desc")
+
+    local where_clauses = { "t.is_deleted = 0" }
+    local args = {}
+
+    if account_id ~= nil then
+        table.insert(where_clauses, "t.id IN (SELECT tl.txn_id FROM TransactionLines tl WHERE tl.account_id = ?)")
+        table.insert(args, account_id)
+    end
+
+    if txn_type ~= "" then
+        if txn_type == "manual" then
+            table.insert(where_clauses, "(t.txn_type = 'manual' OR t.txn_type = 'normal' OR t.txn_type = '' OR t.txn_type IS NULL)")
+        else
+            table.insert(where_clauses, "LOWER(t.txn_type) = LOWER(?)")
+            table.insert(args, txn_type)
+        end
+    end
+
+    if date_preset == "today" then
+        table.insert(where_clauses, "date(t.txn_date) = date('now')")
+    elseif date_preset == "this_month" then
+        table.insert(where_clauses, "strftime('%Y-%m', t.txn_date) = strftime('%Y-%m', 'now')")
+    elseif date_preset == "last_30_days" then
+        table.insert(where_clauses, "t.txn_date >= datetime('now', '-30 days')")
+    elseif date_preset == "custom" or (start_date ~= "" or end_date ~= "") then
+        if start_date ~= "" then
+            table.insert(where_clauses, "t.txn_date >= ?")
+            if #start_date == 10 then
+                table.insert(args, start_date .. " 00:00:00")
+            else
+                table.insert(args, start_date)
+            end
+        end
+        if end_date ~= "" then
+            table.insert(where_clauses, "t.txn_date <= ?")
+            if #end_date == 10 then
+                table.insert(args, end_date .. " 23:59:59")
+            else
+                table.insert(args, end_date)
+            end
+        end
+    end
+
+    if search ~= "" then
+        local search_like = "%" .. search .. "%"
+        table.insert(where_clauses, [[
+            (
+                t.title LIKE ?
+                OR t.notes LIKE ?
+                OR t.reference_id LIKE ?
+                OR t.id IN (
+                    SELECT tl.txn_id FROM TransactionLines tl
+                    JOIN Accounts a ON tl.account_id = a.id
+                    WHERE a.name LIKE ?
+                )
+                OR t.id IN (
+                    SELECT tl.txn_id FROM TransactionLines tl
+                    WHERE CAST(tl.debit_amount AS TEXT) LIKE ? OR CAST(tl.credit_amount AS TEXT) LIKE ?
+                )
+            )
+        ]])
+        table.insert(args, search_like)
+        table.insert(args, search_like)
+        table.insert(args, search_like)
+        table.insert(args, search_like)
+        table.insert(args, search_like)
+        table.insert(args, search_like)
+    end
+
+    local where_sql = table.concat(where_clauses, " AND ")
+
+    local order_sql = "ORDER BY t.txn_date DESC, t.id DESC"
+    if sort_by == "date_asc" then
+        order_sql = "ORDER BY t.txn_date ASC, t.id ASC"
+    elseif sort_by == "amount_desc" then
+        order_sql = "ORDER BY (SELECT COALESCE(SUM(tl.debit_amount), 0) FROM TransactionLines tl WHERE tl.txn_id = t.id) DESC, t.id DESC"
+    elseif sort_by == "amount_asc" then
+        order_sql = "ORDER BY (SELECT COALESCE(SUM(tl.debit_amount), 0) FROM TransactionLines tl WHERE tl.txn_id = t.id) ASC, t.id ASC"
+    end
+
+    -- 1. Total matching count
+    local count_sql = "SELECT COUNT(*) as cnt FROM Transactions t WHERE " .. where_sql
+    local count_rows = run_q(count_sql, args)
+    local total_count = 0
+    if count_rows and #count_rows > 0 and count_rows[1].cnt ~= nil then
+        total_count = tonumber(count_rows[1].cnt) or 0
+    end
+
+    -- 2. Aggregated metrics for the filtered subset
+    local metrics_sql = [[
+        SELECT 
+            COALESCE(SUM(tl.debit_amount), 0) as total_debit,
+            COALESCE(SUM(tl.credit_amount), 0) as total_credit,
+            COUNT(DISTINCT tl.account_id) as accounts_count
+        FROM TransactionLines tl
+        WHERE tl.txn_id IN (SELECT t.id FROM Transactions t WHERE ]] .. where_sql .. [[)
+    ]]
+    local metrics_rows = run_q(metrics_sql, args)
+    local total_debit = 0
+    local total_credit = 0
+    local accounts_count = 0
+    if metrics_rows and #metrics_rows > 0 then
+        total_debit = tonumber(metrics_rows[1].total_debit) or 0
+        total_credit = tonumber(metrics_rows[1].total_credit) or 0
+        accounts_count = tonumber(metrics_rows[1].accounts_count) or 0
+    end
+
+    -- 3. Account transaction counts for dropdown
+    local acc_counts_sql = [[
+        SELECT tl.account_id, COUNT(DISTINCT tl.txn_id) as txn_count
+        FROM TransactionLines tl
+        JOIN Transactions t ON tl.txn_id = t.id
+        WHERE t.is_deleted = 0
+        GROUP BY tl.account_id
+    ]]
+    local acc_count_rows = run_q(acc_counts_sql)
+    local account_counts = {}
+    if acc_count_rows then
+        for _, row in ipairs(acc_count_rows) do
+            if row.account_id ~= nil then
+                account_counts[tostring(row.account_id)] = tonumber(row.txn_count) or 0
+            end
+        end
+    end
+
+    -- 4. Paginated Transactions Query
+    local offset = (page - 1) * page_size
+    local txn_sql = "SELECT t.* FROM Transactions t WHERE " .. where_sql .. " " .. order_sql .. " LIMIT ? OFFSET ?"
+    local page_args = {}
+    for _, a in ipairs(args) do
+        table.insert(page_args, a)
+    end
+    table.insert(page_args, page_size)
+    table.insert(page_args, offset)
+
+    local transactions, t_err = run_q(txn_sql, page_args)
+    if t_err ~= nil or transactions == nil then
         req.json(400, {
-            error = tostring(err)
+            error = tostring(t_err or "Failed to query transactions")
         })
         return
     end
 
-    -- Fetch lines for each transaction
-    for i, txn in ipairs(transactions) do
+    -- Fetch lines for ONLY transactions on this page
+    for _, txn in ipairs(transactions) do
         local lines, lines_err = potato.db.find_all_by_cond("TransactionLines", {
             txn_id = txn.id
         })
@@ -548,7 +721,28 @@ function transaction_list(ctx)
         end
     end
 
-    req.json_array(200, transactions)
+    if raw_array then
+        req.json_array(200, transactions)
+        return
+    end
+
+    local total_pages = math.max(1, math.ceil(total_count / page_size))
+
+    req.json(200, {
+        items = transactions,
+        total = total_count,
+        page = page,
+        page_size = page_size,
+        total_pages = total_pages,
+        metrics = {
+            total_entries = total_count,
+            total_debit = total_debit,
+            total_credit = total_credit,
+            accounts_count = accounts_count,
+            is_balanced = (total_debit == total_credit)
+        },
+        account_counts = account_counts
+    })
 end
 
 --- @param ctx HttpContext

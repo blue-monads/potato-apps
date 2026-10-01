@@ -115,12 +115,98 @@ export const deleteAccount = async (accountId: number): Promise<ApiResponse<{ me
 };
 
 // Transactions API
-export const listTransactions = async (): Promise<ApiResponse<Transaction[]>> => {
-    const resp = await apiRequest<Transaction[]>('/transactions', { method: 'GET' });
-    if (resp.status === 200 && Array.isArray(resp.data)) {
-        return resp;
+export interface ListTransactionsParams {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    accountId?: string | number;
+    txnType?: string;
+    datePreset?: string;
+    startDate?: string;
+    endDate?: string;
+    sortBy?: string;
+}
+
+export interface TransactionMetrics {
+    total_entries: number;
+    total_debit: number;
+    total_credit: number;
+    accounts_count: number;
+    is_balanced: boolean;
+}
+
+export interface PaginatedTransactionsResponse {
+    items: Transaction[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+    metrics: TransactionMetrics;
+    account_counts?: Record<string, number>;
+}
+
+export const listTransactions = async (
+    params?: ListTransactionsParams
+): Promise<ApiResponse<PaginatedTransactionsResponse>> => {
+    const queryParts: string[] = [];
+    if (params) {
+        if (params.page !== undefined) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.pageSize !== undefined) queryParts.push(`pageSize=${encodeURIComponent(params.pageSize)}`);
+        if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+        if (params.accountId && params.accountId !== 'all') queryParts.push(`accountId=${encodeURIComponent(params.accountId)}`);
+        if (params.txnType && params.txnType !== 'all') queryParts.push(`txnType=${encodeURIComponent(params.txnType)}`);
+        if (params.datePreset && params.datePreset !== 'all') queryParts.push(`datePreset=${encodeURIComponent(params.datePreset)}`);
+        if (params.startDate) queryParts.push(`startDate=${encodeURIComponent(params.startDate)}`);
+        if (params.endDate) queryParts.push(`endDate=${encodeURIComponent(params.endDate)}`);
+        if (params.sortBy) queryParts.push(`sortBy=${encodeURIComponent(params.sortBy)}`);
     }
-    return { ...resp, data: [] };
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const resp = await apiRequest<any>(`/transactions${queryString}`, { method: 'GET' });
+
+    if (resp.status >= 200 && resp.status < 300 && resp.data) {
+        if (Array.isArray(resp.data)) {
+            const arr = resp.data as Transaction[];
+            return {
+                ...resp,
+                data: {
+                    items: arr,
+                    total: arr.length,
+                    page: 1,
+                    page_size: arr.length,
+                    total_pages: 1,
+                    metrics: {
+                        total_entries: arr.length,
+                        total_debit: 0,
+                        total_credit: 0,
+                        accounts_count: 0,
+                        is_balanced: true,
+                    },
+                },
+            };
+        }
+        return {
+            ...resp,
+            data: resp.data as PaginatedTransactionsResponse,
+        };
+    }
+
+    return {
+        ...resp,
+        data: {
+            items: [],
+            total: 0,
+            page: 1,
+            page_size: params?.pageSize || 15,
+            total_pages: 1,
+            metrics: {
+                total_entries: 0,
+                total_debit: 0,
+                total_credit: 0,
+                accounts_count: 0,
+                is_balanced: true,
+            },
+        },
+    };
 };
 
 export const createTransaction = async (transaction: {

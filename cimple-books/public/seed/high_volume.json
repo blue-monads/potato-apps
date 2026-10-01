@@ -1,0 +1,1624 @@
+{
+  "template": "high_volume",
+  "name": "High Volume (50+ Txns)",
+  "description": "Comprehensive dataset with standard chart of accounts, products, and 50+ diverse journal entries, sales & stock-ins for testing pagination and filters.",
+  "accounts": [
+    {
+      "name": "Cash on Hand",
+      "acc_type": "assets",
+      "info": "Petty cash and cash register",
+      "parent_id": 0,
+      "total_debit": 1000000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Operating Bank Account",
+      "acc_type": "assets",
+      "info": "Primary business bank account",
+      "parent_id": 0,
+      "total_debit": 5000000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Accounts Receivable",
+      "acc_type": "assets",
+      "info": "Money owed by customers",
+      "parent_id": 0,
+      "total_debit": 250000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Inventory Asset",
+      "acc_type": "assets",
+      "info": "Value of inventory on hand",
+      "parent_id": 0,
+      "total_debit": 1500000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Accounts Payable",
+      "acc_type": "liabilities",
+      "info": "Money owed to suppliers",
+      "parent_id": 0,
+      "total_debit": 0,
+      "total_credit": 300000,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Sales Tax Payable",
+      "acc_type": "liabilities",
+      "info": "Collected sales tax to remit",
+      "parent_id": 0,
+      "total_debit": 0,
+      "total_credit": 65000,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Owner's Equity",
+      "acc_type": "equity",
+      "info": "Initial capital contribution",
+      "parent_id": 0,
+      "total_debit": 0,
+      "total_credit": 6000000,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Sales Revenue",
+      "acc_type": "revenue",
+      "info": "Revenue from product sales",
+      "parent_id": 0,
+      "total_debit": 0,
+      "total_credit": 1500000,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Service Income",
+      "acc_type": "revenue",
+      "info": "Revenue from consulting and services",
+      "parent_id": 0,
+      "total_debit": 0,
+      "total_credit": 450000,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Rent Expense",
+      "acc_type": "expenses",
+      "info": "Monthly office rent",
+      "parent_id": 0,
+      "total_debit": 120000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Salaries Expense",
+      "acc_type": "expenses",
+      "info": "Staff payroll expenses",
+      "parent_id": 0,
+      "total_debit": 350000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Office Supplies Expense",
+      "acc_type": "expenses",
+      "info": "Stationery and supplies",
+      "parent_id": 0,
+      "total_debit": 15000,
+      "total_credit": 0,
+      "contact_id": 0,
+      "is_deleted": 0
+    }
+  ],
+  "taxes": [
+    {
+      "name": "Standard Sales VAT (13%)",
+      "ttype": "sales",
+      "info": "Standard Value Added Tax on sales",
+      "rate": 1300,
+      "strict": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Purchase VAT (13%)",
+      "ttype": "purchase",
+      "info": "Input VAT on purchases",
+      "rate": 1300,
+      "strict": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Sales Tax (5%)",
+      "ttype": "sales",
+      "info": "State sales tax",
+      "rate": 500,
+      "strict": 0,
+      "is_deleted": 0
+    },
+    {
+      "name": "Zero Tax (0%)",
+      "ttype": "sales",
+      "info": "Tax exempt items",
+      "rate": 0,
+      "strict": 0,
+      "is_deleted": 0
+    }
+  ],
+  "categories": [
+    {
+      "name": "Office Supplies",
+      "info": "Stationery, paper, desk equipment",
+      "product_class": "physical_item",
+      "parent_id": 0,
+      "image": "",
+      "is_deleted": 0
+    },
+    {
+      "name": "Electronics & Gadgets",
+      "info": "Hardware, peripherals, and electronics",
+      "product_class": "physical_item",
+      "parent_id": 0,
+      "image": "",
+      "is_deleted": 0
+    },
+    {
+      "name": "General Merchandise",
+      "info": "Everyday consumables and store goods",
+      "product_class": "physical_item",
+      "parent_id": 0,
+      "image": "",
+      "is_deleted": 0
+    }
+  ],
+  "products": [
+    {
+      "prod": {
+        "name": "Executive Desk Notebook Set",
+        "info": "Premium hardcover dotted & ruled notebooks",
+        "category_index": 1,
+        "sales_price": 1850,
+        "image": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 120,
+        "is_deleted": 0
+      },
+      "variants": [
+        {
+          "name": "Hardcover Ruled (A5)",
+          "description": "192 pages, 100gsm fountain-pen friendly paper",
+          "sales_price": 1850,
+          "images": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60"
+        },
+        {
+          "name": "Hardcover Dotted (A5)",
+          "description": "5mm dot grid layout, emerald ribbon bookmark",
+          "sales_price": 1950,
+          "images": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500&auto=format&fit=crop&q=60"
+        }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Ergonomic Wireless Mouse",
+        "info": "Quiet click optical rechargeable Bluetooth mouse",
+        "category_index": 2,
+        "sales_price": 2999,
+        "image": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 60,
+        "is_deleted": 0
+      },
+      "variants": [
+        {
+          "name": "Graphite Charcoal",
+          "description": "Matte ergonomic grip",
+          "sales_price": 2999,
+          "images": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60"
+        },
+        {
+          "name": "Off-White Chalk",
+          "description": "Sleek contemporary colorway",
+          "sales_price": 2999,
+          "images": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=500&auto=format&fit=crop&q=60"
+        }
+      ]
+    },
+    {
+      "prod": {
+        "name": "Artisan Whole Bean Coffee (1kg)",
+        "info": "Single origin medium roast Arabica beans",
+        "category_index": 3,
+        "sales_price": 2200,
+        "image": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60",
+        "images": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60",
+        "alt_images": "",
+        "epoch": 0,
+        "stock_count": 45,
+        "is_deleted": 0
+      },
+      "variants": [
+        {
+          "name": "Whole Bean 1kg",
+          "description": "Direct trade freshly roasted",
+          "sales_price": 2200,
+          "images": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60"
+        },
+        {
+          "name": "French Press Coarse Grind 1kg",
+          "description": "Ground for immersion brewing",
+          "sales_price": 2300,
+          "images": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500&auto=format&fit=crop&q=60"
+        }
+      ]
+    }
+  ],
+  "contacts": [
+    {
+      "name": "Global Ventures Inc.",
+      "contact_type": "company",
+      "relation_type": "customer",
+      "primary_email": "accounts@globalventures.test",
+      "primary_phone": "+1-555-0101",
+      "primary_address": "100 Innovation Way, Suite 400",
+      "notes": "Key enterprise corporate client"
+    },
+    {
+      "name": "Apex Corporation",
+      "contact_type": "company",
+      "relation_type": "customer",
+      "primary_email": "procurement@apexcorp.test",
+      "primary_phone": "+1-555-0102",
+      "primary_address": "450 Industrial Parkway",
+      "notes": "Wholesale stationery buyer"
+    },
+    {
+      "name": "PaperCraft Supplies Ltd",
+      "contact_type": "company",
+      "relation_type": "supplier",
+      "primary_email": "billing@papercraft.test",
+      "primary_phone": "+1-555-0201",
+      "primary_address": "88 Mill Road, Paper Mill District",
+      "notes": "Primary notebook manufacturer"
+    },
+    {
+      "name": "TechLogistics Distribution",
+      "contact_type": "company",
+      "relation_type": "supplier",
+      "primary_email": "sales@techlogistics.test",
+      "primary_phone": "+1-555-0202",
+      "primary_address": "12 Gateway Logistics Park",
+      "notes": "Peripherals and electronics supplier"
+    },
+    {
+      "name": "City Office Properties LLC",
+      "contact_type": "company",
+      "relation_type": "general",
+      "primary_email": "leasing@cityproperties.test",
+      "primary_phone": "+1-555-0301",
+      "primary_address": "Building 5, Metro Commercial Plaza",
+      "notes": "Office landlord and property management"
+    }
+  ],
+  "sale": {
+    "title": "INV-001 - First Customer Order",
+    "client_id": 101,
+    "client_name": "Global Ventures Inc.",
+    "notes": "Initial demo order created upon system setup",
+    "attachments": "",
+    "total_item_price": 6699,
+    "total_item_tax_amount": 871,
+    "total_item_discount_amount": 200,
+    "sub_total": 7370,
+    "overall_discount_amount": 0,
+    "overall_tax_amount": 0,
+    "total": 7370,
+    "payment_status": "paid",
+    "invalidated_reason": "",
+    "is_deleted": 0,
+    "lines": [
+      {
+        "product_index": 1,
+        "info": "Item Line 1",
+        "qty": 2,
+        "price": 1850,
+        "tax_amount": 481,
+        "discount_amount": 100,
+        "total_amount": 4081
+      },
+      {
+        "product_index": 2,
+        "info": "Item Line 2",
+        "qty": 1,
+        "price": 2999,
+        "tax_amount": 390,
+        "discount_amount": 100,
+        "total_amount": 3289
+      }
+    ]
+  },
+  "transactions": [
+    {
+      "title": "Opening Capital Deposit",
+      "notes": "Initial equity funding from business founders",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-001",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-01T03:30:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 5000000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Owner's Equity",
+          "debit_amount": 0,
+          "credit_amount": 5000000
+        }
+      ]
+    },
+    {
+      "title": "Petty Cash Drawer Setup",
+      "notes": "Cash transfer to front register petty cash",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-002",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-02T06:37:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 100000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 100000
+        }
+      ]
+    },
+    {
+      "title": "Initial Stock In - Desk Notebooks",
+      "notes": "Purchase batch from PaperCraft Ltd",
+      "txn_type": "stockin",
+      "reference_id": "STK-2026-001",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-03T09:44:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Inventory Asset",
+          "debit_amount": 350000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 0,
+          "credit_amount": 350000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Opening Sales",
+      "notes": "Cash sales for Day 1 walk-in traffic",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-001",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-04T00:51:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 45000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 45000
+        }
+      ]
+    },
+    {
+      "title": "Office Lease - September",
+      "notes": "Monthly office commercial rent",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-003",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-05T03:58:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Rent Expense",
+          "debit_amount": 120000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 120000
+        }
+      ]
+    },
+    {
+      "title": "Hardware Stock In - Wireless Mice",
+      "notes": "Supplier shipment from TechLogistics",
+      "txn_type": "stockin",
+      "reference_id": "STK-2026-002",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-06T06:05:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Inventory Asset",
+          "debit_amount": 480000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 0,
+          "credit_amount": 480000
+        }
+      ]
+    },
+    {
+      "title": "Corporate B2B Invoice #101",
+      "notes": "Sale of 50 notebook sets to Apex Corp",
+      "txn_type": "sales",
+      "reference_id": "INV-2026-001",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-07T09:12:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 185000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 185000
+        }
+      ]
+    },
+    {
+      "title": "Stationery & Printer Supplies",
+      "notes": "Receipt for receipt paper and toner cartridges",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-004",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-08T00:19:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Office Supplies Expense",
+          "debit_amount": 18500,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 18500
+        }
+      ]
+    },
+    {
+      "title": "Advisory Milestone 1",
+      "notes": "Professional workflow consultation phase 1",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-005",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-09T03:26:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 95000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Service Income",
+          "debit_amount": 0,
+          "credit_amount": 95000
+        }
+      ]
+    },
+    {
+      "title": "Supplier Invoice Payment #001",
+      "notes": "Settlement of PaperCraft Ltd partial bill",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-006",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-10T06:33:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 200000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 200000
+        }
+      ]
+    },
+    {
+      "title": "Customer Payment Apex Corp",
+      "notes": "Wire transfer payment for Invoice #101",
+      "txn_type": "sales",
+      "reference_id": "PAY-2026-001",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-11T09:40:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 185000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 0,
+          "credit_amount": 185000
+        }
+      ]
+    },
+    {
+      "title": "Coffee Stock In - Artisan Whole Bean",
+      "notes": "Direct trade roasted beans 40kg",
+      "txn_type": "stockin",
+      "reference_id": "STK-2026-003",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-12T00:47:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Inventory Asset",
+          "debit_amount": 88000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 0,
+          "credit_amount": 88000
+        }
+      ]
+    },
+    {
+      "title": "Store Weekend Retail Rush",
+      "notes": "Counter register weekend turnover",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-002",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-13T03:54:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 62500,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 62500
+        }
+      ]
+    },
+    {
+      "title": "Mid-Month Staff Payroll",
+      "notes": "Bi-weekly store staff and operator wages",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-007",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-14T06:01:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Salaries Expense",
+          "debit_amount": 175000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 175000
+        }
+      ]
+    },
+    {
+      "title": "POS Excess Cash Deposit",
+      "notes": "Transfer cash from safe into primary bank",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-008",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-15T09:08:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 80000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 80000
+        }
+      ]
+    },
+    {
+      "title": "Bulk Corporate Sale - Nexus Systems",
+      "notes": "Office peripheral package invoice #102",
+      "txn_type": "sales",
+      "reference_id": "INV-2026-002",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-16T00:15:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 299900,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 299900
+        }
+      ]
+    },
+    {
+      "title": "VAT Tax Remittance",
+      "notes": "Quarterly sales VAT installment payment",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-009",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-16T00:15:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Sales Tax Payable",
+          "debit_amount": 45000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 45000
+        }
+      ]
+    },
+    {
+      "title": "Shipping Supplies Purchase",
+      "notes": "Cardboard boxes, tape, and bubble wrap",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-010",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-17T03:22:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Office Supplies Expense",
+          "debit_amount": 12000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 12000
+        }
+      ]
+    },
+    {
+      "title": "TechLogistics Supplier Payment",
+      "notes": "Payment for wireless mouse consignment",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-011",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-17T03:22:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 300000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 300000
+        }
+      ]
+    },
+    {
+      "title": "Corporate Training Retainer",
+      "notes": "Enterprise workshop series retainer deposit",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-012",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-18T06:29:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 150000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Service Income",
+          "debit_amount": 0,
+          "credit_amount": 150000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Sales - Monday",
+      "notes": "Daily customer POS intake",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-003",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-18T06:29:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 34000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 34000
+        }
+      ]
+    },
+    {
+      "title": "Nexus Systems Invoice Settlement",
+      "notes": "Bank transfer receiving invoice #102 in full",
+      "txn_type": "sales",
+      "reference_id": "PAY-2026-002",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-19T09:36:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 299900,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 0,
+          "credit_amount": 299900
+        }
+      ]
+    },
+    {
+      "title": "Restock A5 Notebooks (Ruled)",
+      "notes": "Secondary print production batch",
+      "txn_type": "stockin",
+      "reference_id": "STK-2026-004",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-19T09:36:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Inventory Asset",
+          "debit_amount": 220000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 0,
+          "credit_amount": 220000
+        }
+      ]
+    },
+    {
+      "title": "Retail Sales - Tuesday",
+      "notes": "Daily counter register tally",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-004",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-20T00:43:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 28500,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 28500
+        }
+      ]
+    },
+    {
+      "title": "Founder Working Capital Injection",
+      "notes": "Short-term growth injection by equity owner",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-013",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-20T00:43:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 1000000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Owner's Equity",
+          "debit_amount": 0,
+          "credit_amount": 1000000
+        }
+      ]
+    },
+    {
+      "title": "Client Custom Setup Fee",
+      "notes": "Software & workspace configuration service",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-014",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-21T03:50:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 65000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Service Income",
+          "debit_amount": 0,
+          "credit_amount": 65000
+        }
+      ]
+    },
+    {
+      "title": "Retail Sales - Wednesday",
+      "notes": "Midweek retail customer receipts",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-005",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-21T03:50:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 41200,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 41200
+        }
+      ]
+    },
+    {
+      "title": "Bulk Wholesale Order - Urban Cafe",
+      "notes": "30kg roasted beans delivered",
+      "txn_type": "sales",
+      "reference_id": "INV-2026-003",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-22T06:57:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 69000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 69000
+        }
+      ]
+    },
+    {
+      "title": "PaperCraft Ltd Invoice Clear",
+      "notes": "Full remaining balance settlement",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-015",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-22T06:57:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 150000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 150000
+        }
+      ]
+    },
+    {
+      "title": "Urban Cafe Invoice Payment",
+      "notes": "Cheque cleared into bank account",
+      "txn_type": "sales",
+      "reference_id": "PAY-2026-003",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-23T09:04:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 69000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 0,
+          "credit_amount": 69000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Sales - Thursday",
+      "notes": "Daily POS receipts",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-006",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-23T09:04:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 51000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 51000
+        }
+      ]
+    },
+    {
+      "title": "Warehouse Restock Batch 5",
+      "notes": "Assorted merchandise and tech accessories",
+      "txn_type": "stockin",
+      "reference_id": "STK-2026-005",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-24T00:11:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Inventory Asset",
+          "debit_amount": 410000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 0,
+          "credit_amount": 410000
+        }
+      ]
+    },
+    {
+      "title": "Retail Sales - Friday Evening",
+      "notes": "High traffic weekend kick-off sales",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-007",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-24T00:11:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 88000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 88000
+        }
+      ]
+    },
+    {
+      "title": "Bank Deposit from Retail Cash",
+      "notes": "Transferred weekend cash accumulation",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-016",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-25T03:18:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 120000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 120000
+        }
+      ]
+    },
+    {
+      "title": "Office Coffee Bar Expenses",
+      "notes": "Staff consumables and pantry items",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-017",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-25T03:18:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Office Supplies Expense",
+          "debit_amount": 6500,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 6500
+        }
+      ]
+    },
+    {
+      "title": "B2B Corporate Client Order #104",
+      "notes": "Merchandise package for Horizon Labs",
+      "txn_type": "sales",
+      "reference_id": "INV-2026-004",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-26T06:25:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 312000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 312000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Sales - Saturday",
+      "notes": "Peak weekend walk-in volume",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-008",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-26T06:25:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 94500,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 94500
+        }
+      ]
+    },
+    {
+      "title": "Consulting On-Site Workshop",
+      "notes": "Full-day strategic system integration",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-018",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-27T09:32:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 140000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Service Income",
+          "debit_amount": 0,
+          "credit_amount": 140000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Sales - Sunday",
+      "notes": "Sunday retail trading",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-009",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-27T09:32:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 71000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 71000
+        }
+      ]
+    },
+    {
+      "title": "Horizon Labs Partial Payment",
+      "notes": "Direct EFT against Invoice #104",
+      "txn_type": "sales",
+      "reference_id": "PAY-2026-004",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-28T00:39:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 200000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 0,
+          "credit_amount": 200000
+        }
+      ]
+    },
+    {
+      "title": "Warehouse Supplier Settlement",
+      "notes": "Payment to Global Logistics Group",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-019",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-28T00:39:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 250000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 250000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Sales - Monday",
+      "notes": "Daily customer sales",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-010",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-28T00:39:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 39500,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 39500
+        }
+      ]
+    },
+    {
+      "title": "Restock Coffee Beans Inventory",
+      "notes": "Artisan roast batch direct from roastery",
+      "txn_type": "stockin",
+      "reference_id": "STK-2026-006",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-29T03:46:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Inventory Asset",
+          "debit_amount": 110000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 0,
+          "credit_amount": 110000
+        }
+      ]
+    },
+    {
+      "title": "End of Month Payroll Batch",
+      "notes": "Second bi-weekly wage and bonuses",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-020",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-29T03:46:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Salaries Expense",
+          "debit_amount": 195000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 195000
+        }
+      ]
+    },
+    {
+      "title": "Horizon Labs Remainder Settlement",
+      "notes": "Final payment clearing Invoice #104",
+      "txn_type": "sales",
+      "reference_id": "PAY-2026-005",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-29T03:46:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 112000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 0,
+          "credit_amount": 112000
+        }
+      ]
+    },
+    {
+      "title": "Store Retail Sales - Tuesday",
+      "notes": "Daily counter intake",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-011",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-30T06:53:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 44800,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 44800
+        }
+      ]
+    },
+    {
+      "title": "Commercial Facility Rent - October",
+      "notes": "Advance rental payment for premises",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-021",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-30T06:53:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Rent Expense",
+          "debit_amount": 120000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 120000
+        }
+      ]
+    },
+    {
+      "title": "Office Stationery & Receipt Rolls",
+      "notes": "Replenish till paper and dispatch slips",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-022",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-09-30T06:53:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Office Supplies Expense",
+          "debit_amount": 9200,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 9200
+        }
+      ]
+    },
+    {
+      "title": "Retail Sales - Today Morning",
+      "notes": "Morning store transactions",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-012",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 26400,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 26400
+        }
+      ]
+    },
+    {
+      "title": "Corporate Order #105 - Zenith Corp",
+      "notes": "Bulk order for 40 mice and 60 notebooks",
+      "txn_type": "sales",
+      "reference_id": "INV-2026-005",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 230960,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 230960
+        }
+      ]
+    },
+    {
+      "title": "Zenith Corp Downpayment",
+      "notes": "50% upfront payment received for Order #105",
+      "txn_type": "sales",
+      "reference_id": "PAY-2026-006",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 115480,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Accounts Receivable",
+          "debit_amount": 0,
+          "credit_amount": 115480
+        }
+      ]
+    },
+    {
+      "title": "Today Afternoon Retail Sales",
+      "notes": "Afternoon sales register totals",
+      "txn_type": "sales",
+      "reference_id": "POS-2026-013",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 37200,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Sales Revenue",
+          "debit_amount": 0,
+          "credit_amount": 37200
+        }
+      ]
+    },
+    {
+      "title": "Supplier Bill Payment #022",
+      "notes": "Payment to PaperCraft Ltd for notebook batch",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-023",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Accounts Payable",
+          "debit_amount": 120000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 0,
+          "credit_amount": 120000
+        }
+      ]
+    },
+    {
+      "title": "Consulting Retainer Monthly",
+      "notes": "October retainer for cloud architecture advisory",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-024",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 200000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Service Income",
+          "debit_amount": 0,
+          "credit_amount": 200000
+        }
+      ]
+    },
+    {
+      "title": "Register End-of-Day Cash Sweep",
+      "notes": "Evening transfer from till to safe deposit",
+      "txn_type": "manual",
+      "reference_id": "JE-2026-025",
+      "reference_type": "external",
+      "attachments": "",
+      "txn_date": "2026-10-01T10:00:00Z",
+      "is_editable": 1,
+      "is_deleted": 0,
+      "lines": [
+        {
+          "account_name": "Operating Bank Account",
+          "debit_amount": 50000,
+          "credit_amount": 0
+        },
+        {
+          "account_name": "Cash on Hand",
+          "debit_amount": 0,
+          "credit_amount": 50000
+        }
+      ]
+    }
+  ]
+}
