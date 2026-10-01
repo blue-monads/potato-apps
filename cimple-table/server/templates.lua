@@ -2,43 +2,18 @@ local M = {}
 local json = require("json")
 local potato = require("potato")
 
--- Helper to read template files via package filesystem or direct disk
+-- Helper to read template files strictly via potato.core.read_package_file
 local function read_template_file(rel_path)
-    -- 1. Try reading via potato.core.read_package_file
-    if potato and potato.core and potato.core.read_package_file then
-        local c, err = potato.core.read_package_file(rel_path)
-        if c ~= nil and c ~= "" then
-            return c
-        end
-        -- Also try with templates/ prefix if not already present
-        if not string.match(rel_path, "^templates/") then
-            local c2, _ = potato.core.read_package_file("templates/" .. rel_path)
-            if c2 ~= nil and c2 ~= "" then
-                return c2
-            end
-        end
+    local fpath = rel_path
+    if not string.match(fpath, "^templates/") then
+        fpath = "templates/" .. fpath
     end
 
-    -- 2. Try direct filesystem read
-    local paths_to_try = {
-        rel_path,
-        "templates/" .. rel_path,
-        "server/templates/" .. rel_path,
-        "../templates/" .. rel_path
-    }
-
-    for _, p in ipairs(paths_to_try) do
-        local f = io.open(p, "r")
-        if f then
-            local content = f:read("*all")
-            f:close()
-            if content ~= nil and content ~= "" then
-                return content
-            end
-        end
+    local content, err = potato.core.read_package_file(fpath)
+    if err ~= nil or content == nil or content == "" then
+        error("Failed to read template file '" .. fpath .. "' via potato.core.read_package_file: " .. tostring(err))
     end
-
-    return nil
+    return content
 end
 
 -- Cache loaded templates in memory for speed
@@ -52,19 +27,13 @@ function M.get_template_index()
     end
 
     local raw = read_template_file("templates/index.json")
-    if raw == nil or raw == "" then
-        raw = read_template_file("index.json")
+    local ok, data = pcall(json.decode, raw)
+    if not ok or type(data) ~= "table" then
+        error("Failed to parse templates/index.json: " .. tostring(data))
     end
 
-    if raw ~= nil and raw ~= "" then
-        local ok, data = pcall(json.decode, raw)
-        if ok and type(data) == "table" then
-            index_cache = data
-            return data
-        end
-    end
-
-    return {}
+    index_cache = data
+    return data
 end
 
 -- Get a specific template group by id/key from its JSON file (e.g. templates/xyz-data.json)
@@ -77,40 +46,27 @@ function M.get_template(key)
         return template_cache[key]
     end
 
-    local raw = nil
-
-    -- 1. Try standard pattern: templates/<key>-data.json
-    raw = read_template_file("templates/" .. key .. "-data.json")
-
-    -- 2. Try templates/<key>.json
-    if raw == nil or raw == "" then
-        raw = read_template_file("templates/" .. key .. ".json")
-    end
-
-    -- 3. Look up specific filename from index.json
-    if raw == nil or raw == "" then
-        local index = M.get_template_index()
+    local filename = key .. "-data.json"
+    local ok_idx, index = pcall(M.get_template_index)
+    if ok_idx and type(index) == "table" then
         for _, item in ipairs(index) do
             if item.id == key or item.name == key then
-                local filename = item.file or (item.id .. "-data.json")
-                raw = read_template_file("templates/" .. filename)
-                if raw == nil or raw == "" then
-                    raw = read_template_file(filename)
+                if item.file then
+                    filename = item.file
                 end
                 break
             end
         end
     end
 
-    if raw ~= nil and raw ~= "" then
-        local ok, data = pcall(json.decode, raw)
-        if ok and type(data) == "table" then
-            template_cache[key] = data
-            return data
-        end
+    local raw = read_template_file("templates/" .. filename)
+    local ok, data = pcall(json.decode, raw)
+    if not ok or type(data) ~= "table" then
+        error("Failed to parse template '" .. key .. "' (" .. filename .. "): " .. tostring(data))
     end
 
-    return nil
+    template_cache[key] = data
+    return data
 end
 
 -- Allow TABLE_GROUPS[key] access via metatable
