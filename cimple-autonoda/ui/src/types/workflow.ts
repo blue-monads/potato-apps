@@ -91,17 +91,19 @@ export interface InferredWire {
 }
 
 export function inferWires(
-  trigger: EventTrigger | null,
-  ruleBlocks: RuleBlock[],
-  targets: Target[]
+  trigger: EventTrigger | null | undefined,
+  ruleBlocks: RuleBlock[] | null | undefined,
+  targets: Target[] | null | undefined
 ): InferredWire[] {
   const wires: InferredWire[] = [];
   if (!trigger) return wires;
 
+  const safeRuleBlocks = Array.isArray(ruleBlocks) ? ruleBlocks : [];
+  const safeTargets = Array.isArray(targets) ? targets : [];
   const triggerNodeId = `trigger_${trigger.id}`;
 
   // 1. Trigger -> Root RuleBlocks (no parent rule block)
-  for (const rb of ruleBlocks) {
+  for (const rb of safeRuleBlocks) {
     if (rb.triggerId === trigger.id && !rb.parentRuleBlockId) {
       wires.push({
         id: `wire_trig_${trigger.id}_rb_${rb.id}`,
@@ -114,7 +116,7 @@ export function inferWires(
   }
 
   // 2. Parent RuleBlock -> Child RuleBlock (from TRUE or FALSE branch)
-  for (const rb of ruleBlocks) {
+  for (const rb of safeRuleBlocks) {
     if (rb.parentRuleBlockId) {
       wires.push({
         id: `wire_rb_${rb.parentRuleBlockId}_rb_${rb.id}`,
@@ -127,7 +129,7 @@ export function inferWires(
   }
 
   // 3. RuleBlock -> Target (from TRUE or FALSE branch)
-  for (const tg of targets) {
+  for (const tg of safeTargets) {
     if (tg.linkedBlockId) {
       wires.push({
         id: `wire_rb_${tg.linkedBlockId}_target_${tg.id}`,
@@ -140,11 +142,24 @@ export function inferWires(
   }
 
   // 4. Target -> Child Target
-  for (const tg of targets) {
+  for (const tg of safeTargets) {
     if (tg.linkedTargetId) {
       wires.push({
         id: `wire_target_${tg.linkedTargetId}_target_${tg.id}`,
         fromNodeId: `target_${tg.linkedTargetId}`,
+        fromPort: 'out',
+        toNodeId: `target_${tg.id}`,
+        toPort: 'in',
+      });
+    }
+  }
+
+  // 5. Trigger -> Direct Target (not linked to any rule block or previous target)
+  for (const tg of safeTargets) {
+    if (tg.triggerId === trigger.id && !tg.linkedBlockId && !tg.linkedTargetId) {
+      wires.push({
+        id: `wire_trig_${trigger.id}_target_${tg.id}`,
+        fromNodeId: triggerNodeId,
         fromPort: 'out',
         toNodeId: `target_${tg.id}`,
         toPort: 'in',

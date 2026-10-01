@@ -1,4 +1,21 @@
 local potato = require("potato")
+local json = require("json")
+
+local function encode_json(val)
+    if val == nil then return "{}" end
+    if type(val) == "string" then return val end
+    local ok, res = pcall(json.encode, val)
+    if ok and res then return res end
+    return "{}"
+end
+
+local function decode_json(str)
+    if not str or str == "" then return {} end
+    if type(str) == "table" then return str end
+    local ok, res = pcall(json.decode, str)
+    if ok and res then return res end
+    return {}
+end
 
 function get_user_id(req)
     local userId, err = req.get_user_id()
@@ -56,11 +73,21 @@ function get_trigger_graph(ctx, id)
     local rules, rErr = potato.db.find_all_by_cond("Rules", {triggerId = tonumber(id)})
     local targets, tErr = potato.db.find_all_by_cond("Targets", {triggerId = tonumber(id)})
 
+    local cleanTargets = {}
+    if targets then
+        for _, tg in ipairs(targets) do
+            if tg.targetMeta and type(tg.targetMeta) == "string" then
+                tg.targetMeta = decode_json(tg.targetMeta)
+            end
+            table.insert(cleanTargets, tg)
+        end
+    end
+
     req.json(200, {
         trigger = trigger,
         rule_blocks = rule_blocks or {},
         rules = rules or {},
-        targets = targets or {}
+        targets = cleanTargets
     })
 end
 
@@ -134,12 +161,7 @@ function save_trigger_graph(ctx, id)
     if body.targets then
         for _, tg in ipairs(body.targets) do
             local oldId = tg.id
-            local metaStr = "{}"
-            if type(tg.targetMeta) == "table" then
-                metaStr = potato.core.to_json(tg.targetMeta)
-            elseif type(tg.targetMeta) == "string" then
-                metaStr = tg.targetMeta
-            end
+            local metaStr = encode_json(tg.targetMeta)
 
             local targetData = {
                 triggerId = tId,
@@ -149,7 +171,10 @@ function save_trigger_graph(ctx, id)
                 targetType = tg.targetType or "WEBHOOK",
                 targetMeta = metaStr
             }
-            local newId, _ = potato.db.insert("Targets", targetData)
+            local newId, err = potato.db.insert("Targets", targetData)
+            if err then
+                print("Error inserting Target:", err)
+            end
             tgIdMap[oldId] = newId
             tgIdMap[tostring(oldId)] = newId
         end
@@ -167,7 +192,9 @@ function save_trigger_graph(ctx, id)
                     local mappedTgId = tgIdMap[tg.linkedTargetId] or tgIdMap[tostring(tg.linkedTargetId)] or tg.linkedTargetId
                     updates.linkedTargetId = tonumber(mappedTgId)
                 end
-                potato.db.update_by_id("Targets", newId, updates)
+                if next(updates) ~= nil then
+                    potato.db.update_by_id("Targets", newId, updates)
+                end
             end
         end
     end
@@ -380,12 +407,7 @@ function create_target(ctx)
     local req = ctx.request()
     local body = req.bind_json() or {}
 
-    local targetMetaStr = "{}"
-    if type(body.targetMeta) == "table" then
-        targetMetaStr = potato.core.to_json(body.targetMeta)
-    elseif type(body.targetMeta) == "string" then
-        targetMetaStr = body.targetMeta
-    end
+    local targetMetaStr = encode_json(body.targetMeta)
 
     local target = {
         triggerId = tonumber(body.triggerId) or 0,
@@ -430,11 +452,7 @@ function update_target(ctx, id)
         end
     end
     if body.targetMeta ~= nil then
-        if type(body.targetMeta) == "table" then
-            updates.targetMeta = potato.core.to_json(body.targetMeta)
-        else
-            updates.targetMeta = tostring(body.targetMeta)
-        end
+        updates.targetMeta = encode_json(body.targetMeta)
     end
 
     local err = potato.db.update_by_id("Targets", id, updates)

@@ -32,12 +32,18 @@ export default function Home() {
 
   // Synchronize EditorNodes & InferredWires whenever local graph changes
   const syncNodesFromGraph = useCallback((currentGraph: TriggerGraph) => {
-    const inferred = inferWires(currentGraph.trigger, currentGraph.rule_blocks, currentGraph.targets);
+    if (!currentGraph) return;
+
+    const ruleBlocks = Array.isArray(currentGraph.rule_blocks) ? currentGraph.rule_blocks : [];
+    const rules = Array.isArray(currentGraph.rules) ? currentGraph.rules : [];
+    const targets = Array.isArray(currentGraph.targets) ? currentGraph.targets : [];
+
+    const inferred = inferWires(currentGraph.trigger, ruleBlocks, targets);
     setWires(inferred);
 
     const editorNodes: EditorNode[] = [];
 
-    // Trigger Node
+    // Trigger Node (Root)
     if (currentGraph.trigger) {
       editorNodes.push({
         id: `trigger_${currentGraph.trigger.id}`,
@@ -51,8 +57,8 @@ export default function Home() {
     }
 
     // Rule Block Nodes
-    for (const rb of currentGraph.rule_blocks) {
-      const rbRules = currentGraph.rules.filter((r) => r.ruleBlockId === rb.id);
+    for (const rb of ruleBlocks) {
+      const rbRules = rules.filter((r) => r.ruleBlockId === rb.id);
       editorNodes.push({
         id: `rule_block_${rb.id}`,
         entityId: rb.id,
@@ -65,7 +71,7 @@ export default function Home() {
     }
 
     // Target Nodes
-    for (const tg of currentGraph.targets) {
+    for (const tg of targets) {
       editorNodes.push({
         id: `target_${tg.id}`,
         entityId: tg.id,
@@ -90,10 +96,15 @@ export default function Home() {
 
   // 2. Load Active Trigger Graph from backend
   const loadGraph = useCallback(async (triggerId: number) => {
-    const data = await autonodaApi.getTriggerGraph(triggerId);
-    setGraph(data);
-    setHasUnsavedChanges(false);
-    syncNodesFromGraph(data);
+    try {
+      const data = await autonodaApi.getTriggerGraph(triggerId);
+      setGraph(data);
+      setHasUnsavedChanges(false);
+      syncNodesFromGraph(data);
+      setTimeout(() => setFitViewTrigger((prev) => prev + 1), 60);
+    } catch (err) {
+      console.error('Failed to load trigger graph:', err);
+    }
   }, [syncNodesFromGraph]);
 
   useEffect(() => {
@@ -162,9 +173,9 @@ export default function Home() {
     const newId = Date.now();
     const updatedGraph: TriggerGraph = {
       ...graph,
-      rule_blocks: [...graph.rule_blocks],
-      targets: [...graph.targets],
-      rules: [...graph.rules],
+      rule_blocks: [...(graph.rule_blocks || [])],
+      targets: [...(graph.targets || [])],
+      rules: [...(graph.rules || [])],
     };
 
     if (type === 'rule_block') {
@@ -209,9 +220,9 @@ export default function Home() {
 
     let updatedGraph: TriggerGraph = {
       ...graph,
-      rule_blocks: [...graph.rule_blocks],
-      targets: [...graph.targets],
-      rules: [...graph.rules],
+      rule_blocks: [...(graph.rule_blocks || [])],
+      targets: [...(graph.targets || [])],
+      rules: [...(graph.rules || [])],
     };
 
     if (node.type === 'rule_block') {
