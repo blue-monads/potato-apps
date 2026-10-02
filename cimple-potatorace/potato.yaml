@@ -1,10 +1,11 @@
 name: cimple-potatorace
-info: cimple-potatorace
+info: Potato Race – a couch party racing game lobby
 slug: cimple-potatorace
 tags:
   - "potato-executor:luaz"
   - "potato-db:sqlite"
   - "fun"
+  - "game"
 format_version: '0.0.2'
 author_name: Bornjre
 author_email: bornjre@gmail.com
@@ -32,6 +33,11 @@ capabilities:
     options:
       folder: migration
 
+  - name: xEasyWS
+    type: xEasyWS
+    spaces:
+      - cimple-potatorace
+
 developer:
   server_url: http://localhost:7777
   token_env: SIMPLE_DEV_TOKEN
@@ -42,5 +48,4 @@ developer:
     - 'server/server.lua,server.lua'
     - 'meta/init.html,public/init.html'
     - 'server/migration/**/*.sql,migration'
-    - 'server/seed/**/*.json,seed'
   build_command: 'cd ui && { [ -d node_modules ] || bun install; } && bun run build'

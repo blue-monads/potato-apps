@@ -1,1 +1,84 @@
 @import "tailwindcss";
+
+:root {
+    --bg:    #0d0f1a;
+    --panel: #171a2b;
+    --line:  #2a2f4a;
+    --txt:   #f1f3ff;
+    --mut:   #8c93b8;
+    --acc:   #7c5cff;
+    --ok:    #2ee59d;
+    --warn:  #ffb84d;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--txt);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+}
+
+input {
+    width: 100%;
+    background: var(--bg);
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    color: var(--txt);
+    font: inherit;
+    font-size: 16px;
+    padding: 12px 14px;
+    outline: 0;
+    transition: border-color 0.15s;
+}
+
+input:focus {
+    border-color: var(--acc);
+}
+
+input::placeholder {
+    color: var(--mut);
+}
+
+.btn {
+    border: 0;
+    border-radius: 14px;
+    padding: 14px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    background: var(--acc);
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.btn:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn.ghost {
+    background: none;
+    color: var(--mut);
+    border: 2px solid var(--line);
+}
+
+.btn.ghost:hover:not(:disabled) {
+    color: var(--txt);
+    border-color: var(--mut);
+}

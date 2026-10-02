@@ -1,9 +1,13 @@
-import { API_BASE_PATH } from "./base";
+import { API_BASE_PATH, WS_CAP_PATH } from "./base";
+
+// ─── auth helpers ──────────────────────────────────────────────────────────────
 
 const getAuthToken = (): string | null => {
     if (typeof window === 'undefined') return null;
     return (window as any).spaceGetToken?.('cimple-potatorace') || null;
 };
+
+// ─── generic fetch ─────────────────────────────────────────────────────────────
 
 interface ApiResponse<T> {
     status: number;
@@ -12,7 +16,7 @@ interface ApiResponse<T> {
 }
 
 export async function apiRequest<T>(
-    path: string, 
+    path: string,
     options?: RequestInit
 ): Promise<ApiResponse<T>> {
     const token = getAuthToken();
@@ -20,18 +24,14 @@ export async function apiRequest<T>(
         'Content-Type': 'application/json',
         ...(options?.headers as Record<string, string> || {}),
     };
-
     if (token) {
         headers['Authorization'] = token;
     }
-
     const response = await fetch(`${API_BASE_PATH}${path}`, {
         ...options,
         headers,
     });
-
     const data = await response.json().catch(() => ({ error: 'Unknown error' }));
-
     return {
         status: response.status,
         data: response.ok ? data : undefined as T,
@@ -39,40 +39,116 @@ export async function apiRequest<T>(
     };
 }
 
-export interface Author {
-    name: string;
-    quotes: string[];
+// ─── types ─────────────────────────────────────────────────────────────────────
+
+export interface Player {
+    user_id: number;
+    conn_id: string;
+    ready: boolean;
+    is_host: boolean;
 }
 
-
-
-export interface RawAuthor {
+export interface Room {
+    id: number;
+    code: string;
     name: string;
-    slug: string;
-    quotes: string;
+    host_user_id: number;
+    status: 'waiting' | 'playing' | 'finished';
+    max_players: number;
+    player_count: number;
+    players: Player[];
+    created_at: string;
 }
 
-export type RawAuthorEntry = Record<string, RawAuthor>;
+export interface WsTokenResponse {
+    token: string;
+    conn_id: string;
+}
 
-export const authorsApi = {
-    list: async (): Promise<Record<string, Author>> => {
-        const response = await apiRequest<RawAuthor[]>('/author', { method: 'GET' });
-        if (response.error) {
-            throw new Error(response.error);
-        }
-        const data = response.data || [];
-        const final = {} as Record<string, Author>;
+// ─── WS token ─────────────────────────────────────────────────────────────────
 
-        // Parse quotes JSON strings
-        data.map((entry) => {
-            const quotes = JSON.parse(entry.quotes || '[]') as string[];
+export const getWsToken = async (): Promise<WsTokenResponse> => {
+    const response = await apiRequest<WsTokenResponse>('/ws-token', { method: 'GET' });
+    if (response.error) throw new Error(response.error);
+    return response.data!;
+};
 
-            final[entry.slug] = {
-                name: entry.name,
-                quotes,
-            }}
-        );
+export const buildWsUrl = (token: string): string => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}${WS_CAP_PATH}?token=${encodeURIComponent(token)}`;
+};
 
-        return final;
+// ─── rooms API ─────────────────────────────────────────────────────────────────
+
+export const roomsApi = {
+    list: async (): Promise<Room[]> => {
+        const res = await apiRequest<Room[]>('/rooms', { method: 'GET' });
+        if (res.error) throw new Error(res.error);
+        return res.data ?? [];
     },
+
+    create: async (payload: { name: string; conn_id: string; max_players?: number }): Promise<Room> => {
+        const res = await apiRequest<Room>('/rooms', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        if (res.error) throw new Error(res.error);
+        return res.data!;
+    },
+
+    get: async (id: number): Promise<Room> => {
+        const res = await apiRequest<Room>(`/rooms/${id}`, { method: 'GET' });
+        if (res.error) throw new Error(res.error);
+        return res.data!;
+    },
+
+    joinByCode: async (code: string): Promise<Room> => {
+        const res = await apiRequest<Room>('/rooms/join', {
+            method: 'POST',
+            body: JSON.stringify({ code }),
+        });
+        if (res.error) throw new Error(res.error);
+        return res.data!;
+    },
+
+    join: async (roomId: number, conn_id: string): Promise<Room> => {
+        const res = await apiRequest<Room>(`/rooms/${roomId}/join`, {
+            method: 'POST',
+            body: JSON.stringify({ conn_id }),
+        });
+        if (res.error) throw new Error(res.error);
+        return res.data!;
+    },
+
+    leave: async (roomId: number, conn_id: string): Promise<void> => {
+        await apiRequest<void>(`/rooms/${roomId}/leave`, {
+            method: 'POST',
+            body: JSON.stringify({ conn_id }),
+        });
+    },
+
+    setReady: async (roomId: number, ready: boolean, conn_id: string): Promise<Room> => {
+        const res = await apiRequest<Room>(`/rooms/${roomId}/ready`, {
+            method: 'POST',
+            body: JSON.stringify({ ready, conn_id }),
+        });
+        if (res.error) throw new Error(res.error);
+        return res.data!;
+    },
+
+    startGame: async (roomId: number): Promise<Room> => {
+        const res = await apiRequest<Room>(`/rooms/${roomId}/start`, {
+            method: 'POST',
+        });
+        if (res.error) throw new Error(res.error);
+        return res.data!;
+    },
+};
+
+// ─── public (no-auth) room view for TV screen ──────────────────────────────────
+export const getRoomView = async (roomId: number): Promise<Room> => {
+    const response = await fetch(`${API_BASE_PATH}/rooms/${roomId}/view`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
 };
