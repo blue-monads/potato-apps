@@ -5,7 +5,6 @@ import {
     Wallet, 
     ShoppingCart, 
     Receipt, 
-    FileText, 
     ReceiptText, 
     BarChart3,
     Settings,
