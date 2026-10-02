@@ -511,12 +511,14 @@ export interface ProductStockIn {
     info: string;
     amount: number;
     stockin_status?: 'draft' | 'confirmed' | 'cancelled' | string;
+    payment_status?: 'unpaid' | 'paid' | 'partially_paid' | 'refunded' | string;
     vendor_contact_id?: number | null;
     vendor_alt_name?: string;
     vendor_id?: number;
     vendor_name?: string;
     reference_id?: string;
     stockin_date?: string;
+    payment_account_id?: number;
     created_by: number;
     updated_by: number;
     created_at: string;
@@ -547,6 +549,29 @@ export const updateStockIn = async (stockinId: number, stockin: Partial<ProductS
     return apiRequest<ProductStockIn>(`/stockin/${stockinId}`, {
         method: 'PUT',
         body: JSON.stringify(stockin),
+    });
+};
+
+export const confirmStockIn = async (stockinId: number, data?: { payment_account_id?: number }): Promise<ApiResponse<ProductStockIn>> => {
+    return apiRequest<ProductStockIn>(`/stockin/${stockinId}/confirm`, {
+        method: 'POST',
+        body: JSON.stringify(data || {}),
+    });
+};
+
+export const registerStockInPayment = async (
+    stockinId: number,
+    data: { payment_account_id?: number; payment_date?: string }
+): Promise<ApiResponse<ProductStockIn>> => {
+    return apiRequest<ProductStockIn>(`/stockin/${stockinId}/register-payment`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+};
+
+export const cancelStockIn = async (stockinId: number): Promise<ApiResponse<ProductStockIn>> => {
+    return apiRequest<ProductStockIn>(`/stockin/${stockinId}/cancel`, {
+        method: 'POST',
     });
 };
 
@@ -764,6 +789,7 @@ export interface AppSettings {
     default_sales_account_id?: number | null;
     default_purchase_account_id?: number | null;
     default_receivable_account_id?: number | null;
+    default_payable_account_id?: number | null;
     default_payment_account_id?: number | null;
     default_tax_account_id?: number | null;
 }

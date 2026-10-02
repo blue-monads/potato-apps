@@ -1,7 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ArrowLeft, Plus, Trash2, Save, Package, Layers, Calendar, FileText, Hash } from 'lucide-react';
-import { createStockIn, updateStockIn, getStockIn, getCurrencySymbol, type ProductStockIn, type ProductStockInLine } from '../../lib/api';
+import { ArrowLeft, Plus, Trash2, Save, Package, Layers, Calendar, FileText, Hash, CreditCard } from 'lucide-react';
+import { 
+    createStockIn, 
+    updateStockIn, 
+    getStockIn, 
+    listAccounts,
+    getSettings,
+    getCurrencySymbol, 
+    type ProductStockIn, 
+    type ProductStockInLine,
+    type Account
+} from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import StockInItemPicker, { type SelectedStockInLine } from './components/StockInItemPicker';
@@ -39,9 +49,33 @@ const StockInForm = () => {
         return now.toISOString().slice(0, 16);
     });
     const [stockinStatus, setStockinStatus] = useState<string>('draft');
+    const [paymentStatus, setPaymentStatus] = useState<string>('unpaid');
+    const [paymentAccountId, setPaymentAccountId] = useState<number | null>(null);
+    const [assetAccounts, setAssetAccounts] = useState<Account[]>([]);
     const [lines, setLines] = useState<FormLine[]>([]);
 
     const isLocked = isEditMode && stockinStatus !== 'draft';
+
+    useEffect(() => {
+        const loadAccountsAndSettings = async () => {
+            try {
+                const [accResp, setResp] = await Promise.all([
+                    listAccounts(),
+                    getSettings()
+                ]);
+                if (accResp.status === 200 && Array.isArray(accResp.data)) {
+                    const assets = accResp.data.filter(a => !a.is_deleted && a.acc_type === 'assets');
+                    setAssetAccounts(assets);
+                }
+                if (setResp.status === 200 && setResp.data?.default_payment_account_id) {
+                    setPaymentAccountId(setResp.data.default_payment_account_id);
+                }
+            } catch {
+                // ignore
+            }
+        };
+        loadAccountsAndSettings();
+    }, []);
 
     useEffect(() => {
         if (!isEditMode || !id) return;
@@ -53,6 +87,7 @@ const StockInForm = () => {
                 if (resp.status === 200 && resp.data) {
                     const s = resp.data;
                     setStockinStatus(s.stockin_status || 'draft');
+                    setPaymentStatus(s.payment_status || 'unpaid');
                     setVendorContactId(s.vendor_contact_id || null);
                     setVendorAltName(s.vendor_alt_name || s.vendor_name || '');
                     setReferenceId(s.reference_id || '');
@@ -152,7 +187,7 @@ const StockInForm = () => {
     const totalUnits = lines.reduce((sum, l) => sum + (l.qty || 0), 0);
     const totalAmountCents = lines.reduce((sum, l) => sum + (l.amount || 0), 0);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent, overrideStatus?: string) => {
         e.preventDefault();
         if (isLocked) {
             setError('Cannot edit stock in unless it is in draft state.');
@@ -167,8 +202,12 @@ const StockInForm = () => {
         setSaving(true);
         setError(null);
 
+        const finalStatus = overrideStatus || stockinStatus;
+
         const payload: Partial<ProductStockIn> = {
-            stockin_status: stockinStatus,
+            stockin_status: finalStatus,
+            payment_status: paymentStatus,
+            payment_account_id: paymentStatus === 'paid' ? (paymentAccountId ?? undefined) : undefined,
             vendor_contact_id: vendorContactId,
             vendor_alt_name: vendorAltName.trim(),
             vendor_name: vendorAltName.trim(),
@@ -296,7 +335,7 @@ const StockInForm = () => {
 
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
-                                    Status
+                                    Stock In Status
                                 </label>
                                 <select
                                     value={stockinStatus}
@@ -309,6 +348,44 @@ const StockInForm = () => {
                                     <option value="cancelled">Cancelled</option>
                                 </select>
                             </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                    <CreditCard className="w-3.5 h-3.5 text-stone-400" />
+                                    Payment Status
+                                </label>
+                                <select
+                                    value={paymentStatus}
+                                    disabled={isLocked}
+                                    onChange={(e) => setPaymentStatus(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <option value="unpaid">Unpaid (Accounts Payable)</option>
+                                    <option value="paid">Paid (Cash / Bank)</option>
+                                    <option value="refunded">Refunded</option>
+                                </select>
+                            </div>
+
+                            {paymentStatus === 'paid' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
+                                        Payment Account (Asset)
+                                    </label>
+                                    <select
+                                        value={paymentAccountId ?? ''}
+                                        disabled={isLocked}
+                                        onChange={(e) => setPaymentAccountId(e.target.value ? Number(e.target.value) : null)}
+                                        className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <option value="">-- Default Cash / Bank Account --</option>
+                                        {assetAccounts.map((acc) => (
+                                            <option key={acc.id} value={acc.id}>
+                                                {acc.name} {acc.info ? `(${acc.info})` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -529,14 +606,25 @@ const StockInForm = () => {
                             {isLocked ? 'Back' : 'Cancel'}
                         </Link>
                         {!isLocked && (
-                            <button
-                                type="submit"
-                                disabled={saving || lines.length === 0}
-                                className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2E6E52] hover:bg-[#255842] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                            >
-                                <Save className="w-4 h-4" />
-                                {saving ? 'Saving...' : 'Save Stock In'}
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    disabled={saving || lines.length === 0}
+                                    onClick={(e) => handleSubmit(e, 'draft')}
+                                    className="px-5 py-2.5 border border-[#E1E3DB] bg-white hover:bg-stone-50 text-stone-700 rounded-xl text-sm font-semibold transition-colors shadow-xs disabled:opacity-50"
+                                >
+                                    Save as Draft
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={saving || lines.length === 0}
+                                    onClick={(e) => handleSubmit(e, 'confirmed')}
+                                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#2E6E52] hover:bg-[#255842] disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    {saving ? 'Processing...' : 'Confirm & Receive'}
+                                </button>
+                            </>
                         )}
                     </div>
                 </form>

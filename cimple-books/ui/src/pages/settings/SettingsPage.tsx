@@ -30,6 +30,7 @@ const SettingsPage = () => {
         default_sales_account_id: null,
         default_purchase_account_id: null,
         default_receivable_account_id: null,
+        default_payable_account_id: null,
         default_payment_account_id: null,
         default_tax_account_id: null,
     });
@@ -57,6 +58,7 @@ const SettingsPage = () => {
                     default_sales_account_id: settingsResp.data.default_sales_account_id ?? null,
                     default_purchase_account_id: settingsResp.data.default_purchase_account_id ?? null,
                     default_receivable_account_id: settingsResp.data.default_receivable_account_id ?? null,
+                    default_payable_account_id: settingsResp.data.default_payable_account_id ?? null,
                     default_payment_account_id: settingsResp.data.default_payment_account_id ?? null,
                     default_tax_account_id: settingsResp.data.default_tax_account_id ?? null,
                 });
@@ -426,7 +428,44 @@ const SettingsPage = () => {
                             </div>
                         </div>
 
-                        {/* 5. Default Payment / Cash Account */}
+                        {/* 5. Default Accounts Payable Account */}
+                        <div className="p-6">
+                            <div className="flex items-start gap-4">
+                                <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 flex-shrink-0 mt-0.5">
+                                    <Receipt className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 max-w-xl">
+                                    <label htmlFor="default_payable_account" className="block text-sm font-semibold text-stone-900 mb-1">
+                                        Default Accounts Payable Account
+                                    </label>
+                                    <p className="text-xs text-stone-500 mb-3">
+                                        The liability account credited when vendor stock intake is recorded as confirmed but unpaid.
+                                    </p>
+                                    <select
+                                        id="default_payable_account"
+                                        value={settings.default_payable_account_id ?? ''}
+                                        onChange={(e) => setSettings({
+                                            ...settings,
+                                            default_payable_account_id: e.target.value ? Number(e.target.value) : null
+                                        })}
+                                        className="w-full px-3.5 py-2.5 border border-[#D5D7CE] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:border-transparent bg-white text-stone-900"
+                                    >
+                                        <option value="">-- Auto-detect (Accounts Payable) --</option>
+                                        {liabilityGroupKeys.map((groupKey) => (
+                                            <optgroup key={groupKey} label={groupKey.toUpperCase()}>
+                                                {groupedAccounts[groupKey].map((account) => (
+                                                    <option key={account.id} value={account.id}>
+                                                        {account.name} {account.info ? `(${account.info})` : ''}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 6. Default Payment / Cash Account */}
                         <div className="p-6">
                             <div className="flex items-start gap-4">
                                 <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 flex-shrink-0 mt-0.5">
@@ -512,6 +551,7 @@ const SettingsPage = () => {
                                     default_sales_account_id: null,
                                     default_purchase_account_id: null,
                                     default_receivable_account_id: null,
+                                    default_payable_account_id: null,
                                     default_payment_account_id: null,
                                     default_tax_account_id: null,
                                 });

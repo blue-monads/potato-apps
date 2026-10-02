@@ -140,6 +140,8 @@ create table ProductStockIn(
     info TEXT NOT NULL DEFAULT '',
     amount INTEGER NOT NULL DEFAULT 0,
     stockin_status TEXT NOT NULL DEFAULT 'draft', -- draft, confirmed, cancelled
+    payment_status TEXT NOT NULL DEFAULT 'unpaid', -- unpaid, paid, partially_paid, refunded
+    reference_id TEXT NOT NULL DEFAULT '',
     vendor_contact_id INTEGER,
     vendor_alt_name TEXT NOT NULL DEFAULT '',
     stockin_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

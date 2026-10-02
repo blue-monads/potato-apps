@@ -1,24 +1,56 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Search, Calendar, User, ArrowDownToLine, Layers } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, Calendar, User, ArrowDownToLine, Layers, CheckCircle, CreditCard, Ban, RefreshCw, X } from 'lucide-react';
 import { Link } from 'react-router';
-import { listStockIn, deleteStockIn, getCurrencySymbol, type ProductStockIn } from '../../lib/api';
+import { 
+    listStockIn, 
+    deleteStockIn, 
+    confirmStockIn, 
+    registerStockInPayment, 
+    cancelStockIn, 
+    listAccounts, 
+    getSettings, 
+    getCurrencySymbol, 
+    type ProductStockIn, 
+    type Account 
+} from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 
 const ListStockIn = () => {
     const [stockins, setStockins] = useState<ProductStockIn[]>([]);
+    const [assetAccounts, setAssetAccounts] = useState<Account[]>([]);
+    const [defaultPaymentAccId, setDefaultPaymentAccId] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Register Payment modal state
+    const [paymentModalStockIn, setPaymentModalStockIn] = useState<ProductStockIn | null>(null);
+    const [selectedPaymentAccId, setSelectedPaymentAccId] = useState<number | null>(null);
+    const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
     const loadData = async () => {
         setLoading(true);
         setError(null);
         try {
-            const resp = await listStockIn();
-            if (resp.status === 200) {
-                setStockins(resp.data || []);
+            const [stockinResp, accResp, setResp] = await Promise.all([
+                listStockIn(),
+                listAccounts(),
+                getSettings(),
+            ]);
+
+            if (stockinResp.status === 200) {
+                setStockins(stockinResp.data || []);
             } else {
-                setError(resp.error || 'Failed to load stock in records');
+                setError(stockinResp.error || 'Failed to load stock in records');
+            }
+
+            if (accResp.status === 200 && Array.isArray(accResp.data)) {
+                setAssetAccounts(accResp.data.filter(a => !a.is_deleted && a.acc_type === 'assets'));
+            }
+
+            if (setResp.status === 200 && setResp.data?.default_payment_account_id) {
+                setDefaultPaymentAccId(setResp.data.default_payment_account_id);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load stock in records');
@@ -31,8 +63,78 @@ const ListStockIn = () => {
         loadData();
     }, []);
 
+    const handleConfirm = async (stockin: ProductStockIn) => {
+        if (!confirm(`Confirm stock in #${stockin.id}? Stock will be added to inventory and journal transactions will be recorded.`)) {
+            return;
+        }
+        setActionLoadingId(stockin.id);
+        try {
+            const resp = await confirmStockIn(stockin.id);
+            if (resp.status === 200) {
+                await loadData();
+            } else {
+                alert(resp.error || 'Failed to confirm stock in');
+            }
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to confirm stock in');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const handleCancel = async (stockin: ProductStockIn) => {
+        const isConfirmed = stockin.stockin_status === 'confirmed';
+        const msg = isConfirmed
+            ? `Cancel stock in #${stockin.id}? Inventory quantities will be deducted and linked journal transactions will be reversed.`
+            : `Cancel draft stock in #${stockin.id}?`;
+        if (!confirm(msg)) {
+            return;
+        }
+        setActionLoadingId(stockin.id);
+        try {
+            const resp = await cancelStockIn(stockin.id);
+            if (resp.status === 200) {
+                await loadData();
+            } else {
+                alert(resp.error || 'Failed to cancel stock in');
+            }
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to cancel stock in');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const handleOpenPaymentModal = (stockin: ProductStockIn) => {
+        setPaymentModalStockIn(stockin);
+        setSelectedPaymentAccId(defaultPaymentAccId || (assetAccounts.length > 0 ? assetAccounts[0].id : null));
+        setPaymentDate(new Date().toISOString().slice(0, 10));
+    };
+
+    const handleRegisterPaymentSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!paymentModalStockIn) return;
+        setActionLoadingId(paymentModalStockIn.id);
+        try {
+            const resp = await registerStockInPayment(paymentModalStockIn.id, {
+                payment_account_id: selectedPaymentAccId ?? undefined,
+                payment_date: paymentDate,
+            });
+            if (resp.status === 200) {
+                setPaymentModalStockIn(null);
+                await loadData();
+            } else {
+                alert(resp.error || 'Failed to register payment');
+            }
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to register payment');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
     const handleDelete = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this Stock In record? Stock counts will be recalculated.')) {
+        if (!confirm('Are you sure you want to delete this Stock In record? Stock counts and any linked transactions will be removed.')) {
             return;
         }
         try {
@@ -60,6 +162,17 @@ const ListStockIn = () => {
         }
     };
 
+    const getPaymentStatusColor = (status?: string) => {
+        switch (status) {
+            case 'paid':
+                return 'bg-green-100 text-green-800 border-green-200';
+            case 'unpaid':
+                return 'bg-red-100 text-red-800 border-red-200';
+            default:
+                return 'bg-stone-100 text-stone-700 border-stone-200';
+        }
+    };
+
     const filteredStockIns = stockins.filter(s => {
         const q = searchQuery.toLowerCase();
         if (s.vendor_name && s.vendor_name.toLowerCase().includes(q)) return true;
@@ -73,11 +186,12 @@ const ListStockIn = () => {
         return false;
     });
 
+    const confirmedStockIns = stockins.filter(s => s.stockin_status === 'confirmed');
     const totalReceipts = stockins.length;
-    const totalUnits = stockins.reduce((sum, s) => {
+    const totalUnits = confirmedStockIns.reduce((sum, s) => {
         return sum + (s.lines ? s.lines.reduce((lSum, l) => lSum + (l.qty || 0), 0) : 0);
     }, 0);
-    const totalValueCents = stockins.reduce((sum, s) => sum + (s.amount || 0), 0);
+    const totalValueCents = confirmedStockIns.reduce((sum, s) => sum + (s.amount || 0), 0);
 
     if (loading) {
         return (
@@ -118,12 +232,12 @@ const ListStockIn = () => {
                         <span className="text-xs text-stone-400 mt-1 block">Batches recorded</span>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-[#E1E3DB] shadow-xs">
-                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Total Units Received</span>
+                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Confirmed Units Received</span>
                         <span className="text-2xl font-black text-[#2E6E52] font-display mt-1 block">+{totalUnits}</span>
-                        <span className="text-xs text-stone-400 mt-1 block">Across all products & variants</span>
+                        <span className="text-xs text-stone-400 mt-1 block">In stock on hand</span>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-[#E1E3DB] shadow-xs">
-                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Total Received Value</span>
+                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Confirmed Purchase Value</span>
                         <span className="text-2xl font-black text-stone-900 font-display mt-1 block">
                             {getCurrencySymbol()}{(totalValueCents / 100).toFixed(2)}
                         </span>
@@ -183,6 +297,7 @@ const ListStockIn = () => {
                                         <th className="px-5 py-3.5">Received Items</th>
                                         <th className="px-5 py-3.5">Total Quantity</th>
                                         <th className="px-5 py-3.5">Total Value</th>
+                                        <th className="px-5 py-3.5">Payment</th>
                                         <th className="px-5 py-3.5">Status</th>
                                         <th className="px-5 py-3.5 text-right">Actions</th>
                                     </tr>
@@ -191,8 +306,13 @@ const ListStockIn = () => {
                                     {filteredStockIns.map((s) => {
                                         const lineCount = s.lines ? s.lines.length : 0;
                                         const batchUnits = s.lines ? s.lines.reduce((sum, l) => sum + (l.qty || 0), 0) : 0;
-                                        const status = s.stockin_status || 'draft';
-                                        const isDraft = status === 'draft';
+                                        const sStatus = s.stockin_status || 'draft';
+                                        const isDraft = sStatus === 'draft';
+                                        const isConfirmed = sStatus === 'confirmed';
+                                        const isCancelled = sStatus === 'cancelled';
+                                        const pStatus = s.payment_status || 'unpaid';
+                                        const isPaid = pStatus === 'paid';
+                                        const isProcessing = actionLoadingId === s.id;
 
                                         return (
                                             <tr key={s.id} className="hover:bg-stone-50/60 transition-colors">
@@ -253,40 +373,92 @@ const ListStockIn = () => {
                                                     {getCurrencySymbol()}{(s.amount / 100).toFixed(2)}
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap">
-                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${
-                                                        status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                        status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                                        'bg-amber-50 text-amber-700 border-amber-200'
-                                                    }`}>
-                                                        {status}
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${getPaymentStatusColor(pStatus)}`}>
+                                                        {pStatus}
                                                     </span>
                                                 </td>
-                                                <td className="px-5 py-4 whitespace-nowrap text-right">
-                                                    <div className="flex items-center justify-end gap-1.5">
-                                                        {isDraft ? (
-                                                            <Link
-                                                                to={`${BASE_PATH}stockin/${s.id}/edit`}
-                                                                className="p-1.5 text-stone-500 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors"
-                                                                title="Edit Stock In"
-                                                            >
-                                                                <Edit className="w-4 h-4" />
-                                                            </Link>
-                                                        ) : (
-                                                            <span
-                                                                className="p-1.5 text-stone-300 cursor-not-allowed rounded-lg inline-flex"
-                                                                title="Only draft stock in entries can be edited"
-                                                            >
-                                                                <Edit className="w-4 h-4 opacity-30" />
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${
+                                                        sStatus === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        sStatus === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                        'bg-amber-50 text-amber-700 border-amber-200'
+                                                    }`}>
+                                                        {sStatus}
+                                                    </span>
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        {isProcessing ? (
+                                                            <span className="p-1.5 text-stone-400">
+                                                                <RefreshCw className="w-4 h-4 animate-spin" />
                                                             </span>
+                                                        ) : (
+                                                            <>
+                                                                {/* Confirm Draft */}
+                                                                {isDraft && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleConfirm(s)}
+                                                                        className="text-stone-600 hover:text-emerald-700 p-1.5 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                                        title="Confirm stock in (adds stock & records transaction)"
+                                                                    >
+                                                                        <CheckCircle className="w-4 h-4 text-emerald-600" />
+                                                                    </button>
+                                                                )}
+
+                                                                {/* Register Payment (if not cancelled and not paid) */}
+                                                                {(!isCancelled && !isPaid) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleOpenPaymentModal(s)}
+                                                                        className="text-stone-600 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                        title="Register vendor payment"
+                                                                    >
+                                                                        <CreditCard className="w-4 h-4 text-blue-600" />
+                                                                    </button>
+                                                                )}
+
+                                                                {/* Edit: Only Draft */}
+                                                                {isDraft ? (
+                                                                    <Link
+                                                                        to={`${BASE_PATH}stockin/${s.id}/edit`}
+                                                                        className="p-1.5 text-stone-500 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                                        title="Edit Stock In"
+                                                                    >
+                                                                        <Edit className="w-4 h-4" />
+                                                                    </Link>
+                                                                ) : (
+                                                                    <span
+                                                                        className="p-1.5 text-stone-300 cursor-not-allowed rounded-lg inline-flex"
+                                                                        title="Only draft stock in entries can be edited"
+                                                                    >
+                                                                        <Edit className="w-4 h-4 opacity-30" />
+                                                                    </span>
+                                                                )}
+
+                                                                {/* Cancel */}
+                                                                {!isCancelled && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleCancel(s)}
+                                                                        className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                                                        title={isConfirmed ? "Cancel stock in (reverses stock & transactions)" : "Cancel draft stock in"}
+                                                                    >
+                                                                        <Ban className="w-4 h-4 text-rose-500" />
+                                                                    </button>
+                                                                )}
+
+                                                                {/* Delete */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDelete(s.id)}
+                                                                    className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                    title="Delete Stock In"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </>
                                                         )}
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleDelete(s.id)}
-                                                            className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                            title="Delete Stock In"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -298,6 +470,99 @@ const ListStockIn = () => {
                     )}
                 </div>
             </div>
+
+            {/* Register Payment Modal */}
+            {paymentModalStockIn && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+                    <div className="bg-white rounded-xl shadow-xl border border-[#E1E3DB] max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E1E3DB] bg-[#F8F9F6]">
+                            <div className="flex items-center gap-2 text-stone-900 font-semibold">
+                                <CreditCard className="w-5 h-5 text-[#2E6E52]" />
+                                <span>Register Vendor Payment</span>
+                            </div>
+                            <button
+                                onClick={() => setPaymentModalStockIn(null)}
+                                className="text-stone-400 hover:text-stone-600 p-1 rounded-md hover:bg-stone-100 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleRegisterPaymentSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1">
+                                    Stock In / Bill
+                                </label>
+                                <div className="text-sm font-semibold text-stone-900">
+                                    #{paymentModalStockIn.id} {paymentModalStockIn.vendor_name ? `• ${paymentModalStockIn.vendor_name}` : ''}
+                                    {paymentModalStockIn.reference_id ? ` (${paymentModalStockIn.reference_id})` : ''}
+                                </div>
+                            </div>
+
+                            <div className="p-3 bg-[#F4F5F1] rounded-lg flex items-center justify-between">
+                                <span className="text-sm font-medium text-stone-700">Amount Due:</span>
+                                <span className="text-lg font-bold text-[#2E6E52]">
+                                    {getCurrencySymbol()}{(paymentModalStockIn.amount / 100).toFixed(2)}
+                                </span>
+                            </div>
+
+                            <div>
+                                <label htmlFor="stockin_payment_account_select" className="block text-sm font-medium text-stone-700 mb-1">
+                                    Payment Account (Asset)
+                                </label>
+                                <select
+                                    id="stockin_payment_account_select"
+                                    value={selectedPaymentAccId ?? ''}
+                                    onChange={(e) => setSelectedPaymentAccId(e.target.value ? Number(e.target.value) : null)}
+                                    className="w-full px-3.5 py-2.5 border border-[#D5D7CE] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] bg-white text-stone-900"
+                                    required
+                                >
+                                    <option value="">-- Select Payment Asset Account --</option>
+                                    {assetAccounts.map((acc) => (
+                                        <option key={acc.id} value={acc.id}>
+                                            {acc.name} {acc.info ? `(${acc.info})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-stone-500 mt-1">
+                                    Select the asset account credited for paying this purchase (Cash / Bank).
+                                </p>
+                            </div>
+
+                            <div>
+                                <label htmlFor="stockin_payment_date_input" className="block text-sm font-medium text-stone-700 mb-1">
+                                    Payment Date
+                                </label>
+                                <input
+                                    id="stockin_payment_date_input"
+                                    type="date"
+                                    value={paymentDate}
+                                    onChange={(e) => setPaymentDate(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 border border-[#D5D7CE] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] bg-white text-stone-900"
+                                    required
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E1E3DB]">
+                                <button
+                                    type="button"
+                                    onClick={() => setPaymentModalStockIn(null)}
+                                    className="px-4 py-2 border border-[#D5D7CE] text-stone-700 bg-white hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={actionLoadingId === paymentModalStockIn.id}
+                                    className="px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-xs disabled:opacity-50"
+                                >
+                                    {actionLoadingId === paymentModalStockIn.id ? 'Recording...' : 'Record Payment'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

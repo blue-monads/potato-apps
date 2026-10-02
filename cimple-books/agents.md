@@ -76,10 +76,10 @@ cimple-books/
 
 ### 1. Database Schema (`server/schema.sql`)
 - **`Accounts`**: Chart of accounts (`acc_type`: `expenses`, `revenue`, `assets`, `liabilities`, `equity`). Supports hierarchical parents (`parent_id`) and contact associations (`contact_id`).
-- **`Transactions` & `TransactionLines`**: Double-entry journal entries. Every transaction enforces that total debits equal total credits. `TransactionLines` includes `linked_sales_line_id` and `linked_stockin_line_id` referencing specific line items. Auto-generated transactions from sales are marked `is_editable = false`.
+- **`Transactions` & `TransactionLines`**: Double-entry journal entries. Every transaction enforces that total debits equal total credits. `TransactionLines` includes `linked_sales_line_id` and `linked_stockin_line_id` referencing specific line items. Auto-generated transactions from sales and stock in are marked `is_editable = false`.
 - **`Catagories`**: Categorization for products with `product_class` (`physical_item`, `service`, `digital_item`).
 - **`Products` & `ProductVariants`**: Inventory tracking. Products can have multiple variants with specific sales pricing and tracked counts.
-- **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Tracks intake status (`draft`, `confirmed`, `cancelled`) and updates stock levels.
+- **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Tracks intake status (`draft`, `confirmed`, `cancelled`), payment status (`unpaid`, `paid`), reference identifier (`reference_id`), and updates stock levels when confirmed.
 - **`Sales` & `SalesLines`**: Customer sales and invoicing. Tracks line item amounts, overall taxes, discounts, sales status (`draft`, `confirmed`, `cancelled`), and payment status (`unpaid`, `paid`, `partially_paid`, `refunded`).
 - **`Tax`**: Configurable tax rates for sales and purchases.
 - **`Contacts`**: Clients, suppliers, and general contacts with addresses, phones, emails, and JSON metadata (`extra_data`).
@@ -91,7 +91,7 @@ If unbalanced, the API rejects the request with HTTP 400.
 
 ### 3. Dynamic Inventory Calculation
 Product inventory is calculated dynamically in Lua (`calculate_product_stocks` in `server/server.lua`):
-- For tracked products (`track_inventory == true`), `stock_count` is derived by aggregating quantities from active `ProductStockInLines` (variant or product level).
+- For tracked products (`track_inventory == true`), `stock_count` is derived by aggregating quantities from active `ProductStockInLines` where parent `ProductStockIn.stockin_status == 'confirmed'`. Draft or cancelled receipts do not increment on-hand inventory.
 - For non-tracked products (`track_inventory == false`), the manual `stock_count` value from `Products` or `ProductVariants` is returned.
 
 ### 4. Initialization & Seeding (`server/spages/init.html`)
@@ -106,6 +106,7 @@ System settings are persisted in the KV store under the `CONFIG` group:
 - `DEFAULT_SALES_ACCOUNT_ID`: Default revenue account for sales lines.
 - `DEFAULT_PURCHASE_ACCOUNT_ID`: Default purchase/expense account for stock intake.
 - `DEFAULT_RECEIVABLE_ACCOUNT_ID`: Default Accounts Receivable asset account.
+- `DEFAULT_PAYABLE_ACCOUNT_ID`: Default Accounts Payable liability account.
 - `DEFAULT_PAYMENT_ACCOUNT_ID`: Default Cash/Bank asset account.
 - `DEFAULT_TAX_ACCOUNT_ID`: Default Sales Tax Payable liability account.
 - `SETTINGS`: JSON string containing the full configuration dictionary.
@@ -125,7 +126,26 @@ To enforce accounting integrity across ledger accounts:
 - **Sales Account (`sales_account_id`)**: Strictly restricted to accounts with `acc_type == 'revenue'`.
 - **Purchase Account (`purchase_account_id`)**: Strictly restricted to accounts with `acc_type == 'expenses'` or `acc_type == 'assets'` (e.g. Inventory Asset).
 - Both frontend UI forms (`ProductFormPage.tsx`, `ProductForm.tsx`) and backend validation (`create_product`, `update_product`) enforce these restrictions. If a legacy record contains an invalid account, the UI flags it clearly with a warning prompt and prevents invalid submissions.
-- Global defaults in Settings (`SettingsPage.tsx`, `update_app_settings`) similarly enforce matching account types for Sales (`revenue`), Purchases (`expenses`/`assets`), Receivables (`assets`), Payments (`assets`), and Sales Tax (`liabilities`).
+- Global defaults in Settings (`SettingsPage.tsx`, `update_app_settings`) similarly enforce matching account types for Sales (`revenue`), Purchases (`expenses`/`assets`), Receivables (`assets`), Payables (`liabilities`), Payments (`assets`), and Sales Tax (`liabilities`).
+
+### 8. Purchase / Stock In Accounting Workflows
+Stock In state transitions manage double-entry journal transactions and inventory counts automatically:
+1. **Direct Stock In (`confirmed` + `paid`)**: Single transaction created:
+   - Debit: Product's `purchase_account_id` (or fallback `DEFAULT_PURCHASE_ACCOUNT_ID` / auto-detected expense or asset account), tagged with `linked_stockin_line_id = line.id`.
+   - Credit: Cash/Bank Asset account (`DEFAULT_PAYMENT_ACCOUNT_ID` or user-specified asset account).
+   - Inventory: Stock count is incremented on all received product variants.
+2. **Direct Stock In (`confirmed` + `unpaid`)**: Single transaction created:
+   - Debit: Product's `purchase_account_id` (tagged with `linked_stockin_line_id = line.id`).
+   - Credit: Accounts Payable Liability account (`DEFAULT_PAYABLE_ACCOUNT_ID` or auto-detected liability account).
+   - Inventory: Stock count is incremented on all received product variants.
+3. **Draft Stock In $\rightarrow$ Confirm**: Stock in becomes `confirmed` (unpaid or paid); creates transaction matching Flow 1 or Flow 2. Stock count is incremented.
+4. **Draft Stock In $\rightarrow$ Register Payment**: Stock in becomes `confirmed` + `paid` in one step; creates transaction matching Flow 1. Stock count is incremented.
+5. **Draft Stock In $\rightarrow$ Cancel**: Status becomes `cancelled`; no transactions created and no inventory change.
+6. **Confirmed + Unpaid Stock In $\rightarrow$ Register Payment**: Stock in becomes `paid`; creates a separate vendor payment transaction:
+   - Debit: Accounts Payable Liability account.
+   - Credit: Cash/Bank Asset account.
+7. **Confirmed Stock In $\rightarrow$ Cancel**: Status becomes `cancelled`; inventory counts are automatically reduced (only confirmed stock in records are aggregated), and all linked journal transactions (bill & payment) are reversed (`is_deleted = 1`).
+8. **Delete Stock In**: Reverses linked journal transactions and removes the stock in record and line items.
 
 ---
 
@@ -167,10 +187,13 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Variants** | `PUT`/`PATCH` | `/variants/:id` | Updates variant details |
 | **Variants** | `DELETE` | `/variants/:id` | Soft-deletes a variant |
 | **Stock In** | `GET` | `/stockin` | Lists stock intake records |
-| **Stock In** | `POST` | `/stockin` | Creates stock intake record and line items |
+| **Stock In** | `POST` | `/stockin` | Creates stock intake record and line items (auto-posts transaction if confirmed) |
 | **Stock In** | `GET` | `/stockin/:id` | Gets stock intake record with lines |
 | **Stock In** | `PUT`/`PATCH`/`POST` | `/stockin/:id` | Updates stock intake record (allowed only if in `draft` state) |
-| **Stock In** | `DELETE` | `/stockin/:id` | Deletes stock intake record |
+| **Stock In** | `POST` | `/stockin/:id/confirm` | Confirms draft stock in, updates inventory, and posts purchase transaction |
+| **Stock In** | `POST` | `/stockin/:id/register-payment` | Registers vendor payment (supports optional asset `payment_account_id` / `account_id`) and posts payment transaction |
+| **Stock In** | `POST` | `/stockin/:id/cancel` | Cancels stock in, deducts inventory, and reverses linked transactions |
+| **Stock In** | `DELETE` | `/stockin/:id` | Deletes stock intake record and reverses linked transactions |
 | **Taxes** | `GET` | `/taxes` | Lists active tax rates |
 | **Taxes** | `POST` | `/taxes` | Creates a tax rate |
 | **Taxes** | `PUT`/`PATCH` | `/taxes/:id` | Updates a tax rate |

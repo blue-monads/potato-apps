@@ -1127,6 +1127,17 @@ end
 -- PRODUCTS
 -- ============================================================
 
+local function get_confirmed_stockin_id_map()
+    local map = {}
+    local stockins, _ = potato.db.find_all_by_cond("ProductStockIn", {})
+    for _, s in ipairs(stockins or {}) do
+        if s.stockin_status == "confirmed" then
+            map[s.id] = true
+        end
+    end
+    return map
+end
+
 local function calculate_product_stocks(products, variants)
     -- Index variants by product
     local variants_by_product = {}
@@ -1138,14 +1149,8 @@ local function calculate_product_stocks(products, variants)
         table.insert(variants_by_product[pid], v)
     end
 
-    -- Build a set of active stockin IDs (excluding cancelled)
-    local active_sid_map = {}
-    local active_stockins, _ = potato.db.find_all_by_cond("ProductStockIn", {})
-    for _, s in ipairs(active_stockins or {}) do
-        if s.stockin_status ~= "cancelled" then
-            active_sid_map[s.id] = true
-        end
-    end
+    -- Build a set of active stockin IDs (confirmed only)
+    local active_sid_map = get_confirmed_stockin_id_map()
 
     -- Aggregate stock from active stockin lines
     local stock_by_product = {}
@@ -1411,11 +1416,14 @@ local function enrich_variant_stocks(variants, product_id, track_inv)
         local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
             product_id = product_id
         })
+        local active_sid_map = get_confirmed_stockin_id_map()
         local stock_by_variant = {}
         for _, l in ipairs(stockin_lines or {}) do
-            local vid = l.variant_id or 0
-            if vid > 0 then
-                stock_by_variant[vid] = (stock_by_variant[vid] or 0) + (l.qty or 0)
+            if active_sid_map[l.product_stockin_id] then
+                local vid = l.variant_id or 0
+                if vid > 0 then
+                    stock_by_variant[vid] = (stock_by_variant[vid] or 0) + (l.qty or 0)
+                end
             end
         end
         for _, v in ipairs(variants or {}) do
@@ -1507,8 +1515,13 @@ function get_product_variant(ctx, variant_id)
         local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
             variant_id = variant_id
         })
+        local active_sid_map = get_confirmed_stockin_id_map()
         local total = 0
-        for _, l in ipairs(stockin_lines or {}) do total = total + (l.qty or 0) end
+        for _, l in ipairs(stockin_lines or {}) do
+            if active_sid_map[l.product_stockin_id] then
+                total = total + (l.qty or 0)
+            end
+        end
         variant.stock_count = total
     else
         variant.stock_count = variant.stock_count or 0
@@ -1567,6 +1580,84 @@ function delete_product_variant(ctx, variant_id)
         return
     end
     req.json(200, { message = "Variant deleted" })
+end
+
+-- ============================================================
+-- SHARED ACCOUNTING & CONFIG HELPERS
+-- ============================================================
+
+-- Read a numeric config value from KV, with fallback to nil.
+local function kv_number(group, key)
+    local v = kv_value(space_kv_get(group, key))
+    return v and tonumber(v) or nil
+end
+
+-- Read a string config value from KV, with fallback to nil.
+local function kv_string(group, key)
+    return kv_value(space_kv_get(group, key))
+end
+
+local function get_app_settings_table()
+    local currency_symbol            = kv_string("CONFIG", "CURRENCY_SYMBOL") or "$"
+    local default_tax_rate_id        = kv_number("CONFIG", "DEFAULT_TAX_RATE_ID")
+    local default_sales_account_id   = kv_number("CONFIG", "DEFAULT_SALES_ACCOUNT_ID")
+    local default_purchase_account_id= kv_number("CONFIG", "DEFAULT_PURCHASE_ACCOUNT_ID")
+    local default_receivable_account_id = kv_number("CONFIG", "DEFAULT_RECEIVABLE_ACCOUNT_ID")
+    local default_payable_account_id = kv_number("CONFIG", "DEFAULT_PAYABLE_ACCOUNT_ID")
+    local default_payment_account_id = kv_number("CONFIG", "DEFAULT_PAYMENT_ACCOUNT_ID")
+    local default_tax_account_id     = kv_number("CONFIG", "DEFAULT_TAX_ACCOUNT_ID")
+
+    -- Also try a combined SETTINGS blob (legacy support)
+    local settings_raw = kv_string("CONFIG", "SETTINGS") or kv_string("CONFIG", "DEFAULTS")
+    if settings_raw ~= nil then
+        local ok, parsed = pcall(json.decode, settings_raw)
+        if ok and type(parsed) == "table" then
+            if currency_symbol == "$"             and parsed.currency_symbol             ~= nil and parsed.currency_symbol             ~= "" then currency_symbol             = tostring(parsed.currency_symbol) end
+            if default_tax_rate_id        == nil  and parsed.default_tax_rate_id        ~= nil then default_tax_rate_id        = tonumber(parsed.default_tax_rate_id) end
+            if default_sales_account_id   == nil  and parsed.default_sales_account_id   ~= nil then default_sales_account_id   = tonumber(parsed.default_sales_account_id) end
+            if default_purchase_account_id == nil and parsed.default_purchase_account_id ~= nil then default_purchase_account_id = tonumber(parsed.default_purchase_account_id) end
+            if default_receivable_account_id == nil and parsed.default_receivable_account_id ~= nil then default_receivable_account_id = tonumber(parsed.default_receivable_account_id) end
+            if default_payable_account_id == nil  and parsed.default_payable_account_id  ~= nil then default_payable_account_id  = tonumber(parsed.default_payable_account_id) end
+            if default_payment_account_id == nil  and parsed.default_payment_account_id  ~= nil then default_payment_account_id  = tonumber(parsed.default_payment_account_id) end
+            if default_tax_account_id     == nil  and parsed.default_tax_account_id      ~= nil then default_tax_account_id      = tonumber(parsed.default_tax_account_id) end
+        end
+    end
+
+    return {
+        currency_symbol              = currency_symbol,
+        default_tax_rate_id          = default_tax_rate_id,
+        default_sales_account_id     = default_sales_account_id,
+        default_purchase_account_id  = default_purchase_account_id,
+        default_receivable_account_id = default_receivable_account_id,
+        default_payable_account_id   = default_payable_account_id,
+        default_payment_account_id   = default_payment_account_id,
+        default_tax_account_id       = default_tax_account_id
+    }
+end
+
+-- Find the best-matching account ID for a given type, using common name patterns as hints.
+local function find_account_by_type(acc_type, name_hints)
+    -- Try name hints first
+    for _, hint in ipairs(name_hints or {}) do
+        local rows = run_q("SELECT id FROM Accounts WHERE is_deleted = 0 AND acc_type = ? AND name LIKE ? LIMIT 1",
+            { acc_type, "%" .. hint .. "%" })
+        if rows and #rows > 0 then return tonumber(rows[1].id) end
+    end
+    -- Fall back to any account of the right type
+    local rows = run_q("SELECT id FROM Accounts WHERE is_deleted = 0 AND acc_type = ? LIMIT 1", { acc_type })
+    if rows and #rows > 0 then return tonumber(rows[1].id) end
+    return nil
+end
+
+-- Extract payment_account_id from request body (handles two field aliases).
+local function resolve_payment_account_id(data)
+    if type(data) ~= "table" then return nil end
+    if data.payment_account_id ~= nil and data.payment_account_id ~= "" then
+        return tonumber(data.payment_account_id)
+    elseif data.account_id ~= nil and data.account_id ~= "" then
+        return tonumber(data.account_id)
+    end
+    return nil
 end
 
 -- ============================================================
@@ -1629,6 +1720,204 @@ local function insert_stockin_lines(lines, stockin_id, userId)
     end
 end
 
+local function resolve_stockin_accounts()
+    local s = get_app_settings_table()
+
+    local purchase_acc_id = (s.default_purchase_account_id and s.default_purchase_account_id ~= 0) and s.default_purchase_account_id
+        or find_account_by_type("expenses", { "Purchase", "Cost", "COGS", "Inventory" })
+        or find_account_by_type("assets", { "Inventory" })
+
+    local payable_acc_id = (s.default_payable_account_id and s.default_payable_account_id ~= 0) and s.default_payable_account_id
+        or find_account_by_type("liabilities", { "Payable", "Creditor", "Supplier" })
+        or find_account_by_type("liabilities")
+
+    local payment_acc_id = (s.default_payment_account_id and s.default_payment_account_id ~= 0) and s.default_payment_account_id
+        or find_account_by_type("assets", { "Cash", "Bank" })
+
+    return {
+        purchase_acc_id = purchase_acc_id,
+        payable_acc_id  = payable_acc_id,
+        payment_acc_id  = payment_acc_id
+    }
+end
+
+local function post_stockin_transaction(stockin, lines, payment_account_id, userId)
+    local accounts = resolve_stockin_accounts()
+
+    -- Credit account: Cash/Bank if paid, otherwise Accounts Payable
+    local credit_acc_id = (stockin.payment_status == "paid")
+        and (payment_account_id or accounts.payment_acc_id)
+        or accounts.payable_acc_id
+
+    if not credit_acc_id then
+        return nil, "No valid account found for credit (Accounts Payable or Payment asset account)"
+    end
+
+    local txn_title = "Stock In #" .. tostring(stockin.id)
+    if stockin.reference_id and stockin.reference_id ~= "" then
+        txn_title = txn_title .. " - " .. stockin.reference_id
+    elseif stockin.vendor_name and stockin.vendor_name ~= "" then
+        txn_title = txn_title .. " - " .. stockin.vendor_name
+    end
+
+    local txn_id, err = potato.db.insert("Transactions", {
+        title          = txn_title,
+        notes          = "Auto-generated transaction for Stock In #" .. tostring(stockin.id),
+        txn_type       = "stockin",
+        reference_id   = tostring(stockin.id),
+        reference_type = "stockin",
+        attachments    = "",
+        created_by     = userId,
+        updated_by     = userId,
+        txn_date       = to_sqlite_datetime(stockin.stockin_date),
+        is_editable    = 0,
+        is_deleted     = 0
+    })
+    if err ~= nil or txn_id == nil then
+        return nil, "Failed to create transaction: " .. tostring(err)
+    end
+
+    -- Build debit lines (one per stockin line)
+    local debit_lines = {}
+    local total_debits = 0
+
+    for _, line in ipairs(lines or {}) do
+        local line_acc = nil
+        if line.product_id and tonumber(line.product_id) and tonumber(line.product_id) > 0 then
+            local prod, _ = potato.db.find_by_id("Products", tonumber(line.product_id))
+            if prod and prod.purchase_account_id and tonumber(prod.purchase_account_id) and tonumber(prod.purchase_account_id) > 0 then
+                line_acc = tonumber(prod.purchase_account_id)
+            end
+        end
+        if not line_acc then line_acc = accounts.purchase_acc_id end
+        if not line_acc then
+            return nil, "No valid purchase account found for debit line"
+        end
+
+        local line_amount = tonumber(line.amount)
+        if line_amount == nil or line_amount == 0 then
+            line_amount = (tonumber(line.qty) or 0) * (tonumber(line.price) or 0)
+        end
+
+        table.insert(debit_lines, {
+            account_id             = line_acc,
+            txn_id                 = txn_id,
+            debit_amount           = line_amount,
+            credit_amount          = 0,
+            created_by             = userId,
+            updated_by             = userId,
+            linked_sales_line_id   = nil,
+            linked_stockin_line_id = line.id
+        })
+        total_debits = total_debits + line_amount
+    end
+
+    local stockin_total = tonumber(stockin.amount) or 0
+    if #debit_lines == 0 and accounts.purchase_acc_id then
+        table.insert(debit_lines, {
+            account_id             = accounts.purchase_acc_id,
+            txn_id                 = txn_id,
+            debit_amount           = stockin_total,
+            credit_amount          = 0,
+            created_by             = userId,
+            updated_by             = userId,
+            linked_sales_line_id   = nil,
+            linked_stockin_line_id = nil
+        })
+        total_debits = stockin_total
+    end
+
+    -- Balance check
+    local diff = stockin_total - total_debits
+    if diff ~= 0 and #debit_lines > 0 then
+        debit_lines[1].debit_amount = debit_lines[1].debit_amount + diff
+        total_debits = total_debits + diff
+    end
+
+    -- Credit line (Accounts Payable or Payment Asset)
+    potato.db.insert("TransactionLines", {
+        account_id             = credit_acc_id,
+        txn_id                 = txn_id,
+        debit_amount           = 0,
+        credit_amount          = total_debits,
+        created_by             = userId,
+        updated_by             = userId,
+        linked_sales_line_id   = nil,
+        linked_stockin_line_id = nil
+    })
+
+    for _, dl in ipairs(debit_lines) do
+        potato.db.insert("TransactionLines", dl)
+    end
+
+    return txn_id
+end
+
+local function post_stockin_payment_transaction(stockin, payment_account_id, payment_date, userId)
+    local accounts       = resolve_stockin_accounts()
+    local pay_acc_id     = payment_account_id or accounts.payment_acc_id
+    local payable_acc_id = accounts.payable_acc_id
+
+    if not pay_acc_id or not payable_acc_id then
+        return nil, "Missing payment or accounts payable account"
+    end
+
+    local txn_id, err = potato.db.insert("Transactions", {
+        title          = "Payment for Stock In #" .. tostring(stockin.id),
+        notes          = "Payment made for Stock In #" .. tostring(stockin.id),
+        txn_type       = "stockin",
+        reference_id   = tostring(stockin.id),
+        reference_type = "stockin",
+        attachments    = "",
+        created_by     = userId,
+        updated_by     = userId,
+        txn_date       = to_sqlite_datetime(payment_date),
+        is_editable    = 0,
+        is_deleted     = 0
+    })
+    if err ~= nil or txn_id == nil then
+        return nil, "Failed to create payment transaction: " .. tostring(err)
+    end
+
+    local total = tonumber(stockin.amount) or 0
+
+    -- Debit Accounts Payable
+    potato.db.insert("TransactionLines", {
+        account_id             = payable_acc_id,
+        txn_id                 = txn_id,
+        debit_amount           = total,
+        credit_amount          = 0,
+        created_by             = userId,
+        updated_by             = userId,
+        linked_sales_line_id   = nil,
+        linked_stockin_line_id = nil
+    })
+
+    -- Credit Cash/Bank
+    potato.db.insert("TransactionLines", {
+        account_id             = pay_acc_id,
+        txn_id                 = txn_id,
+        debit_amount           = 0,
+        credit_amount          = total,
+        created_by             = userId,
+        updated_by             = userId,
+        linked_sales_line_id   = nil,
+        linked_stockin_line_id = nil
+    })
+
+    return txn_id
+end
+
+local function revert_stockin_transactions(stockin_id, userId)
+    local txns = run_q(
+        "SELECT id FROM Transactions WHERE reference_type = 'stockin' AND reference_id = ? AND is_deleted = 0",
+        { tostring(stockin_id) }
+    )
+    for _, t in ipairs(txns or {}) do
+        potato.db.update_by_id("Transactions", t.id, { is_deleted = 1, updated_by = userId })
+    end
+end
+
 --- @param ctx HttpContext
 function list_stockin(ctx)
     local req    = ctx.request()
@@ -1686,6 +1975,11 @@ function create_stockin(ctx)
     local data   = req.bind_json()
     local lines  = data.lines or {}
 
+    if lines == nil or type(lines) ~= "table" or #lines == 0 then
+        req.json(400, { error = "Stock in must have at least one line" })
+        return
+    end
+
     local total_amount = calc_stockin_lines_total(lines)
     if total_amount == 0 and data.amount ~= nil then
         total_amount = tonumber(data.amount) or 0
@@ -1694,14 +1988,16 @@ function create_stockin(ctx)
     local vendor_cid, vendor_alt = resolve_vendor(data)
 
     local id, err = potato.db.insert("ProductStockIn", {
-        info             = data.info or "",
-        amount           = total_amount,
-        stockin_status   = data.stockin_status or "draft",
+        info              = data.info or "",
+        amount            = total_amount,
+        stockin_status    = data.stockin_status or "draft",
+        payment_status    = data.payment_status or "unpaid",
+        reference_id      = data.reference_id or "",
         vendor_contact_id = vendor_cid,
-        vendor_alt_name  = vendor_alt,
-        stockin_date     = data.stockin_date or os.date("!%Y-%m-%dT%H:%M:%SZ"),
-        created_by       = userId,
-        updated_by       = userId
+        vendor_alt_name   = vendor_alt,
+        stockin_date      = to_sqlite_datetime(data.stockin_date),
+        created_by        = userId,
+        updated_by        = userId
     })
     if err ~= nil then
         req.json(400, { error = tostring(err) })
@@ -1715,6 +2011,23 @@ function create_stockin(ctx)
         attach_lines(stockin, "ProductStockInLines", "product_stockin_id", id)
         resolve_stockin_vendor_name(stockin)
     end
+
+    -- Auto-post transaction when stockin is created directly as confirmed
+    if data.stockin_status == "confirmed" then
+        local pay_acc_id = resolve_payment_account_id(data)
+        if pay_acc_id ~= nil and data.payment_status == "paid" then
+            local p_acc, _ = potato.db.find_by_id("Accounts", pay_acc_id)
+            if not p_acc or p_acc.acc_type ~= "assets" then
+                req.json(400, { error = "Payment account must have account type 'assets'" })
+                return
+            end
+        end
+        local _, post_err = post_stockin_transaction(stockin, stockin.lines, pay_acc_id, userId)
+        if post_err ~= nil then
+            print("Warning: failed to post stockin transaction on creation: " .. tostring(post_err))
+        end
+    end
+
     req.json(200, stockin)
 end
 
@@ -1768,7 +2081,7 @@ function update_stockin(ctx, stockin_id)
         return
     end
     if (existing.stockin_status or "draft") ~= "draft" then
-        req.json(400, { error = "Cannot edit stock in unless it is in draft state" })
+        req.json(400, { error = "Cannot edit stock in record unless it is in draft state" })
         return
     end
 
@@ -1777,7 +2090,9 @@ function update_stockin(ctx, stockin_id)
 
     if data.info           ~= nil then update_data.info           = data.info end
     if data.stockin_status ~= nil then update_data.stockin_status = data.stockin_status end
-    if data.stockin_date   ~= nil then update_data.stockin_date   = data.stockin_date end
+    if data.payment_status ~= nil then update_data.payment_status = data.payment_status end
+    if data.reference_id   ~= nil then update_data.reference_id   = data.reference_id end
+    if data.stockin_date   ~= nil then update_data.stockin_date   = to_sqlite_datetime(data.stockin_date) end
 
     -- Resolve vendor
     if data.vendor_contact_id ~= nil then
@@ -1793,7 +2108,7 @@ function update_stockin(ctx, stockin_id)
     end
 
     -- Replace lines if provided
-    if data.lines ~= nil and type(data.lines) == "table" then
+    if data.lines ~= nil and type(data.lines) == "table" and #data.lines > 0 then
         potato.db.delete_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
         insert_stockin_lines(data.lines, stockin_id, userId)
         update_data.amount = calc_stockin_lines_total(data.lines)
@@ -1810,8 +2125,210 @@ function update_stockin(ctx, stockin_id)
     local updated, _ = potato.db.find_by_id("ProductStockIn", stockin_id)
     if updated ~= nil then
         attach_lines(updated, "ProductStockInLines", "product_stockin_id", stockin_id)
+        resolve_stockin_vendor_name(updated)
     end
+
+    -- Auto-post transaction when transitioning to confirmed for the first time
+    if update_data.stockin_status == "confirmed" then
+        local existing_txns = run_q(
+            "SELECT id FROM Transactions WHERE reference_type = 'stockin' AND reference_id = ? AND is_deleted = 0",
+            { tostring(stockin_id) }
+        )
+        if not existing_txns or #existing_txns == 0 then
+            local pay_acc_id = resolve_payment_account_id(data)
+            local _, post_err = post_stockin_transaction(updated, updated.lines, pay_acc_id, userId)
+            if post_err ~= nil then
+                print("Warning: failed to post stockin transaction on update: " .. tostring(post_err))
+            end
+        end
+    end
+
     req.json(200, updated)
+end
+
+--- @param ctx HttpContext
+--- @param stockin_id number
+function confirm_stockin(ctx, stockin_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "stockin_id", stockin_id) then return end
+
+    local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
+    if err ~= nil or stockin == nil then
+        req.json(404, { error = "StockIn not found" })
+        return
+    end
+
+    if (stockin.stockin_status or "draft") ~= "draft" then
+        local existing_txns = run_q(
+            "SELECT id FROM Transactions WHERE reference_type = 'stockin' AND reference_id = ? AND is_deleted = 0",
+            { tostring(stockin_id) }
+        )
+        if existing_txns and #existing_txns > 0 then
+            req.json(400, { error = "Only draft stock in records can be confirmed" })
+            return
+        end
+    end
+
+    local data       = req.bind_json()
+    local pay_acc_id = resolve_payment_account_id(data)
+
+    if pay_acc_id ~= nil and stockin.payment_status == "paid" then
+        local p_acc, _ = potato.db.find_by_id("Accounts", pay_acc_id)
+        if not p_acc or p_acc.acc_type ~= "assets" then
+            req.json(400, { error = "Payment account must have account type 'assets'" })
+            return
+        end
+    end
+
+    local update_err = potato.db.update_by_id("ProductStockIn", stockin_id, {
+        stockin_status = "confirmed",
+        updated_by     = userId
+    })
+    if update_err ~= nil then
+        req.json(400, { error = "Failed to confirm stock in: " .. tostring(update_err) })
+        return
+    end
+
+    local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
+    stockin.stockin_status = "confirmed"
+    stockin.lines = lines or {}
+    resolve_stockin_vendor_name(stockin)
+
+    local _, post_err = post_stockin_transaction(stockin, lines, pay_acc_id, userId)
+    if post_err ~= nil then
+        print("Warning: failed to post stockin transaction on confirm: " .. tostring(post_err))
+        req.json(400, { error = "Failed to post stock in transaction: " .. tostring(post_err) })
+        return
+    end
+
+    req.json(200, stockin)
+end
+
+--- @param ctx HttpContext
+--- @param stockin_id number
+function register_stockin_payment(ctx, stockin_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "stockin_id", stockin_id) then return end
+
+    local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
+    if err ~= nil or stockin == nil then
+        req.json(404, { error = "StockIn not found" })
+        return
+    end
+    if stockin.stockin_status == "cancelled" then
+        req.json(400, { error = "Cannot register payment for cancelled stock in" })
+        return
+    end
+    if stockin.payment_status == "paid" then
+        req.json(400, { error = "Stock in is already paid" })
+        return
+    end
+
+    local data         = req.bind_json()
+    local pay_acc_id   = resolve_payment_account_id(data)
+    local payment_date = (type(data) == "table" and data.payment_date ~= nil and data.payment_date ~= "") and data.payment_date or nil
+
+    if pay_acc_id ~= nil then
+        local p_acc, _ = potato.db.find_by_id("Accounts", pay_acc_id)
+        if not p_acc then
+            req.json(400, { error = "Selected payment account not found" })
+            return
+        end
+        if p_acc.acc_type ~= "assets" then
+            req.json(400, { error = "Payment account must have account type 'assets'" })
+            return
+        end
+    end
+
+    local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
+    stockin.lines = lines or {}
+    resolve_stockin_vendor_name(stockin)
+
+    -- Flow A: Draft stockin -> register payment (confirm + paid in one go, single transaction)
+    if (stockin.stockin_status or "draft") == "draft" then
+        local update_err = potato.db.update_by_id("ProductStockIn", stockin_id, {
+            stockin_status = "confirmed",
+            payment_status = "paid",
+            updated_by     = userId
+        })
+        if update_err ~= nil then
+            req.json(400, { error = "Failed to update stock in: " .. tostring(update_err) })
+            return
+        end
+        stockin.stockin_status = "confirmed"
+        stockin.payment_status = "paid"
+        local _, post_err = post_stockin_transaction(stockin, lines, pay_acc_id, userId)
+        if post_err ~= nil then
+            print("Warning: failed to post stockin transaction on draft payment: " .. tostring(post_err))
+        end
+        req.json(200, stockin)
+        return
+    end
+
+    -- Flow B: Confirmed + Unpaid -> register payment (separate payment transaction)
+    if stockin.stockin_status == "confirmed" then
+        local update_err = potato.db.update_by_id("ProductStockIn", stockin_id, {
+            payment_status = "paid",
+            updated_by     = userId
+        })
+        if update_err ~= nil then
+            req.json(400, { error = "Failed to update payment status: " .. tostring(update_err) })
+            return
+        end
+        stockin.payment_status = "paid"
+        local _, post_err = post_stockin_payment_transaction(stockin, pay_acc_id, payment_date, userId)
+        if post_err ~= nil then
+            print("Warning: failed to post stock in payment transaction: " .. tostring(post_err))
+        end
+        req.json(200, stockin)
+        return
+    end
+end
+
+--- @param ctx HttpContext
+--- @param stockin_id number
+function cancel_stockin(ctx, stockin_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "stockin_id", stockin_id) then return end
+
+    local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
+    if err ~= nil or stockin == nil then
+        req.json(404, { error = "StockIn not found" })
+        return
+    end
+    if stockin.stockin_status == "cancelled" then
+        req.json(400, { error = "Stock in is already cancelled" })
+        return
+    end
+
+    local prev_status = stockin.stockin_status or "draft"
+
+    local update_err = potato.db.update_by_id("ProductStockIn", stockin_id, {
+        stockin_status = "cancelled",
+        updated_by     = userId
+    })
+    if update_err ~= nil then
+        req.json(400, { error = "Failed to cancel stock in: " .. tostring(update_err) })
+        return
+    end
+
+    -- Revert linked transactions only if the stock in was previously confirmed
+    if prev_status == "confirmed" then
+        revert_stockin_transactions(stockin_id, userId)
+    end
+
+    stockin.stockin_status = "cancelled"
+    local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
+    stockin.lines = lines or {}
+    resolve_stockin_vendor_name(stockin)
+
+    req.json(200, stockin)
 end
 
 --- @param ctx HttpContext
@@ -1822,9 +2339,17 @@ function delete_stockin(ctx, stockin_id)
     if userId == nil then return end
     if not require_param(req, "stockin_id", stockin_id) then return end
 
-    local err = potato.db.delete_by_id("ProductStockIn", stockin_id)
-    if err ~= nil then
-        req.json(400, { error = tostring(err) })
+    local stockin, err = potato.db.find_by_id("ProductStockIn", stockin_id)
+    if err ~= nil or stockin == nil then
+        req.json(404, { error = "StockIn not found" })
+        return
+    end
+
+    revert_stockin_transactions(stockin_id, userId)
+
+    local del_err = potato.db.delete_by_id("ProductStockIn", stockin_id)
+    if del_err ~= nil then
+        req.json(400, { error = tostring(del_err) })
         return
     end
     potato.db.delete_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
@@ -1919,52 +2444,6 @@ end
 -- APP SETTINGS
 -- ============================================================
 
--- Read a numeric config value from KV, with fallback to nil.
-local function kv_number(group, key)
-    local v = kv_value(space_kv_get(group, key))
-    return v and tonumber(v) or nil
-end
-
--- Read a string config value from KV, with fallback to nil.
-local function kv_string(group, key)
-    return kv_value(space_kv_get(group, key))
-end
-
-local function get_app_settings_table()
-    local currency_symbol            = kv_string("CONFIG", "CURRENCY_SYMBOL") or "$"
-    local default_tax_rate_id        = kv_number("CONFIG", "DEFAULT_TAX_RATE_ID")
-    local default_sales_account_id   = kv_number("CONFIG", "DEFAULT_SALES_ACCOUNT_ID")
-    local default_purchase_account_id= kv_number("CONFIG", "DEFAULT_PURCHASE_ACCOUNT_ID")
-    local default_receivable_account_id = kv_number("CONFIG", "DEFAULT_RECEIVABLE_ACCOUNT_ID")
-    local default_payment_account_id = kv_number("CONFIG", "DEFAULT_PAYMENT_ACCOUNT_ID")
-    local default_tax_account_id     = kv_number("CONFIG", "DEFAULT_TAX_ACCOUNT_ID")
-
-    -- Also try a combined SETTINGS blob (legacy support)
-    local settings_raw = kv_string("CONFIG", "SETTINGS") or kv_string("CONFIG", "DEFAULTS")
-    if settings_raw ~= nil then
-        local ok, parsed = pcall(json.decode, settings_raw)
-        if ok and type(parsed) == "table" then
-            if currency_symbol == "$"             and parsed.currency_symbol             ~= nil and parsed.currency_symbol             ~= "" then currency_symbol             = tostring(parsed.currency_symbol) end
-            if default_tax_rate_id        == nil  and parsed.default_tax_rate_id        ~= nil then default_tax_rate_id        = tonumber(parsed.default_tax_rate_id) end
-            if default_sales_account_id   == nil  and parsed.default_sales_account_id   ~= nil then default_sales_account_id   = tonumber(parsed.default_sales_account_id) end
-            if default_purchase_account_id == nil and parsed.default_purchase_account_id ~= nil then default_purchase_account_id = tonumber(parsed.default_purchase_account_id) end
-            if default_receivable_account_id == nil and parsed.default_receivable_account_id ~= nil then default_receivable_account_id = tonumber(parsed.default_receivable_account_id) end
-            if default_payment_account_id == nil  and parsed.default_payment_account_id  ~= nil then default_payment_account_id  = tonumber(parsed.default_payment_account_id) end
-            if default_tax_account_id     == nil  and parsed.default_tax_account_id      ~= nil then default_tax_account_id      = tonumber(parsed.default_tax_account_id) end
-        end
-    end
-
-    return {
-        currency_symbol              = currency_symbol,
-        default_tax_rate_id          = default_tax_rate_id,
-        default_sales_account_id     = default_sales_account_id,
-        default_purchase_account_id  = default_purchase_account_id,
-        default_receivable_account_id = default_receivable_account_id,
-        default_payment_account_id   = default_payment_account_id,
-        default_tax_account_id       = default_tax_account_id
-    }
-end
-
 function get_app_settings(ctx)
     local req    = ctx.request()
     local userId = get_user_id(req)
@@ -2016,6 +2495,9 @@ function update_app_settings(ctx)
     local rec_acc_id,      ra_err  = validate_setting_account(data.default_receivable_account_id, { "assets" },              "Default accounts receivable account")
     if ra_err  ~= nil then req.json(400, { error = ra_err  }); return end
 
+    local payab_acc_id,    pba_err = validate_setting_account(data.default_payable_account_id,  { "liabilities" },          "Default accounts payable account")
+    if pba_err ~= nil then req.json(400, { error = pba_err }); return end
+
     local pay_acc_id,      pya_err = validate_setting_account(data.default_payment_account_id,  { "assets" },               "Default payment account")
     if pya_err ~= nil then req.json(400, { error = pya_err }); return end
 
@@ -2028,6 +2510,7 @@ function update_app_settings(ctx)
     space_kv_upsert("CONFIG", "DEFAULT_SALES_ACCOUNT_ID",    { value = sales_acc_id   and tostring(sales_acc_id)   or "" })
     space_kv_upsert("CONFIG", "DEFAULT_PURCHASE_ACCOUNT_ID", { value = purchase_acc_id and tostring(purchase_acc_id) or "" })
     space_kv_upsert("CONFIG", "DEFAULT_RECEIVABLE_ACCOUNT_ID", { value = rec_acc_id   and tostring(rec_acc_id)     or "" })
+    space_kv_upsert("CONFIG", "DEFAULT_PAYABLE_ACCOUNT_ID",  { value = payab_acc_id   and tostring(payab_acc_id)   or "" })
     space_kv_upsert("CONFIG", "DEFAULT_PAYMENT_ACCOUNT_ID",  { value = pay_acc_id     and tostring(pay_acc_id)     or "" })
     space_kv_upsert("CONFIG", "DEFAULT_TAX_ACCOUNT_ID",      { value = tax_acc_id     and tostring(tax_acc_id)     or "" })
 
@@ -2037,6 +2520,7 @@ function update_app_settings(ctx)
         default_sales_account_id      = sales_acc_id,
         default_purchase_account_id   = purchase_acc_id,
         default_receivable_account_id = rec_acc_id,
+        default_payable_account_id    = payab_acc_id,
         default_payment_account_id    = pay_acc_id,
         default_tax_account_id        = tax_acc_id
     }
@@ -2156,20 +2640,6 @@ end
 -- ============================================================
 -- SALES ACCOUNTING HELPERS
 -- ============================================================
-
--- Find the best-matching account ID for a given type, using common name patterns as hints.
-local function find_account_by_type(acc_type, name_hints)
-    -- Try name hints first
-    for _, hint in ipairs(name_hints or {}) do
-        local rows = run_q("SELECT id FROM Accounts WHERE is_deleted = 0 AND acc_type = ? AND name LIKE ? LIMIT 1",
-            { acc_type, "%" .. hint .. "%" })
-        if rows and #rows > 0 then return tonumber(rows[1].id) end
-    end
-    -- Fall back to any account of the right type
-    local rows = run_q("SELECT id FROM Accounts WHERE is_deleted = 0 AND acc_type = ? LIMIT 1", { acc_type })
-    if rows and #rows > 0 then return tonumber(rows[1].id) end
-    return nil
-end
 
 local function resolve_sales_accounts()
     local s = get_app_settings_table()
@@ -2376,17 +2846,6 @@ local function revert_sale_transactions(sale_id, userId)
     for _, t in ipairs(txns or {}) do
         potato.db.update_by_id("Transactions", t.id, { is_deleted = 1, updated_by = userId })
     end
-end
-
--- Extract payment_account_id from request body (handles two field aliases).
-local function resolve_payment_account_id(data)
-    if type(data) ~= "table" then return nil end
-    if data.payment_account_id ~= nil and data.payment_account_id ~= "" then
-        return tonumber(data.payment_account_id)
-    elseif data.account_id ~= nil and data.account_id ~= "" then
-        return tonumber(data.account_id)
-    end
-    return nil
 end
 
 --- @param ctx HttpContext
@@ -2847,6 +3306,12 @@ function on_http(ctx)
     -- Stock In
     if path == "/stockin" and method == "GET"  then return list_stockin(ctx) end
     if path == "/stockin" and method == "POST" then return create_stockin(ctx) end
+    local stockin_id_confirm = string.match(path, "^/stockin/(%d+)/confirm$")
+    if stockin_id_confirm and method == "POST" then return confirm_stockin(ctx, tonumber(stockin_id_confirm)) end
+    local stockin_id_payment = string.match(path, "^/stockin/(%d+)/register%-payment$")
+    if stockin_id_payment and method == "POST" then return register_stockin_payment(ctx, tonumber(stockin_id_payment)) end
+    local stockin_id_cancel  = string.match(path, "^/stockin/(%d+)/cancel$")
+    if stockin_id_cancel  and method == "POST" then return cancel_stockin(ctx, tonumber(stockin_id_cancel)) end
     local stockin_id_match = string.match(path, "^/stockin/(%d+)$")
     if stockin_id_match then
         local stockin_id = tonumber(stockin_id_match)
