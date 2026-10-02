@@ -54,6 +54,7 @@ export interface Room {
     name: string;
     host_user_id: number;
     status: 'waiting' | 'playing' | 'finished';
+    game_id?: string;
     max_players: number;
     player_count: number;
     players: Player[];
@@ -145,10 +146,10 @@ export const roomsApi = {
         return normalizeRoom(res.data)!;
     },
 
-    startGame: async (roomId: number, conn_id?: string): Promise<Room> => {
+    startGame: async (roomId: number, conn_id?: string, game_id?: string): Promise<Room> => {
         const res = await apiRequest<Room>(`/rooms/${roomId}/start`, {
             method: 'POST',
-            body: JSON.stringify({ conn_id }),
+            body: JSON.stringify({ conn_id, game_id }),
         });
         if (res.error) throw new Error(res.error);
         return normalizeRoom(res.data)!;

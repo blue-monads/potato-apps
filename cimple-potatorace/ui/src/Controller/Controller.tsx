@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Room } from '../lib/api';
+import { registry } from '../lib/gamesRegistry';
 
 const COLORS = ['#7c5cff', '#2ee59d', '#ff6b81', '#ffb84d', '#2f7bff', '#ff6bd6'];
 
@@ -15,6 +16,10 @@ export default function Controller({ room, connId, ws, onLeave }: ControllerProp
     const playerIndex = Math.max(0, players.findIndex(p => p.conn_id === connId));
     const me = players[playerIndex] || players[0];
     const playerColor = COLORS[playerIndex % COLORS.length];
+
+    const gameMeta = registry.get(room.game_id || 'stupid-race');
+    const btnALabel = gameMeta?.btnALabel || 'ACTION A';
+    const btnBLabel = gameMeta?.btnBLabel || 'ACTION B';
 
     const [btnA, setBtnA] = useState(false);
     const [btnB, setBtnB] = useState(false);
@@ -284,10 +289,10 @@ export default function Controller({ room, connId, ws, onLeave }: ControllerProp
                     onPointerCancel={handleBtnBUp}
                 >
                     <div style={{ fontSize: 28, fontWeight: 900, lineHeight: 1 }}>B</div>
-                    <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4, letterSpacing: '0.05em' }}>BRAKE</div>
+                    <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4, letterSpacing: '0.05em' }}>{btnBLabel}</div>
                 </button>
 
-                {/* Button A - Boost / Gas */}
+                {/* Button A */}
                 <button
                     style={{
                         ...actionBtnStyle,
@@ -300,7 +305,7 @@ export default function Controller({ room, connId, ws, onLeave }: ControllerProp
                     onPointerCancel={handleBtnAUp}
                 >
                     <div style={{ fontSize: 28, fontWeight: 900, lineHeight: 1 }}>A</div>
-                    <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4, letterSpacing: '0.05em' }}>BOOST 🚀</div>
+                    <div style={{ fontSize: 10, opacity: 0.85, marginTop: 4, letterSpacing: '0.05em' }}>{btnALabel}</div>
                 </button>
             </div>
         </div>

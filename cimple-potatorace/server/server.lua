@@ -399,6 +399,7 @@ function start_game(ctx, room_id)
 
     local body = req.bind_json() or {}
     local conn_id = body.conn_id or ""
+    local game_id = body.game_id or "stupid-race"
 
     local ok, players = pcall(json.decode, room.players_json or "[]")
     if not ok or type(players) ~= "table" then players = {} end
@@ -431,12 +432,16 @@ function start_game(ctx, room_id)
     end
 
     potato.db.update_by_id("rooms", room_id, { status = "playing" })
+    pcall(function()
+        potato.db.update_by_id("rooms", room_id, { game_id = game_id })
+    end)
 
     local updated = {
         id           = room.id,
         code         = room.code,
         name         = room.name,
         status       = "playing",
+        game_id      = game_id,
         max_players  = room.max_players,
         player_count = #players,
         players      = players,

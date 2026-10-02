@@ -4,6 +4,7 @@ import { BASE_PATH } from '../lib/base'
 import { roomsApi, buildWsUrl, getWsToken, normalizeRoom } from '../lib/api'
 import type { Room, Player } from '../lib/api'
 import Controller from '../Controller/Controller'
+import { AVAILABLE_GAMES } from '../lib/gamesRegistry'
 
 const AVATAR_COLORS = ['#7c5cff', '#2ee59d', '#ffb84d', '#e5484d', '#2f7bff', '#ff6bd6']
 
@@ -73,6 +74,7 @@ export default function Lobby() {
     const [room, setRoom] = useState<Room | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [selectedGameId, setSelectedGameId] = useState<string>('stupid-race')
     const [connId] = useState(() => sessionStorage.getItem('pr_conn_id') || '')
     const wsRef = useRef<WebSocket | null>(null)
     const didConnect = useRef(false)
@@ -83,7 +85,11 @@ export default function Lobby() {
     useEffect(() => {
         if (!id) return
         roomsApi.get(id)
-            .then(r => { setRoom(r); setLoading(false) })
+            .then(r => {
+                setRoom(r)
+                if (r.game_id) setSelectedGameId(r.game_id)
+                setLoading(false)
+            })
             .catch(e => { setError(e.message); setLoading(false) })
     }, [id])
 
@@ -147,9 +153,9 @@ export default function Lobby() {
     const handleStart = async () => {
         if (!room) return
         // Optimistic: flip status immediately so the host doesn't wait for the round-trip
-        setRoom(prev => prev ? { ...prev, status: 'playing' } : prev)
+        setRoom(prev => prev ? { ...prev, status: 'playing', game_id: selectedGameId } : prev)
         try {
-            await roomsApi.startGame(id, connId)
+            await roomsApi.startGame(id, connId, selectedGameId)
         } catch (e: any) {
             // Revert on failure
             setRoom(prev => prev ? { ...prev, status: 'waiting' } : prev)
@@ -263,6 +269,47 @@ export default function Lobby() {
                 ))}
             </div>
 
+            {/* Game Selector for Host */}
+            {isHost && (
+                <div className="w-full max-w-lg mb-4">
+                    <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--mut)' }}>
+                        🎮 Select Game
+                    </p>
+                    <div className="flex flex-col gap-2">
+                        {AVAILABLE_GAMES.map(g => (
+                            <button
+                                key={g.id}
+                                onClick={() => setSelectedGameId(g.id)}
+                                className="p-3 rounded-xl flex items-center gap-3 text-left transition-all"
+                                style={{
+                                    background: selectedGameId === g.id ? '#1e1c38' : 'var(--panel)',
+                                    border: selectedGameId === g.id ? '2px solid var(--acc)' : '2px solid var(--line)',
+                                    color: 'var(--txt)',
+                                    cursor: 'pointer',
+                                    boxShadow: selectedGameId === g.id ? '0 0 16px rgba(124, 92, 255, 0.35)' : 'none',
+                                }}
+                            >
+                                <span className="text-3xl">{g.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-sm font-bold truncate">{g.name}</div>
+                                        {selectedGameId === g.id && (
+                                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{ background: 'var(--acc)', color: '#fff' }}>
+                                                SELECTED
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-xs truncate" style={{ color: 'var(--mut)' }}>{g.description}</div>
+                                    <div className="text-[11px] font-semibold mt-1" style={{ color: '#2ee59d' }}>
+                                        A: {g.btnALabel} &nbsp;·&nbsp; B: {g.btnBLabel}
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* error */}
             {error && (
                 <p className="mb-4 text-sm" style={{ color: '#ff6b81' }}>{error}</p>
@@ -273,11 +320,11 @@ export default function Lobby() {
                 {isHost ? (
                     <button
                         className="btn"
-                        disabled={!allReady || room.player_count < 2}
+                        disabled={!allReady || room.player_count < 1}
                         onClick={handleStart}
-                        style={allReady && room.player_count >= 2 ? { background: 'var(--ok)', color: '#06281b' } : {}}
+                        style={allReady && room.player_count >= 1 ? { background: 'var(--ok)', color: '#06281b' } : {}}
                     >
-                        {room.player_count < 2 ? 'Waiting for players…' : allReady ? '🚀 Start Race!' : 'Waiting for everyone to ready up…'}
+                        {room.player_count < 1 ? 'Waiting for players…' : allReady ? `🚀 Start ${AVAILABLE_GAMES.find(g => g.id === selectedGameId)?.name || 'Game'}!` : 'Waiting for everyone to ready up…'}
                     </button>
                 ) : (
                     <button
