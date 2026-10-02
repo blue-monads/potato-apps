@@ -77,7 +77,7 @@ cimple-books/
 
 ### 1. Database Schema (`server/schema.sql`)
 - **`Accounts`**: Chart of accounts (`acc_type`: `expenses`, `revenue`, `assets`, `liabilities`, `equity`). Supports hierarchical parents (`parent_id`) and contact associations (`contact_id`).
-- **`Transactions` & `TransactionLines`**: Double-entry journal entries. Every transaction enforces that total debits equal total credits.
+- **`Transactions` & `TransactionLines`**: Double-entry journal entries. Every transaction enforces that total debits equal total credits. `TransactionLines` includes `linked_sales_line_id` and `linked_stockin_line_id` referencing specific line items. Auto-generated transactions from sales are marked `is_editable = false`.
 - **`Catagories`**: Categorization for products with `product_class` (`physical_item`, `service`, `digital_item`).
 - **`Products` & `ProductVariants`**: Inventory tracking. Products can have multiple variants with specific sales pricing and tracked counts.
 - **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Tracks intake status (`draft`, `confirmed`, `cancelled`) and updates stock levels.
@@ -107,7 +107,27 @@ System settings are persisted in the KV store under the `CONFIG` group:
 - `DEFAULT_TAX_RATE_ID`: Default tax rate applied to new products/sales.
 - `DEFAULT_SALES_ACCOUNT_ID`: Default revenue account for sales lines.
 - `DEFAULT_PURCHASE_ACCOUNT_ID`: Default purchase/expense account for stock intake.
+- `DEFAULT_RECEIVABLE_ACCOUNT_ID`: Default Accounts Receivable asset account.
+- `DEFAULT_PAYMENT_ACCOUNT_ID`: Default Cash/Bank asset account.
+- `DEFAULT_TAX_ACCOUNT_ID`: Default Sales Tax Payable liability account.
 - `SETTINGS`: JSON string containing the full configuration dictionary.
+
+### 6. Sales Accounting Workflows
+Sales state transitions manage double-entry journal transactions automatically:
+1. **Direct sale (`confirmed` + `paid`)**: Single transaction created: Debit Payment Asset account, Credit Sales Revenue (per line, tagged with `linked_sales_line_id`), Credit Tax Payable.
+2. **Direct sale (`confirmed` + `unpaid`)**: Single transaction created: Debit Accounts Receivable, Credit Sales Revenue (per line), Credit Tax Payable.
+3. **Draft sale $\rightarrow$ Register Payment**: Sale becomes confirmed + paid; creates transaction identical to Flow 1.
+4. **Draft sale $\rightarrow$ Cancel**: Status becomes `cancelled`; no transactions created.
+5. **Confirmed + Unpaid sale $\rightarrow$ Register Payment**: Sale becomes paid; creates payment transaction: Debit Payment Asset account, Credit Accounts Receivable.
+6. **Confirmed + Unpaid sale $\rightarrow$ Cancel**: Status becomes `cancelled`; linked invoice transaction is reversed (`is_deleted = 1`).
+7. **Confirmed + Paid sale $\rightarrow$ Cancel**: Status becomes `cancelled`; all linked invoice and payment transactions are reversed (`is_deleted = 1`).
+
+### 7. Product Accounting Account Restrictions
+To enforce accounting integrity across ledger accounts:
+- **Sales Account (`sales_account_id`)**: Strictly restricted to accounts with `acc_type == 'revenue'`.
+- **Purchase Account (`purchase_account_id`)**: Strictly restricted to accounts with `acc_type == 'expenses'` or `acc_type == 'assets'` (e.g. Inventory Asset).
+- Both frontend UI forms (`ProductFormPage.tsx`, `ProductForm.tsx`) and backend validation (`create_product`, `update_product`) enforce these restrictions. If a legacy record contains an invalid account, the UI flags it clearly with a warning prompt and prevents invalid submissions.
+- Global defaults in Settings (`SettingsPage.tsx`, `update_app_settings`) similarly enforce matching account types for Sales (`revenue`), Purchases (`expenses`/`assets`), Receivables (`assets`), Payments (`assets`), and Sales Tax (`liabilities`).
 
 ---
 
@@ -158,10 +178,13 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Taxes** | `PUT`/`PATCH` | `/taxes/:id` | Updates a tax rate |
 | **Taxes** | `DELETE` | `/taxes/:id` | Soft-deletes a tax rate |
 | **Sales** | `GET` | `/sales` | Lists sales entries |
-| **Sales** | `POST` | `/sales` | Creates sales invoice with line items |
+| **Sales** | `POST` | `/sales` | Creates sales invoice with line items (auto-posts transaction if confirmed) |
 | **Sales** | `GET` | `/sales/:id` | Gets sale record with lines |
 | **Sales** | `PUT`/`PATCH` | `/sales/:id` | Updates sale record and lines (allowed only if in `draft` state) |
-| **Sales** | `DELETE` | `/sales/:id` | Deletes sale record |
+| **Sales** | `POST` | `/sales/:id/confirm` | Confirms draft sale and posts transaction |
+| **Sales** | `POST` | `/sales/:id/register-payment` | Registers payment (supports optional asset `account_id`) and posts transaction |
+| **Sales** | `POST` | `/sales/:id/cancel` | Cancels sale and soft-deletes/reverses linked transactions |
+| **Sales** | `DELETE` | `/sales/:id` | Deletes sale record and reverses linked transactions |
 
 ---
 

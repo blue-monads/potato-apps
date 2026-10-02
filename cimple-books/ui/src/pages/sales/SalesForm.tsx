@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { Plus, Trash2, ArrowLeft } from 'lucide-react';
-import { createSale, updateSale, getSale, getCurrencySymbol, type Sale } from '../../lib/api';
+import { Plus, Trash2, ArrowLeft, Edit2 } from 'lucide-react';
+import { createSale, updateSale, getSale, getCurrencySymbol, listAccounts, getSettings, type Sale, type Account } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import SalesItemPicker from './components/SalesItemPicker';
@@ -35,6 +35,8 @@ const SalesForm = () => {
     const [salesDate, setSalesDate] = useState(new Date().toISOString().slice(0, 16));
     const [salesStatus, setSalesStatus] = useState('draft');
     const [paymentStatus, setPaymentStatus] = useState('unpaid');
+    const [paymentAccountId, setPaymentAccountId] = useState<number | null>(null);
+    const [assetAccounts, setAssetAccounts] = useState<Account[]>([]);
     const [lines, setLines] = useState<SalesLine[]>([]);
     const [overallTaxAmount, setOverallTaxAmount] = useState(0);
     const [overallDiscountAmount, setOverallDiscountAmount] = useState(0);
@@ -105,6 +107,27 @@ const SalesForm = () => {
         }
     }, [sale, isEditMode]);
 
+    useEffect(() => {
+        const loadAccountsAndSettings = async () => {
+            try {
+                const [accResp, setResp] = await Promise.all([
+                    listAccounts(),
+                    getSettings()
+                ]);
+                if (accResp.status === 200 && Array.isArray(accResp.data)) {
+                    const assets = accResp.data.filter(a => !a.is_deleted && a.acc_type === 'assets');
+                    setAssetAccounts(assets);
+                }
+                if (setResp.status === 200 && setResp.data?.default_payment_account_id) {
+                    setPaymentAccountId(setResp.data.default_payment_account_id);
+                }
+            } catch {
+                // ignore
+            }
+        };
+        loadAccountsAndSettings();
+    }, []);
+
     // Calculate totals
     const totalItemPrice = lines.reduce((sum, line) => sum + (line.price * line.qty), 0);
     const totalItemTaxAmount = lines.reduce((sum, line) => sum + (line.tax_amount * line.qty), 0);
@@ -112,13 +135,21 @@ const SalesForm = () => {
     const subTotal = lines.reduce((sum, line) => sum + line.total_amount, 0);
     const total = subTotal + overallTaxAmount - overallDiscountAmount;
 
-    const openItemPicker = () => {
+    const openItemPicker = (editIndex?: number) => {
+        const lineToEdit = editIndex !== undefined ? lines[editIndex] : undefined;
         openModal({
-            title: 'Add Item',
+            title: editIndex !== undefined ? 'Edit Item' : 'Add Item',
             content: (
                 <SalesItemPicker
+                    initialLine={lineToEdit}
                     onSave={(line) => {
-                        setLines([...lines, line]);
+                        if (editIndex !== undefined) {
+                            const updated = [...lines];
+                            updated[editIndex] = line;
+                            setLines(updated);
+                        } else {
+                            setLines([...lines, line]);
+                        }
                     }}
                 />
             ),
@@ -196,6 +227,7 @@ const SalesForm = () => {
                 total: total,
                 sales_date: new Date(salesDate).toISOString(),
                 payment_status: paymentStatus,
+                payment_account_id: paymentStatus === 'paid' ? paymentAccountId : undefined,
                 lines: lines.map(line => ({
                     info: line.info,
                     qty: line.qty,
@@ -325,13 +357,34 @@ const SalesForm = () => {
                         value={paymentStatus}
                         disabled={isLocked}
                         onChange={(e) => setPaymentStatus(e.target.value)}
-                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed text-sm"
                     >
                         <option value="unpaid">Unpaid</option>
                         <option value="paid">Paid</option>
-                        <option value="partially_paid">Partially Paid</option>
+                        {/* <option value="partially_paid">Partially Paid</option> */}
                         <option value="refunded">Refunded</option>
                     </select>
+
+                    {paymentStatus === 'paid' && (
+                        <div className="mt-2">
+                            <label className="block text-xs font-medium text-stone-600 mb-1">
+                                Payment Account (Asset)
+                            </label>
+                            <select
+                                value={paymentAccountId ?? ''}
+                                disabled={isLocked}
+                                onChange={(e) => setPaymentAccountId(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full px-3 py-1.5 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed text-xs bg-white"
+                            >
+                                <option value="">-- Default Cash / Bank Account --</option>
+                                {assetAccounts.map((acc) => (
+                                    <option key={acc.id} value={acc.id}>
+                                        {acc.name} {acc.info ? `(${acc.info})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -390,7 +443,7 @@ const SalesForm = () => {
                     {!isLocked && (
                         <button
                             type="button"
-                            onClick={openItemPicker}
+                            onClick={() => openItemPicker()}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#2E6E52] text-white rounded-lg hover:bg-[#255842] shadow-sm transition-colors"
                         >
                             <Plus className="w-4 h-4" />
@@ -455,14 +508,24 @@ const SalesForm = () => {
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 {!isLocked ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeLine(index)}
-                                                        className="text-red-600 hover:text-red-700 p-1"
-                                                        title="Remove item"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openItemPicker(index)}
+                                                            className="text-stone-500 hover:text-[#2E6E52] p-1.5 rounded hover:bg-stone-100 transition-colors"
+                                                            title="Edit item"
+                                                        >
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeLine(index)}
+                                                            className="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition-colors"
+                                                            title="Remove item"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 ) : (
                                                     <span className="p-1 text-stone-300 inline-block">—</span>
                                                 )}

@@ -40,8 +40,8 @@ create table TransactionLines(
     updated_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    linked_sales_id INTEGER NOT NULL DEFAULT 0,
-    linked_stockin_id INTEGER NOT NULL DEFAULT 0
+    linked_sales_line_id INTEGER,
+    linked_stockin_line_id INTEGER
 );
 
 

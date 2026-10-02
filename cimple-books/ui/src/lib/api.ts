@@ -39,8 +39,8 @@ export interface TransactionLine {
     updated_by: number;
     created_at: string;
     updated_at: string;
-    linked_sales_id: number;
-    linked_stockin_id: number;
+    linked_sales_line_id?: number | null;
+    linked_stockin_line_id?: number | null;
 }
 
 const getAuthToken = (): string | null => {
@@ -218,8 +218,8 @@ export const createTransaction = async (transaction: {
         account_id: number;
         debit_amount?: number;
         credit_amount?: number;
-        linked_sales_id?: number;
-        linked_stockin_id?: number;
+        linked_sales_line_id?: number;
+        linked_stockin_line_id?: number;
     }>;
 }): Promise<ApiResponse<Transaction>> => {
     return apiRequest<Transaction>('/transactions', {
@@ -242,8 +242,8 @@ export const updateTransaction = async (
             account_id: number;
             debit_amount?: number;
             credit_amount?: number;
-            linked_sales_id?: number;
-            linked_stockin_id?: number;
+            linked_sales_line_id?: number;
+            linked_stockin_line_id?: number;
         }>;
     }
 ): Promise<ApiResponse<Transaction>> => {
@@ -672,6 +672,7 @@ export const createSale = async (sale: {
     total?: number;
     sales_date?: string | number;
     payment_status?: string;
+    payment_account_id?: number | null;
     lines: Array<{
         info?: string;
         qty?: number;
@@ -706,6 +707,7 @@ export const updateSale = async (
         total?: number;
         sales_date?: string | number;
         payment_status?: string;
+        payment_account_id?: number | null;
         lines?: Array<{
             info?: string;
             qty?: number;
@@ -729,12 +731,41 @@ export const deleteSale = async (saleId: number): Promise<ApiResponse<{ message:
     });
 };
 
+export const confirmSale = async (
+    saleId: number,
+    payload?: { payment_account_id?: number | null; account_id?: number | null }
+): Promise<ApiResponse<Sale>> => {
+    return apiRequest<Sale>(`/sales/${saleId}/confirm`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {}),
+    });
+};
+
+export const registerSalePayment = async (
+    saleId: number,
+    payload?: { payment_account_id?: number | null; account_id?: number | null; payment_date?: string }
+): Promise<ApiResponse<Sale>> => {
+    return apiRequest<Sale>(`/sales/${saleId}/register-payment`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {}),
+    });
+};
+
+export const cancelSale = async (saleId: number): Promise<ApiResponse<Sale>> => {
+    return apiRequest<Sale>(`/sales/${saleId}/cancel`, {
+        method: 'POST',
+    });
+};
+
 // Settings API
 export interface AppSettings {
     currency_symbol?: string | null;
     default_tax_rate_id?: number | null;
     default_sales_account_id?: number | null;
     default_purchase_account_id?: number | null;
+    default_receivable_account_id?: number | null;
+    default_payment_account_id?: number | null;
+    default_tax_account_id?: number | null;
 }
 
 export const getCurrencySymbol = (): string => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Edit2, Upload, X, Receipt, Package } from 'lucide-react';
 import { 
     createProduct, 
@@ -58,6 +58,34 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const salesAccounts = useMemo(
+        () => accounts.filter((a) => !a.is_deleted && a.acc_type === 'revenue'),
+        [accounts]
+    );
+
+    const purchaseExpenseAccounts = useMemo(
+        () => accounts.filter((a) => !a.is_deleted && a.acc_type === 'expenses'),
+        [accounts]
+    );
+
+    const purchaseAssetAccounts = useMemo(
+        () => accounts.filter((a) => !a.is_deleted && a.acc_type === 'assets'),
+        [accounts]
+    );
+
+    const currentInvalidSalesAccount = useMemo(() => {
+        if (!salesAccountId) return null;
+        if (salesAccounts.some((a) => a.id === salesAccountId)) return null;
+        return accounts.find((a) => a.id === salesAccountId) || null;
+    }, [salesAccountId, salesAccounts, accounts]);
+
+    const currentInvalidPurchaseAccount = useMemo(() => {
+        if (!purchaseAccountId) return null;
+        if (purchaseExpenseAccounts.some((a) => a.id === purchaseAccountId)) return null;
+        if (purchaseAssetAccounts.some((a) => a.id === purchaseAccountId)) return null;
+        return accounts.find((a) => a.id === purchaseAccountId) || null;
+    }, [purchaseAccountId, purchaseExpenseAccounts, purchaseAssetAccounts, accounts]);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -432,12 +460,19 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                             <select
                                 value={salesAccountId || ''}
                                 onChange={(e) => setSalesAccountId(e.target.value ? parseInt(e.target.value) : undefined)}
-                                className="w-full px-2.5 py-1.5 border border-[#E1E3DB] rounded-lg text-xs bg-white"
+                                className={`w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white ${currentInvalidSalesAccount ? 'border-amber-400 bg-amber-50/30' : 'border-[#E1E3DB]'}`}
                             >
                                 <option value="">Default Sales</option>
-                                {accounts.map((a) => (
-                                    <option key={a.id} value={a.id}>{a.name}</option>
-                                ))}
+                                {currentInvalidSalesAccount && (
+                                    <option value={currentInvalidSalesAccount.id} disabled className="text-red-600 bg-red-50 font-medium">
+                                        ⚠️ Current: {currentInvalidSalesAccount.name} ({currentInvalidSalesAccount.acc_type}) - Invalid: must be Revenue
+                                    </option>
+                                )}
+                                <optgroup label="REVENUE">
+                                    {salesAccounts.map((a) => (
+                                        <option key={a.id} value={a.id}>{a.name}</option>
+                                    ))}
+                                </optgroup>
                             </select>
                         </div>
                         <div>
@@ -445,12 +480,28 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                             <select
                                 value={purchaseAccountId || ''}
                                 onChange={(e) => setPurchaseAccountId(e.target.value ? parseInt(e.target.value) : undefined)}
-                                className="w-full px-2.5 py-1.5 border border-[#E1E3DB] rounded-lg text-xs bg-white"
+                                className={`w-full px-2.5 py-1.5 border rounded-lg text-xs bg-white ${currentInvalidPurchaseAccount ? 'border-amber-400 bg-amber-50/30' : 'border-[#E1E3DB]'}`}
                             >
                                 <option value="">Default Purchase</option>
-                                {accounts.map((a) => (
-                                    <option key={a.id} value={a.id}>{a.name}</option>
-                                ))}
+                                {currentInvalidPurchaseAccount && (
+                                    <option value={currentInvalidPurchaseAccount.id} disabled className="text-red-600 bg-red-50 font-medium">
+                                        ⚠️ Current: {currentInvalidPurchaseAccount.name} ({currentInvalidPurchaseAccount.acc_type}) - Invalid: must be Expense or Asset
+                                    </option>
+                                )}
+                                {purchaseExpenseAccounts.length > 0 && (
+                                    <optgroup label="EXPENSES (COGS / COST)">
+                                        {purchaseExpenseAccounts.map((a) => (
+                                            <option key={a.id} value={a.id}>{a.name}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
+                                {purchaseAssetAccounts.length > 0 && (
+                                    <optgroup label="ASSETS (INVENTORY)">
+                                        {purchaseAssetAccounts.map((a) => (
+                                            <option key={a.id} value={a.id}>{a.name}</option>
+                                        ))}
+                                    </optgroup>
+                                )}
                             </select>
                         </div>
                         <div>
@@ -462,7 +513,7 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
                             >
                                 <option value="">None (0%)</option>
                                 {taxes.map((t) => (
-                                    <option key={t.id} value={t.id}>{t.name} ({t.rate}%)</option>
+                                    <option key={t.id} value={t.id}>{t.name} ({(t.rate / 100).toFixed(t.rate % 100 === 0 ? 0 : 2)}%)</option>
                                 ))}
                             </select>
                         </div>
