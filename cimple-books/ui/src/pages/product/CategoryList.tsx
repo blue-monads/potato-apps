@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, FolderTree } from 'lucide-react';
+import { Plus, Edit, Trash2, FolderTree, Search, X, Filter } from 'lucide-react';
 import { listCategories, deleteCategory, type Category } from '../../lib/api';
 import { useModal } from '../../lib/shared/modal/modal';
 import CategoryForm from './CategoryForm';
+import { Pagination } from '../../components/Pagination';
 
 const PRODUCT_CLASSES = [
+    { value: 'all', label: 'All Classes' },
     { value: 'physical_item', label: 'Physical Item' },
     { value: 'service', label: 'Service' },
     { value: 'digital_item', label: 'Digital Item' },
@@ -16,13 +18,44 @@ const CategoryList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Search and filter states (server-side)
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [productClassFilter, setProductClassFilter] = useState('all');
+
+    // Pagination state (server-side)
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [pageSize, setPageSize] = useState<number>(15);
+    const [totalCount, setTotalCount] = useState<number>(0);
+    const [totalPages, setTotalPages] = useState<number>(1);
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 280);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Reset page to 1 on filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearch, productClassFilter]);
+
     const loadCategories = async () => {
         setLoading(true);
         setError(null);
         try {
-            const resp = await listCategories();
-            if (resp.status === 200) {
-                setCategories(resp.data || []);
+            const resp = await listCategories({
+                page: currentPage,
+                pageSize,
+                search: debouncedSearch,
+                productClass: productClassFilter,
+            });
+            if (resp.status === 200 && resp.data) {
+                setCategories(resp.data.items || []);
+                setTotalCount(resp.data.total || 0);
+                setTotalPages(resp.data.total_pages || 1);
             } else {
                 setError(resp.error || 'Failed to load categories');
             }
@@ -35,7 +68,7 @@ const CategoryList = () => {
 
     useEffect(() => {
         loadCategories();
-    }, []);
+    }, [currentPage, pageSize, debouncedSearch, productClassFilter]);
 
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure you want to delete this category?')) {
@@ -76,14 +109,6 @@ const CategoryList = () => {
         return found ? found.label : val;
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-16">
-                <div className="text-base text-stone-500 font-sans">Loading categories...</div>
-            </div>
-        );
-    }
-
     return (
         <div className="font-sans">
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -93,7 +118,7 @@ const CategoryList = () => {
                 </div>
                 <button
                     onClick={() => openCategoryForm()}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-sm font-semibold transition-colors shadow-sm cursor-pointer"
                 >
                     <Plus className="w-4 h-4" />
                     New Category
@@ -105,6 +130,46 @@ const CategoryList = () => {
                     {error}
                 </div>
             )}
+
+            {/* Filter and Search Bar */}
+            <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                {/* Search */}
+                <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search categories by name or description..."
+                        className="w-full pl-9 pr-9 py-2 bg-white border border-[#E1E3DB] rounded-lg text-sm placeholder-stone-400 focus:outline-hidden focus:border-[#2E6E52] focus:ring-1 focus:ring-[#2E6E52] transition-colors"
+                    />
+                    {searchQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 cursor-pointer"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Product Class Filter */}
+                <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-stone-400 hidden sm:block" />
+                    <select
+                        value={productClassFilter}
+                        onChange={(e) => setProductClassFilter(e.target.value)}
+                        className="bg-white border border-[#E1E3DB] rounded-lg px-3 py-2 text-sm font-medium text-stone-800 focus:outline-hidden focus:border-[#2E6E52] cursor-pointer"
+                    >
+                        {PRODUCT_CLASSES.map((pc) => (
+                            <option key={pc.value} value={pc.value}>
+                                {pc.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
             <div className="bg-white rounded-xl border border-[#E1E3DB] shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
@@ -126,11 +191,19 @@ const CategoryList = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-[#E1E3DB]">
-                            {categories.length === 0 ? (
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-12 text-center text-stone-500 animate-pulse">
+                                        Loading categories...
+                                    </td>
+                                </tr>
+                            ) : categories.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-12 text-center text-stone-500">
                                         <FolderTree className="w-8 h-8 mx-auto mb-2 text-stone-300" />
-                                        No categories found. Click "New Category" to create one.
+                                        {debouncedSearch || productClassFilter !== 'all'
+                                            ? 'No categories match the current filters.'
+                                            : 'No categories found. Click "New Category" to create one.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -171,14 +244,14 @@ const CategoryList = () => {
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
                                                     onClick={() => openCategoryForm(category)}
-                                                    className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                    className="text-stone-600 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors cursor-pointer"
                                                     title="Edit category"
                                                 >
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(category.id)}
-                                                    className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                                    className="text-stone-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                                     title="Delete category"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -191,6 +264,20 @@ const CategoryList = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Server-side Pagination */}
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalCount={totalCount}
+                    pageSize={pageSize}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={(newSize) => {
+                        setPageSize(newSize);
+                        setCurrentPage(1);
+                    }}
+                    itemLabel="categories"
+                />
             </div>
         </div>
     );

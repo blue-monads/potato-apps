@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, Search, Building2, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, Search, Building2, User, Mail, Phone, MapPin, X } from 'lucide-react';
 import { listContacts, deleteContact, type Contact, type ContactRelationType } from '../../lib/api';
 import { useModal } from '../../lib/shared/modal/modal';
 import ContactForm from './ContactForm';
+import { Pagination } from '../../components/Pagination';
 
 type FilterTab = 'all' | 'customer' | 'supplier' | 'general';
 
@@ -13,14 +14,52 @@ const ContactsPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<FilterTab>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Pagination state (server-side)
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [pageSize, setPageSize] = useState<number>(15);
+    const [totalCount, setTotalCount] = useState<number>(0);
+    const [totalPages, setTotalPages] = useState<number>(1);
+
+    // Summary counts from server
+    const [counts, setCounts] = useState({
+        all: 0,
+        customer: 0,
+        supplier: 0,
+        general: 0,
+    });
+
+    // Debounce search query
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 280);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Reset to page 1 on tab or search change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, debouncedSearch]);
 
     const loadContacts = async () => {
         setLoading(true);
         setError(null);
         try {
-            const resp = await listContacts();
-            if (resp.status === 200) {
-                setContacts(resp.data || []);
+            const resp = await listContacts({
+                page: currentPage,
+                pageSize,
+                search: debouncedSearch,
+                relationType: activeTab,
+            });
+            if (resp.status === 200 && resp.data) {
+                setContacts(resp.data.items || []);
+                setTotalCount(resp.data.total || 0);
+                setTotalPages(resp.data.total_pages || 1);
+                if (resp.data.counts) {
+                    setCounts(resp.data.counts);
+                }
             } else {
                 setError(resp.error || 'Failed to load contacts');
             }
@@ -33,7 +72,7 @@ const ContactsPage = () => {
 
     useEffect(() => {
         loadContacts();
-    }, []);
+    }, [currentPage, pageSize, debouncedSearch, activeTab]);
 
     const handleDelete = async (id: number) => {
         if (!confirm('Are you sure you want to delete this contact?')) {
@@ -104,39 +143,6 @@ const ContactsPage = () => {
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     };
 
-    const filteredContacts = contacts.filter((c) => {
-        // Tab filter: general contacts show in any case
-        if (activeTab === 'customer' && c.relation_type !== 'customer' && c.relation_type !== 'general') return false;
-        if (activeTab === 'supplier' && c.relation_type !== 'supplier' && c.relation_type !== 'general') return false;
-        if (activeTab === 'general' && c.relation_type !== 'general') return false;
-
-        // Search query
-        if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase();
-            const inName = c.name && c.name.toLowerCase().includes(q);
-            const inEmail = c.primary_email && c.primary_email.toLowerCase().includes(q);
-            const inPhone = c.primary_phone && c.primary_phone.toLowerCase().includes(q);
-            const inAddr = c.primary_address && c.primary_address.toLowerCase().includes(q);
-            const inInfo = c.info && c.info.toLowerCase().includes(q);
-            if (!inName && !inEmail && !inPhone && !inAddr && !inInfo) return false;
-        }
-
-        return true;
-    });
-
-    const totalCount = contacts.length;
-    const customerCount = contacts.filter((c) => c.relation_type === 'customer').length;
-    const supplierCount = contacts.filter((c) => c.relation_type === 'supplier').length;
-    const generalCount = contacts.filter((c) => c.relation_type === 'general').length;
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F4F5F1]">
-                <div className="text-stone-500 font-sans">Loading contacts...</div>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen bg-[#F4F5F1] p-6 lg:p-8 font-sans">
             <div className="max-w-7xl mx-auto">
@@ -154,7 +160,7 @@ const ContactsPage = () => {
                     <button
                         type="button"
                         onClick={() => openContactModal(null)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-xl text-sm font-semibold transition-colors shadow-sm cursor-pointer"
                     >
                         <Plus className="w-4 h-4" />
                         Add Contact
@@ -170,7 +176,7 @@ const ContactsPage = () => {
                         }`}
                     >
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">All Contacts</span>
-                        <span className="text-2xl font-black text-stone-900 font-display mt-1 block">{totalCount}</span>
+                        <span className="text-2xl font-black text-stone-900 font-display mt-1 block">{counts.all}</span>
                         <span className="text-xs text-stone-400 mt-0.5 block">Total entities</span>
                     </div>
 
@@ -181,7 +187,7 @@ const ContactsPage = () => {
                         }`}
                     >
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Customers</span>
-                        <span className="text-2xl font-black text-emerald-800 font-display mt-1 block">{customerCount}</span>
+                        <span className="text-2xl font-black text-emerald-800 font-display mt-1 block">{counts.customer}</span>
                         <span className="text-xs text-stone-400 mt-0.5 block">Sales clients</span>
                     </div>
 
@@ -192,7 +198,7 @@ const ContactsPage = () => {
                         }`}
                     >
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Vendors / Suppliers</span>
-                        <span className="text-2xl font-black text-blue-800 font-display mt-1 block">{supplierCount}</span>
+                        <span className="text-2xl font-black text-blue-800 font-display mt-1 block">{counts.supplier}</span>
                         <span className="text-xs text-stone-400 mt-0.5 block">Stock In vendors</span>
                     </div>
 
@@ -203,7 +209,7 @@ const ContactsPage = () => {
                         }`}
                     >
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">General</span>
-                        <span className="text-2xl font-black text-purple-800 font-display mt-1 block">{generalCount}</span>
+                        <span className="text-2xl font-black text-purple-800 font-display mt-1 block">{counts.general}</span>
                         <span className="text-xs text-stone-400 mt-0.5 block">Customer & Supplier</span>
                     </div>
                 </div>
@@ -221,46 +227,46 @@ const ContactsPage = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab('all')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                                 activeTab === 'all'
                                     ? 'bg-white text-stone-900 shadow-xs'
                                     : 'text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            All ({totalCount})
+                            All ({counts.all})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('customer')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                                 activeTab === 'customer'
                                     ? 'bg-white text-stone-900 shadow-xs'
                                     : 'text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            Customers ({customerCount})
+                            Customers ({counts.customer})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('supplier')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                                 activeTab === 'supplier'
                                     ? 'bg-white text-stone-900 shadow-xs'
                                     : 'text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            Vendors & Suppliers ({supplierCount})
+                            Vendors & Suppliers ({counts.supplier})
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('general')}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                                 activeTab === 'general'
                                     ? 'bg-white text-stone-900 shadow-xs'
                                     : 'text-stone-600 hover:text-stone-900'
                             }`}
                         >
-                            General ({generalCount})
+                            General ({counts.general})
                         </button>
                     </div>
 
@@ -272,117 +278,130 @@ const ContactsPage = () => {
                             placeholder="Search contacts..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] text-stone-900 placeholder-stone-400 shadow-xs"
+                            className="w-full pl-10 pr-9 py-2 bg-white border border-[#E1E3DB] rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-[#2E6E52] text-stone-900 placeholder-stone-400 shadow-xs"
                         />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 cursor-pointer"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* Contacts Table */}
                 <div className="bg-white rounded-2xl border border-[#E1E3DB] shadow-xs overflow-hidden">
-                    {filteredContacts.length === 0 ? (
-                        <div className="text-center py-16 px-4">
-                            <div className="w-12 h-12 rounded-full bg-[#EAF3EE] text-[#2E6E52] flex items-center justify-center mx-auto mb-3">
-                                <Users className="w-6 h-6" />
-                            </div>
-                            <h3 className="text-base font-bold text-stone-900 font-display">No contacts found</h3>
-                            <p className="text-xs text-stone-500 max-w-sm mx-auto mt-1 mb-5">
-                                {searchQuery ? 'Try adjusting your search criteria.' : 'Start adding vendors, customers, or team members to your directory.'}
-                            </p>
-                            {!searchQuery && (
-                                <button
-                                    type="button"
-                                    onClick={() => openContactModal(null)}
-                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2E6E52] hover:bg-[#255842] text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Add First Contact
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-[#FAFBF9] border-b border-[#E1E3DB] text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-                                        <th className="px-5 py-3.5">Contact Entity</th>
-                                        <th className="px-5 py-3.5">Role / Relation</th>
-                                        <th className="px-5 py-3.5">Email & Phone</th>
-                                        <th className="px-5 py-3.5">Address</th>
-                                        <th className="px-5 py-3.5">Remarks / Notes</th>
-                                        <th className="px-5 py-3.5 text-right">Actions</th>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-[#E1E3DB]">
+                            <thead>
+                                <tr className="bg-[#FAFBF9] text-left text-xs font-bold text-stone-600 uppercase tracking-wider">
+                                    <th className="px-5 py-3.5">Contact</th>
+                                    <th className="px-5 py-3.5">Type</th>
+                                    <th className="px-5 py-3.5">Role</th>
+                                    <th className="px-5 py-3.5">Email</th>
+                                    <th className="px-5 py-3.5">Phone</th>
+                                    <th className="px-5 py-3.5">Address</th>
+                                    <th className="px-5 py-3.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#E1E3DB]">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-12 text-center text-stone-500 animate-pulse">
+                                            Loading contacts...
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[#E1E3DB] text-sm text-stone-900">
-                                    {filteredContacts.map((c) => {
+                                ) : contacts.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-12 text-center text-stone-500">
+                                            {debouncedSearch || activeTab !== 'all'
+                                                ? 'No contacts match the current search / filter.'
+                                                : 'No contacts found. Click "Add Contact" to create one.'}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    contacts.map((c) => {
                                         const isCompany = c.contact_type === 'company';
-
                                         return (
-                                            <tr key={c.id} className="hover:bg-stone-50/60 transition-colors">
+                                            <tr key={c.id} className="hover:bg-[#FAFBF9] transition-colors">
                                                 <td className="px-5 py-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-[#EEF0EA] border border-[#E1E3DB] flex items-center justify-center font-bold text-xs text-stone-700 font-display flex-shrink-0">
+                                                        <div
+                                                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
+                                                                isCompany
+                                                                    ? 'bg-blue-100 text-blue-800'
+                                                                    : 'bg-[#E1EFE7] text-[#205C41]'
+                                                            }`}
+                                                        >
                                                             {getAvatarInitials(c.name)}
                                                         </div>
                                                         <div>
-                                                            <div className="font-bold text-stone-900 flex items-center gap-1.5">
+                                                            <span className="font-semibold text-stone-900 block text-sm">
                                                                 {c.name}
-                                                                {isCompany ? (
-                                                                    <span title="Company"><Building2 className="w-3.5 h-3.5 text-stone-400" /></span>
-                                                                ) : (
-                                                                    <span title="Individual"><User className="w-3.5 h-3.5 text-stone-400" /></span>
-                                                                )}
-                                                            </div>
-                                                            {c.info ? (
-                                                                <div className="text-xs text-stone-500">{c.info}</div>
-                                                            ) : (
-                                                                <div className="text-[11px] text-stone-400 capitalize">{c.contact_type}</div>
+                                                            </span>
+                                                            {c.info && (
+                                                                <span className="text-xs text-stone-400 block line-clamp-1">
+                                                                    {c.info}
+                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap">
-                                                    {getRelationBadge(c.relation_type)}
+                                                    <span className="inline-flex items-center gap-1.5 text-xs text-stone-600 font-medium capitalize">
+                                                        {isCompany ? (
+                                                            <Building2 className="w-3.5 h-3.5 text-stone-400" />
+                                                        ) : (
+                                                            <User className="w-3.5 h-3.5 text-stone-400" />
+                                                        )}
+                                                        {c.contact_type || 'Individual'}
+                                                    </span>
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap">
-                                                    <div className="flex flex-col gap-0.5 text-xs">
-                                                        {c.primary_email && (
-                                                            <div className="text-stone-700 flex items-center gap-1">
-                                                                <Mail className="w-3 h-3 text-stone-400" />
-                                                                <a href={`mailto:${c.primary_email}`} className="hover:underline text-stone-800">
-                                                                    {c.primary_email}
-                                                                </a>
-                                                            </div>
-                                                        )}
-                                                        {c.primary_phone && (
-                                                            <div className="text-stone-500 flex items-center gap-1">
-                                                                <Phone className="w-3 h-3 text-stone-400" />
-                                                                <span>{c.primary_phone}</span>
-                                                            </div>
-                                                        )}
-                                                        {!c.primary_email && !c.primary_phone && (
-                                                            <span className="text-stone-400 italic">No contact details</span>
-                                                        )}
-                                                    </div>
+                                                    {getRelationBadge(c.relation_type)}
                                                 </td>
-                                                <td className="px-5 py-4 max-w-xs truncate text-xs text-stone-600">
-                                                    {c.primary_address ? (
-                                                        <div className="flex items-center gap-1.5 truncate">
-                                                            <MapPin className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
-                                                            <span className="truncate">{c.primary_address}</span>
-                                                        </div>
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
+                                                    {c.primary_email ? (
+                                                        <a
+                                                            href={`mailto:${c.primary_email}`}
+                                                            className="inline-flex items-center gap-1.5 hover:text-[#2E6E52] transition-colors"
+                                                        >
+                                                            <Mail className="w-3.5 h-3.5 text-stone-400" />
+                                                            {c.primary_email}
+                                                        </a>
                                                     ) : (
-                                                        <span className="text-stone-400">—</span>
+                                                        <span className="text-stone-300">—</span>
                                                     )}
                                                 </td>
-                                                <td className="px-5 py-4 max-w-xs truncate text-xs text-stone-500">
-                                                    {c.notes || '—'}
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm text-stone-600">
+                                                    {c.primary_phone ? (
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <Phone className="w-3.5 h-3.5 text-stone-400" />
+                                                            {c.primary_phone}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-stone-300">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-4 text-sm text-stone-600 max-w-xs truncate">
+                                                    {c.primary_address ? (
+                                                        <span className="inline-flex items-center gap-1.5">
+                                                            <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                                            <span className="truncate">{c.primary_address}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-stone-300">—</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-4 whitespace-nowrap text-right">
                                                     <div className="flex items-center justify-end gap-1.5">
                                                         <button
                                                             type="button"
                                                             onClick={() => openContactModal(c)}
-                                                            className="p-1.5 text-stone-500 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors"
+                                                            className="p-1.5 text-stone-500 hover:text-[#2E6E52] hover:bg-[#EEF0EA] rounded-lg transition-colors cursor-pointer"
                                                             title="Edit Contact"
                                                         >
                                                             <Edit className="w-4 h-4" />
@@ -390,7 +409,7 @@ const ContactsPage = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDelete(c.id)}
-                                                            className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                                                             title="Delete Contact"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
@@ -399,11 +418,25 @@ const ContactsPage = () => {
                                                 </td>
                                             </tr>
                                         );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                    })
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Server-side Pagination */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalCount={totalCount}
+                        pageSize={pageSize}
+                        onPageChange={setCurrentPage}
+                        onPageSizeChange={(newSize) => {
+                            setPageSize(newSize);
+                            setCurrentPage(1);
+                        }}
+                        itemLabel="contacts"
+                    />
                 </div>
             </div>
         </div>

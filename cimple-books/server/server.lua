@@ -16,6 +16,13 @@ local function run_q(sql, params)
     return potato.db.run_query(sql)
 end
 
+-- Helper to safely read and trim query parameters from HttpContext
+local function get_query_param(req, name, default_val)
+    local val = req.default_query(name, default_val or "")
+    if val == nil or val == "" then return default_val end
+    return tostring(val)
+end
+
 -- Normalize a Unix timestamp or ISO string to "YYYY-MM-DD HH:MM:SS".
 -- The upper/db ORM can pass raw float64 Unix timestamps as NULL for
 -- TIMESTAMP NOT NULL columns, so we always produce a proper string here.
@@ -483,12 +490,78 @@ function list_accounts(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local accounts, err = potato.db.find_all_by_cond("Accounts", { is_deleted = 0 })
-    if err ~= nil then
-        req.json(400, { error = tostring(err) })
+    local page_str   = get_query_param(req, "page", "")
+    local raw_array  = get_query_param(req, "raw_array", "") == "1"
+    local search     = (get_query_param(req, "search", "") or get_query_param(req, "q", "")):match("^%s*(.-)%s*$") or ""
+    local acc_type   = get_query_param(req, "type", "") or get_query_param(req, "acc_type", "")
+    if acc_type == "all" then acc_type = "" end
+
+    -- If no pagination or filtering requested, return flat array for compatibility
+    if page_str == "" and not raw_array and search == "" and acc_type == "" then
+        local accounts, err = potato.db.find_all_by_cond("Accounts", { is_deleted = 0 })
+        if err ~= nil then
+            req.json(400, { error = tostring(err) })
+            return
+        end
+        req.json_array(200, accounts or {})
         return
     end
-    req.json_array(200, accounts)
+
+    local page      = math.max(1, tonumber(page_str) or 1)
+    local page_size = tonumber(get_query_param(req, "pageSize", "15")) or 15
+    page_size = math.max(1, math.min(page_size, 200))
+
+    local where_clauses = { "is_deleted = 0" }
+    local args = {}
+
+    if acc_type ~= "" then
+        table.insert(where_clauses, "acc_type = ?")
+        table.insert(args, acc_type)
+    end
+
+    if search ~= "" then
+        local like = "%" .. search .. "%"
+        table.insert(where_clauses, "(name LIKE ? OR info LIKE ?)")
+        table.insert(args, like)
+        table.insert(args, like)
+    end
+
+    local where_sql = table.concat(where_clauses, " AND ")
+
+    -- Count total matching rows
+    local count_rows = run_q("SELECT COUNT(*) as cnt FROM Accounts WHERE " .. where_sql, args)
+    local total_count = (count_rows and #count_rows > 0) and (tonumber(count_rows[1].cnt) or 0) or 0
+
+    if raw_array then
+        local all_accounts, a_err = run_q("SELECT * FROM Accounts WHERE " .. where_sql .. " ORDER BY id ASC", args)
+        if a_err ~= nil or all_accounts == nil then
+            req.json(400, { error = tostring(a_err or "Failed to query accounts") })
+            return
+        end
+        req.json_array(200, all_accounts or {})
+        return
+    end
+
+    -- Paginated results
+    local offset = (page - 1) * page_size
+    local page_args = {}
+    for _, a in ipairs(args) do table.insert(page_args, a) end
+    table.insert(page_args, page_size)
+    table.insert(page_args, offset)
+
+    local accounts, a_err = run_q("SELECT * FROM Accounts WHERE " .. where_sql .. " ORDER BY id ASC LIMIT ? OFFSET ?", page_args)
+    if a_err ~= nil or accounts == nil then
+        req.json(400, { error = tostring(a_err or "Failed to query accounts") })
+        return
+    end
+
+    req.json(200, {
+        items       = accounts or {},
+        total       = total_count,
+        page        = page,
+        page_size   = page_size,
+        total_pages = math.max(1, math.ceil(total_count / page_size))
+    })
 end
 
 --- @param ctx HttpContext
@@ -929,12 +1002,78 @@ function list_categories(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local categories, err = potato.db.find_all_by_cond("Catagories", { is_deleted = 0 })
-    if err ~= nil then
-        req.json(400, { error = tostring(err) })
+    local page_str      = get_query_param(req, "page", "")
+    local raw_array     = get_query_param(req, "raw_array", "") == "1"
+    local search        = (get_query_param(req, "search", "") or get_query_param(req, "q", "")):match("^%s*(.-)%s*$") or ""
+    local product_class = get_query_param(req, "productClass", "") or get_query_param(req, "product_class", "")
+    if product_class == "all" then product_class = "" end
+
+    -- If no pagination or filtering requested, return flat array for compatibility
+    if page_str == "" and not raw_array and search == "" and product_class == "" then
+        local categories, err = potato.db.find_all_by_cond("Catagories", { is_deleted = 0 })
+        if err ~= nil then
+            req.json(400, { error = tostring(err) })
+            return
+        end
+        req.json_array(200, categories or {})
         return
     end
-    req.json_array(200, categories)
+
+    local page      = math.max(1, tonumber(page_str) or 1)
+    local page_size = tonumber(get_query_param(req, "pageSize", "15")) or 15
+    page_size = math.max(1, math.min(page_size, 200))
+
+    local where_clauses = { "is_deleted = 0" }
+    local args = {}
+
+    if product_class ~= "" then
+        table.insert(where_clauses, "product_class = ?")
+        table.insert(args, product_class)
+    end
+
+    if search ~= "" then
+        local like = "%" .. search .. "%"
+        table.insert(where_clauses, "(name LIKE ? OR info LIKE ?)")
+        table.insert(args, like)
+        table.insert(args, like)
+    end
+
+    local where_sql = table.concat(where_clauses, " AND ")
+
+    -- Count total
+    local count_rows = run_q("SELECT COUNT(*) as cnt FROM Catagories WHERE " .. where_sql, args)
+    local total_count = (count_rows and #count_rows > 0) and (tonumber(count_rows[1].cnt) or 0) or 0
+
+    if raw_array then
+        local all_categories, c_err = run_q("SELECT * FROM Catagories WHERE " .. where_sql .. " ORDER BY id ASC", args)
+        if c_err ~= nil or all_categories == nil then
+            req.json(400, { error = tostring(c_err or "Failed to query categories") })
+            return
+        end
+        req.json_array(200, all_categories or {})
+        return
+    end
+
+    -- Paginated
+    local offset = (page - 1) * page_size
+    local page_args = {}
+    for _, a in ipairs(args) do table.insert(page_args, a) end
+    table.insert(page_args, page_size)
+    table.insert(page_args, offset)
+
+    local categories, c_err = run_q("SELECT * FROM Catagories WHERE " .. where_sql .. " ORDER BY id ASC LIMIT ? OFFSET ?", page_args)
+    if c_err ~= nil or categories == nil then
+        req.json(400, { error = tostring(c_err or "Failed to query categories") })
+        return
+    end
+
+    req.json(200, {
+        items       = categories or {},
+        total       = total_count,
+        page        = page,
+        page_size   = page_size,
+        total_pages = math.max(1, math.ceil(total_count / page_size))
+    })
 end
 
 --- @param ctx HttpContext
@@ -1012,14 +1151,102 @@ function list_contacts(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local contacts, err = potato.db.find_all_by_cond("Contacts", { is_deleted = 0 })
-    if err ~= nil then
-        req.json(400, { error = tostring(err) })
+    local page_str      = get_query_param(req, "page", "")
+    local raw_array     = get_query_param(req, "raw_array", "") == "1"
+    local search        = (get_query_param(req, "search", "") or get_query_param(req, "q", "")):match("^%s*(.-)%s*$") or ""
+    local relation_type = get_query_param(req, "relationType", "") or get_query_param(req, "relation_type", "")
+    if relation_type == "all" then relation_type = "" end
+
+    -- If no pagination or filtering requested, return flat array for compatibility
+    if page_str == "" and not raw_array and search == "" and relation_type == "" then
+        local contacts, err = potato.db.find_all_by_cond("Contacts", { is_deleted = 0 })
+        if err ~= nil then
+            req.json(400, { error = tostring(err) })
+            return
+        end
+        table.sort(contacts or {}, function(a, b) return (a.id or 0) > (b.id or 0) end)
+        req.json_array(200, contacts or {})
         return
     end
 
-    table.sort(contacts or {}, function(a, b) return (a.id or 0) > (b.id or 0) end)
-    req.json_array(200, contacts or {})
+    local page      = math.max(1, tonumber(page_str) or 1)
+    local page_size = tonumber(get_query_param(req, "pageSize", "15")) or 15
+    page_size = math.max(1, math.min(page_size, 200))
+
+    local where_clauses = { "is_deleted = 0" }
+    local args = {}
+
+    if relation_type == "customer" then
+        table.insert(where_clauses, "relation_type IN ('customer', 'general')")
+    elseif relation_type == "supplier" then
+        table.insert(where_clauses, "relation_type IN ('supplier', 'general')")
+    elseif relation_type == "general" then
+        table.insert(where_clauses, "relation_type = 'general'")
+    elseif relation_type ~= "" then
+        table.insert(where_clauses, "relation_type = ?")
+        table.insert(args, relation_type)
+    end
+
+    if search ~= "" then
+        local like = "%" .. search .. "%"
+        table.insert(where_clauses, "(name LIKE ? OR primary_email LIKE ? OR primary_phone LIKE ? OR primary_address LIKE ? OR info LIKE ?)")
+        for _ = 1, 5 do table.insert(args, like) end
+    end
+
+    local where_sql = table.concat(where_clauses, " AND ")
+
+    -- Count total
+    local count_rows = run_q("SELECT COUNT(*) as cnt FROM Contacts WHERE " .. where_sql, args)
+    local total_count = (count_rows and #count_rows > 0) and (tonumber(count_rows[1].cnt) or 0) or 0
+
+    -- Summary counts across tabs
+    local summary_rows = run_q([[
+        SELECT
+            COUNT(*) as total_all,
+            SUM(CASE WHEN relation_type IN ('customer', 'general') THEN 1 ELSE 0 END) as total_customer,
+            SUM(CASE WHEN relation_type IN ('supplier', 'general') THEN 1 ELSE 0 END) as total_supplier,
+            SUM(CASE WHEN relation_type = 'general' THEN 1 ELSE 0 END) as total_general
+        FROM Contacts
+        WHERE is_deleted = 0
+    ]])
+    local counts = {
+        all      = (summary_rows and #summary_rows > 0) and (tonumber(summary_rows[1].total_all) or 0) or 0,
+        customer = (summary_rows and #summary_rows > 0) and (tonumber(summary_rows[1].total_customer) or 0) or 0,
+        supplier = (summary_rows and #summary_rows > 0) and (tonumber(summary_rows[1].total_supplier) or 0) or 0,
+        general  = (summary_rows and #summary_rows > 0) and (tonumber(summary_rows[1].total_general) or 0) or 0,
+    }
+
+    if raw_array then
+        local all_contacts, c_err = run_q("SELECT * FROM Contacts WHERE " .. where_sql .. " ORDER BY id DESC", args)
+        if c_err ~= nil or all_contacts == nil then
+            req.json(400, { error = tostring(c_err or "Failed to query contacts") })
+            return
+        end
+        req.json_array(200, all_contacts or {})
+        return
+    end
+
+    -- Paginated
+    local offset = (page - 1) * page_size
+    local page_args = {}
+    for _, a in ipairs(args) do table.insert(page_args, a) end
+    table.insert(page_args, page_size)
+    table.insert(page_args, offset)
+
+    local contacts, c_err = run_q("SELECT * FROM Contacts WHERE " .. where_sql .. " ORDER BY id DESC LIMIT ? OFFSET ?", page_args)
+    if c_err ~= nil or contacts == nil then
+        req.json(400, { error = tostring(c_err or "Failed to query contacts") })
+        return
+    end
+
+    req.json(200, {
+        items       = contacts or {},
+        total       = total_count,
+        page        = page,
+        page_size   = page_size,
+        total_pages = math.max(1, math.ceil(total_count / page_size)),
+        counts      = counts
+    })
 end
 
 --- @param ctx HttpContext
@@ -1352,15 +1579,85 @@ function list_products(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local products, err = potato.db.find_all_by_cond("Products", { is_deleted = 0 })
-    if err ~= nil then
-        req.json(400, { error = tostring(err) })
+    local page_str    = get_query_param(req, "page", "")
+    local raw_array   = get_query_param(req, "raw_array", "") == "1"
+    local search      = (get_query_param(req, "search", "") or get_query_param(req, "q", "")):match("^%s*(.-)%s*$") or ""
+    local category_id = get_query_param(req, "categoryId", "") or get_query_param(req, "category_id", "")
+    if category_id == "all" then category_id = "" end
+
+    -- If no pagination or filtering requested, return flat array for compatibility
+    if page_str == "" and not raw_array and search == "" and category_id == "" then
+        local products, err = potato.db.find_all_by_cond("Products", { is_deleted = 0 })
+        if err ~= nil then
+            req.json(400, { error = tostring(err) })
+            return
+        end
+        local variants, _ = potato.db.find_all_by_cond("ProductVariants", { is_deleted = 0 })
+        calculate_product_stocks(products or {}, variants or {})
+        req.json_array(200, products or {})
+        return
+    end
+
+    local page      = math.max(1, tonumber(page_str) or 1)
+    local page_size = tonumber(get_query_param(req, "pageSize", "15")) or 15
+    page_size = math.max(1, math.min(page_size, 200))
+
+    local where_clauses = { "is_deleted = 0" }
+    local args = {}
+
+    if category_id ~= "" and tonumber(category_id) ~= nil then
+        table.insert(where_clauses, "catagory_id = ?")
+        table.insert(args, tonumber(category_id))
+    end
+
+    if search ~= "" then
+        local like = "%" .. search .. "%"
+        table.insert(where_clauses, "(name LIKE ? OR info LIKE ?)")
+        table.insert(args, like)
+        table.insert(args, like)
+    end
+
+    local where_sql = table.concat(where_clauses, " AND ")
+
+    -- Count total
+    local count_rows = run_q("SELECT COUNT(*) as cnt FROM Products WHERE " .. where_sql, args)
+    local total_count = (count_rows and #count_rows > 0) and (tonumber(count_rows[1].cnt) or 0) or 0
+
+    if raw_array then
+        local all_products, p_err = run_q("SELECT * FROM Products WHERE " .. where_sql .. " ORDER BY id DESC", args)
+        if p_err ~= nil or all_products == nil then
+            req.json(400, { error = tostring(p_err or "Failed to query products") })
+            return
+        end
+        local variants, _ = potato.db.find_all_by_cond("ProductVariants", { is_deleted = 0 })
+        calculate_product_stocks(all_products or {}, variants or {})
+        req.json_array(200, all_products or {})
+        return
+    end
+
+    -- Paginated
+    local offset = (page - 1) * page_size
+    local page_args = {}
+    for _, a in ipairs(args) do table.insert(page_args, a) end
+    table.insert(page_args, page_size)
+    table.insert(page_args, offset)
+
+    local products, p_err = run_q("SELECT * FROM Products WHERE " .. where_sql .. " ORDER BY id DESC LIMIT ? OFFSET ?", page_args)
+    if p_err ~= nil or products == nil then
+        req.json(400, { error = tostring(p_err or "Failed to query products") })
         return
     end
 
     local variants, _ = potato.db.find_all_by_cond("ProductVariants", { is_deleted = 0 })
     calculate_product_stocks(products or {}, variants or {})
-    req.json_array(200, products or {})
+
+    req.json(200, {
+        items       = products or {},
+        total       = total_count,
+        page        = page,
+        page_size   = page_size,
+        total_pages = math.max(1, math.ceil(total_count / page_size))
+    })
 end
 
 --- @param ctx HttpContext
@@ -2843,9 +3140,111 @@ function list_sales(ctx)
     local userId = get_user_id(req)
     if userId == nil then return end
 
-    local sales, err = potato.db.find_all_by_cond("Sales", {})
-    if err ~= nil then
-        req.json(400, { error = tostring(err) })
+    local page_str       = get_query_param(req, "page", "")
+    local raw_array      = get_query_param(req, "raw_array", "") == "1"
+    local search         = (get_query_param(req, "search", "") or get_query_param(req, "q", "")):match("^%s*(.-)%s*$") or ""
+    local sales_status   = get_query_param(req, "salesStatus", "") or get_query_param(req, "sales_status", "")
+    if sales_status == "all" then sales_status = "" end
+    local payment_status = get_query_param(req, "paymentStatus", "") or get_query_param(req, "payment_status", "")
+    if payment_status == "all" then payment_status = "" end
+    local sort_by        = get_query_param(req, "sortBy", "date_desc")
+
+    -- If no pagination or filtering requested, return flat array for compatibility
+    if page_str == "" and not raw_array and search == "" and sales_status == "" and payment_status == "" then
+        local sales, err = potato.db.find_all_by_cond("Sales", {})
+        if err ~= nil then
+            req.json(400, { error = tostring(err) })
+            return
+        end
+        local contact_map = {}
+        local all_contacts, _ = potato.db.find_all_by_cond("Contacts", {})
+        for _, c in ipairs(all_contacts or {}) do contact_map[c.id] = c.name end
+
+        for _, sale in ipairs(sales) do
+            attach_lines(sale, "SalesLines", "sale_id", sale.id)
+            sale.client_name = (sale.client_contact_id ~= nil and contact_map[sale.client_contact_id])
+                and contact_map[sale.client_contact_id]
+                or (sale.client_alt_name or "")
+        end
+        req.json_array(200, sales)
+        return
+    end
+
+    local page      = math.max(1, tonumber(page_str) or 1)
+    local page_size = tonumber(get_query_param(req, "pageSize", "15")) or 15
+    page_size = math.max(1, math.min(page_size, 200))
+
+    local where_clauses = { "1=1" }
+    local args = {}
+
+    if sales_status ~= "" then
+        table.insert(where_clauses, "s.sales_status = ?")
+        table.insert(args, sales_status)
+    end
+
+    if payment_status ~= "" then
+        table.insert(where_clauses, "s.payment_status = ?")
+        table.insert(args, payment_status)
+    end
+
+    if search ~= "" then
+        local like = "%" .. search .. "%"
+        table.insert(where_clauses, [[
+            (
+                s.title LIKE ?
+                OR CAST(s.id AS TEXT) LIKE ?
+                OR s.notes LIKE ?
+                OR s.client_alt_name LIKE ?
+                OR s.client_contact_id IN (SELECT id FROM Contacts WHERE name LIKE ?)
+            )
+        ]])
+        for _ = 1, 5 do table.insert(args, like) end
+    end
+
+    local where_sql = table.concat(where_clauses, " AND ")
+
+    local order_sql = "ORDER BY s.sales_date DESC, s.id DESC"
+    if sort_by == "date_asc" then
+        order_sql = "ORDER BY s.sales_date ASC, s.id ASC"
+    elseif sort_by == "amount_desc" then
+        order_sql = "ORDER BY s.total DESC, s.id DESC"
+    elseif sort_by == "amount_asc" then
+        order_sql = "ORDER BY s.total ASC, s.id ASC"
+    end
+
+    -- Count total
+    local count_rows = run_q("SELECT COUNT(*) as cnt FROM Sales s WHERE " .. where_sql, args)
+    local total_count = (count_rows and #count_rows > 0) and (tonumber(count_rows[1].cnt) or 0) or 0
+
+    if raw_array then
+        local all_sales, s_err = run_q("SELECT s.* FROM Sales s WHERE " .. where_sql .. " " .. order_sql, args)
+        if s_err ~= nil or all_sales == nil then
+            req.json(400, { error = tostring(s_err or "Failed to query sales") })
+            return
+        end
+        local contact_map = {}
+        local all_contacts, _ = potato.db.find_all_by_cond("Contacts", {})
+        for _, c in ipairs(all_contacts or {}) do contact_map[c.id] = c.name end
+        for _, sale in ipairs(all_sales) do
+            attach_lines(sale, "SalesLines", "sale_id", sale.id)
+            sale.client_name = (sale.client_contact_id ~= nil and contact_map[sale.client_contact_id])
+                and contact_map[sale.client_contact_id]
+                or (sale.client_alt_name or "")
+        end
+        req.json_array(200, all_sales)
+        return
+    end
+
+    -- Paginated
+    local offset = (page - 1) * page_size
+    local page_args = {}
+    for _, a in ipairs(args) do table.insert(page_args, a) end
+    table.insert(page_args, page_size)
+    table.insert(page_args, offset)
+
+    local sales, s_err = run_q("SELECT s.* FROM Sales s WHERE " .. where_sql .. " " .. order_sql .. " LIMIT ? OFFSET ?", page_args)
+    if s_err ~= nil or sales == nil then
+        req.json(400, { error = tostring(s_err or "Failed to query sales") })
         return
     end
 
@@ -2860,7 +3259,13 @@ function list_sales(ctx)
             or (sale.client_alt_name or "")
     end
 
-    req.json_array(200, sales)
+    req.json(200, {
+        items       = sales or {},
+        total       = total_count,
+        page        = page,
+        page_size   = page_size,
+        total_pages = math.max(1, math.ceil(total_count / page_size))
+    })
 end
 
 --- @param ctx HttpContext

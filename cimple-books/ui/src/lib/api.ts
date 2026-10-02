@@ -82,14 +82,61 @@ async function apiRequest<T>(
     };
 }
 
+export interface PaginatedResponse<T> {
+    items: T[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+}
+
 // Accounts API
-export const listAccounts = async (): Promise<ApiResponse<Account[]>> => {
-    const resp = await apiRequest<Account[]>('/accounts', { method: 'GET' });
-    if (resp.status === 200 && Array.isArray(resp.data)) {
-        return resp;
+export interface ListAccountsParams {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    type?: string;
+    raw_array?: boolean;
+}
+
+export function listAccounts(): Promise<ApiResponse<Account[]>>;
+export function listAccounts(params: ListAccountsParams & { page: number }): Promise<ApiResponse<PaginatedResponse<Account>>>;
+export function listAccounts(params?: ListAccountsParams): Promise<ApiResponse<Account[]> | ApiResponse<PaginatedResponse<Account>>>;
+export async function listAccounts(params?: ListAccountsParams): Promise<any> {
+    const queryParts: string[] = [];
+    if (params) {
+        if (params.page !== undefined) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.pageSize !== undefined) queryParts.push(`pageSize=${encodeURIComponent(params.pageSize)}`);
+        if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+        if (params.type && params.type !== 'all') queryParts.push(`type=${encodeURIComponent(params.type)}`);
+        if (params.raw_array) queryParts.push(`raw_array=1`);
+    }
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const resp = await apiRequest<any>(`/accounts${queryString}`, { method: 'GET' });
+    if (resp.status === 200 && resp.data) {
+        if (params?.page !== undefined) {
+            return {
+                ...resp,
+                data: {
+                    items: Array.isArray(resp.data.items) ? resp.data.items : (Array.isArray(resp.data) ? resp.data : []),
+                    total: resp.data.total ?? (Array.isArray(resp.data) ? resp.data.length : 0),
+                    page: resp.data.page ?? params.page,
+                    page_size: resp.data.page_size ?? (params.pageSize || 15),
+                    total_pages: resp.data.total_pages ?? 1,
+                }
+            };
+        }
+        return {
+            ...resp,
+            data: Array.isArray(resp.data) ? resp.data : (Array.isArray(resp.data?.items) ? resp.data.items : []),
+        };
+    }
+    if (params?.page !== undefined) {
+        return { ...resp, data: { items: [], total: 0, page: 1, page_size: params?.pageSize || 15, total_pages: 1 } };
     }
     return { ...resp, data: [] };
 };
+
 
 export const createAccount = async (account: Partial<Account>): Promise<ApiResponse<Account>> => {
     return apiRequest<Account>('/accounts', {
@@ -274,10 +321,48 @@ export interface Category {
     is_deleted: boolean;
 }
 
-export const listCategories = async (): Promise<ApiResponse<Category[]>> => {
-    const resp = await apiRequest<Category[]>('/categories', { method: 'GET' });
-    if (resp.status === 200 && Array.isArray(resp.data)) {
-        return resp;
+export interface ListCategoriesParams {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    productClass?: string;
+    raw_array?: boolean;
+}
+
+export function listCategories(): Promise<ApiResponse<Category[]>>;
+export function listCategories(params: ListCategoriesParams & { page: number }): Promise<ApiResponse<PaginatedResponse<Category>>>;
+export function listCategories(params?: ListCategoriesParams): Promise<ApiResponse<Category[]> | ApiResponse<PaginatedResponse<Category>>>;
+export async function listCategories(params?: ListCategoriesParams): Promise<any> {
+    const queryParts: string[] = [];
+    if (params) {
+        if (params.page !== undefined) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.pageSize !== undefined) queryParts.push(`pageSize=${encodeURIComponent(params.pageSize)}`);
+        if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+        if (params.productClass && params.productClass !== 'all') queryParts.push(`productClass=${encodeURIComponent(params.productClass)}`);
+        if (params.raw_array) queryParts.push(`raw_array=1`);
+    }
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const resp = await apiRequest<any>(`/categories${queryString}`, { method: 'GET' });
+    if (resp.status === 200 && resp.data) {
+        if (params?.page !== undefined) {
+            return {
+                ...resp,
+                data: {
+                    items: Array.isArray(resp.data.items) ? resp.data.items : (Array.isArray(resp.data) ? resp.data : []),
+                    total: resp.data.total ?? (Array.isArray(resp.data) ? resp.data.length : 0),
+                    page: resp.data.page ?? params.page,
+                    page_size: resp.data.page_size ?? (params.pageSize || 15),
+                    total_pages: resp.data.total_pages ?? 1,
+                }
+            };
+        }
+        return {
+            ...resp,
+            data: Array.isArray(resp.data) ? resp.data : (Array.isArray(resp.data?.items) ? resp.data.items : []),
+        };
+    }
+    if (params?.page !== undefined) {
+        return { ...resp, data: { items: [], total: 0, page: 1, page_size: params?.pageSize || 15, total_pages: 1 } };
     }
     return { ...resp, data: [] };
 };
@@ -326,10 +411,60 @@ export interface Contact {
     is_deleted?: boolean;
 }
 
-export const listContacts = async (): Promise<ApiResponse<Contact[]>> => {
-    const resp = await apiRequest<Contact[]>('/contacts', { method: 'GET' });
-    if (resp.status === 200 && Array.isArray(resp.data)) {
-        return resp;
+export interface ContactCounts {
+    all: number;
+    customer: number;
+    supplier: number;
+    general: number;
+}
+
+export interface PaginatedContactsResponse extends PaginatedResponse<Contact> {
+    counts?: ContactCounts;
+}
+
+export interface ListContactsParams {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    relationType?: string;
+    raw_array?: boolean;
+}
+
+export function listContacts(): Promise<ApiResponse<Contact[]>>;
+export function listContacts(params: ListContactsParams & { page: number }): Promise<ApiResponse<PaginatedContactsResponse>>;
+export function listContacts(params?: ListContactsParams): Promise<ApiResponse<Contact[]> | ApiResponse<PaginatedContactsResponse>>;
+export async function listContacts(params?: ListContactsParams): Promise<any> {
+    const queryParts: string[] = [];
+    if (params) {
+        if (params.page !== undefined) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.pageSize !== undefined) queryParts.push(`pageSize=${encodeURIComponent(params.pageSize)}`);
+        if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+        if (params.relationType && params.relationType !== 'all') queryParts.push(`relationType=${encodeURIComponent(params.relationType)}`);
+        if (params.raw_array) queryParts.push(`raw_array=1`);
+    }
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const resp = await apiRequest<any>(`/contacts${queryString}`, { method: 'GET' });
+    if (resp.status === 200 && resp.data) {
+        if (params?.page !== undefined) {
+            return {
+                ...resp,
+                data: {
+                    items: Array.isArray(resp.data.items) ? resp.data.items : (Array.isArray(resp.data) ? resp.data : []),
+                    total: resp.data.total ?? (Array.isArray(resp.data) ? resp.data.length : 0),
+                    page: resp.data.page ?? params.page,
+                    page_size: resp.data.page_size ?? (params.pageSize || 15),
+                    total_pages: resp.data.total_pages ?? 1,
+                    counts: resp.data.counts,
+                }
+            };
+        }
+        return {
+            ...resp,
+            data: Array.isArray(resp.data) ? resp.data : (Array.isArray(resp.data?.items) ? resp.data.items : []),
+        };
+    }
+    if (params?.page !== undefined) {
+        return { ...resp, data: { items: [], total: 0, page: 1, page_size: params?.pageSize || 15, total_pages: 1 } };
     }
     return { ...resp, data: [] };
 };
@@ -402,10 +537,48 @@ export interface Product {
     variants?: ProductVariant[];
 }
 
-export const listProducts = async (): Promise<ApiResponse<Product[]>> => {
-    const resp = await apiRequest<Product[]>('/products', { method: 'GET' });
-    if (resp.status === 200 && Array.isArray(resp.data)) {
-        return resp;
+export interface ListProductsParams {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    categoryId?: number | string;
+    raw_array?: boolean;
+}
+
+export function listProducts(): Promise<ApiResponse<Product[]>>;
+export function listProducts(params: ListProductsParams & { page: number }): Promise<ApiResponse<PaginatedResponse<Product>>>;
+export function listProducts(params?: ListProductsParams): Promise<ApiResponse<Product[]> | ApiResponse<PaginatedResponse<Product>>>;
+export async function listProducts(params?: ListProductsParams): Promise<any> {
+    const queryParts: string[] = [];
+    if (params) {
+        if (params.page !== undefined) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.pageSize !== undefined) queryParts.push(`pageSize=${encodeURIComponent(params.pageSize)}`);
+        if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+        if (params.categoryId && params.categoryId !== 'all') queryParts.push(`categoryId=${encodeURIComponent(params.categoryId)}`);
+        if (params.raw_array) queryParts.push(`raw_array=1`);
+    }
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const resp = await apiRequest<any>(`/products${queryString}`, { method: 'GET' });
+    if (resp.status === 200 && resp.data) {
+        if (params?.page !== undefined) {
+            return {
+                ...resp,
+                data: {
+                    items: Array.isArray(resp.data.items) ? resp.data.items : (Array.isArray(resp.data) ? resp.data : []),
+                    total: resp.data.total ?? (Array.isArray(resp.data) ? resp.data.length : 0),
+                    page: resp.data.page ?? params.page,
+                    page_size: resp.data.page_size ?? (params.pageSize || 15),
+                    total_pages: resp.data.total_pages ?? 1,
+                }
+            };
+        }
+        return {
+            ...resp,
+            data: Array.isArray(resp.data) ? resp.data : (Array.isArray(resp.data?.items) ? resp.data.items : []),
+        };
+    }
+    if (params?.page !== undefined) {
+        return { ...resp, data: { items: [], total: 0, page: 1, page_size: params?.pageSize || 15, total_pages: 1 } };
     }
     return { ...resp, data: [] };
 };
@@ -727,10 +900,52 @@ export interface Sale {
     lines?: SalesLine[];
 }
 
-export const listSales = async (): Promise<ApiResponse<Sale[]>> => {
-    const resp = await apiRequest<Sale[]>('/sales', { method: 'GET' });
-    if (resp.status === 200 && Array.isArray(resp.data)) {
-        return resp;
+export interface ListSalesParams {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    salesStatus?: string;
+    paymentStatus?: string;
+    sortBy?: string;
+    raw_array?: boolean;
+}
+
+export function listSales(): Promise<ApiResponse<Sale[]>>;
+export function listSales(params: ListSalesParams & { page: number }): Promise<ApiResponse<PaginatedResponse<Sale>>>;
+export function listSales(params?: ListSalesParams): Promise<ApiResponse<Sale[]> | ApiResponse<PaginatedResponse<Sale>>>;
+export async function listSales(params?: ListSalesParams): Promise<any> {
+    const queryParts: string[] = [];
+    if (params) {
+        if (params.page !== undefined) queryParts.push(`page=${encodeURIComponent(params.page)}`);
+        if (params.pageSize !== undefined) queryParts.push(`pageSize=${encodeURIComponent(params.pageSize)}`);
+        if (params.search) queryParts.push(`search=${encodeURIComponent(params.search)}`);
+        if (params.salesStatus && params.salesStatus !== 'all') queryParts.push(`salesStatus=${encodeURIComponent(params.salesStatus)}`);
+        if (params.paymentStatus && params.paymentStatus !== 'all') queryParts.push(`paymentStatus=${encodeURIComponent(params.paymentStatus)}`);
+        if (params.sortBy) queryParts.push(`sortBy=${encodeURIComponent(params.sortBy)}`);
+        if (params.raw_array) queryParts.push(`raw_array=1`);
+    }
+    const queryString = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const resp = await apiRequest<any>(`/sales${queryString}`, { method: 'GET' });
+    if (resp.status === 200 && resp.data) {
+        if (params?.page !== undefined) {
+            return {
+                ...resp,
+                data: {
+                    items: Array.isArray(resp.data.items) ? resp.data.items : (Array.isArray(resp.data) ? resp.data : []),
+                    total: resp.data.total ?? (Array.isArray(resp.data) ? resp.data.length : 0),
+                    page: resp.data.page ?? params.page,
+                    page_size: resp.data.page_size ?? (params.pageSize || 15),
+                    total_pages: resp.data.total_pages ?? 1,
+                }
+            };
+        }
+        return {
+            ...resp,
+            data: Array.isArray(resp.data) ? resp.data : (Array.isArray(resp.data?.items) ? resp.data.items : []),
+        };
+    }
+    if (params?.page !== undefined) {
+        return { ...resp, data: { items: [], total: 0, page: 1, page_size: params?.pageSize || 15, total_pages: 1 } };
     }
     return { ...resp, data: [] };
 };
