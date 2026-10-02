@@ -3740,6 +3740,1238 @@ function scrap_variant_endpoint(ctx, variant_id)
 end
 
 -- ============================================================
+-- REPORTS HANDLERS
+-- ============================================================
+
+local function parse_report_dates(req)
+    local start_date = req.default_query("startDate", "")
+    local end_date   = req.default_query("endDate", "")
+    local as_of_date = req.default_query("asOfDate", "")
+    local preset     = req.default_query("datePreset", "")
+
+    if type(start_date) == "string" and #start_date > 10 then start_date = string.sub(start_date, 1, 10) end
+    if type(end_date) == "string" and #end_date > 10 then end_date = string.sub(end_date, 1, 10) end
+    if type(as_of_date) == "string" and #as_of_date > 10 then as_of_date = string.sub(as_of_date, 1, 10) end
+
+    if start_date == "" then start_date = nil end
+    if end_date == "" then end_date = nil end
+    if as_of_date == "" then as_of_date = nil end
+
+    return start_date, end_date, as_of_date, preset
+end
+
+-- 1. Profit & Loss Statement
+local function report_profit_loss(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date = parse_report_dates(req)
+
+    local date_where = ""
+    local date_args = {}
+    if start_date then
+        date_where = date_where .. " AND substr(t.txn_date, 1, 10) >= ?"
+        table.insert(date_args, start_date)
+    end
+    if end_date then
+        date_where = date_where .. " AND substr(t.txn_date, 1, 10) <= ?"
+        table.insert(date_args, end_date)
+    end
+
+    -- Revenue
+    local rev_args = {}
+    for _, a in ipairs(date_args) do table.insert(rev_args, a) end
+    local rev_sql = [[
+        SELECT a.id, a.name, a.acc_type,
+               COALESCE(SUM(tl.credit_amount - tl.debit_amount), 0) as balance
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 ]] .. date_where .. [[
+        WHERE a.is_deleted = 0 AND a.acc_type = 'revenue'
+        GROUP BY a.id, a.name, a.acc_type
+        ORDER BY balance DESC, a.name ASC
+    ]]
+    local rev_rows = run_q(rev_sql, rev_args) or {}
+    local total_revenue = 0
+    local revenue_items = {}
+    for _, r in ipairs(rev_rows) do
+        local bal = tonumber(r.balance) or 0
+        total_revenue = total_revenue + bal
+        table.insert(revenue_items, {
+            id = tonumber(r.id),
+            name = r.name or "",
+            acc_type = r.acc_type,
+            amount = bal
+        })
+    end
+
+    -- Expenses
+    local exp_args = {}
+    for _, a in ipairs(date_args) do table.insert(exp_args, a) end
+    local exp_sql = [[
+        SELECT a.id, a.name, a.acc_type,
+               COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as balance
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 ]] .. date_where .. [[
+        WHERE a.is_deleted = 0 AND a.acc_type = 'expenses'
+        GROUP BY a.id, a.name, a.acc_type
+        ORDER BY balance DESC, a.name ASC
+    ]]
+    local exp_rows = run_q(exp_sql, exp_args) or {}
+    local total_expenses = 0
+    local expense_items = {}
+    for _, r in ipairs(exp_rows) do
+        local bal = tonumber(r.balance) or 0
+        total_expenses = total_expenses + bal
+        table.insert(expense_items, {
+            id = tonumber(r.id),
+            name = r.name or "",
+            acc_type = r.acc_type,
+            amount = bal
+        })
+    end
+
+    local net_profit = total_revenue - total_expenses
+    local net_margin_pct = total_revenue > 0 and ((net_profit / total_revenue) * 100) or 0
+
+    req.json(200, {
+        start_date = start_date,
+        end_date = end_date,
+        total_revenue = total_revenue,
+        total_expenses = total_expenses,
+        net_profit = net_profit,
+        net_margin_pct = net_margin_pct,
+        revenue = revenue_items,
+        expenses = expense_items,
+    })
+end
+
+-- 2. Balance Sheet
+local function report_balance_sheet(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local _, _, as_of_date = parse_report_dates(req)
+    if not as_of_date or as_of_date == "" then
+        as_of_date = os.date("%Y-%m-%d")
+    end
+
+    -- Assets: sum(debit - credit) up to as_of_date
+    local asset_sql = [[
+        SELECT a.id, a.name, a.acc_type,
+               COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as balance
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 AND substr(t.txn_date, 1, 10) <= ?
+        WHERE a.is_deleted = 0 AND a.acc_type = 'assets'
+        GROUP BY a.id, a.name, a.acc_type
+        ORDER BY balance DESC, a.name ASC
+    ]]
+    local asset_rows = run_q(asset_sql, { as_of_date }) or {}
+    local total_assets = 0
+    local asset_items = {}
+    for _, r in ipairs(asset_rows) do
+        local bal = tonumber(r.balance) or 0
+        total_assets = total_assets + bal
+        table.insert(asset_items, {
+            id = tonumber(r.id),
+            name = r.name or "",
+            acc_type = r.acc_type,
+            amount = bal
+        })
+    end
+
+    -- Liabilities: sum(credit - debit) up to as_of_date
+    local liab_sql = [[
+        SELECT a.id, a.name, a.acc_type,
+               COALESCE(SUM(tl.credit_amount - tl.debit_amount), 0) as balance
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 AND substr(t.txn_date, 1, 10) <= ?
+        WHERE a.is_deleted = 0 AND a.acc_type = 'liabilities'
+        GROUP BY a.id, a.name, a.acc_type
+        ORDER BY balance DESC, a.name ASC
+    ]]
+    local liab_rows = run_q(liab_sql, { as_of_date }) or {}
+    local total_liabilities = 0
+    local liab_items = {}
+    for _, r in ipairs(liab_rows) do
+        local bal = tonumber(r.balance) or 0
+        total_liabilities = total_liabilities + bal
+        table.insert(liab_items, {
+            id = tonumber(r.id),
+            name = r.name or "",
+            acc_type = r.acc_type,
+            amount = bal
+        })
+    end
+
+    -- Equity accounts: sum(credit - debit) up to as_of_date
+    local eq_sql = [[
+        SELECT a.id, a.name, a.acc_type,
+               COALESCE(SUM(tl.credit_amount - tl.debit_amount), 0) as balance
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 AND substr(t.txn_date, 1, 10) <= ?
+        WHERE a.is_deleted = 0 AND a.acc_type = 'equity'
+        GROUP BY a.id, a.name, a.acc_type
+        ORDER BY balance DESC, a.name ASC
+    ]]
+    local eq_rows = run_q(eq_sql, { as_of_date }) or {}
+    local equity_accounts_total = 0
+    local eq_items = {}
+    for _, r in ipairs(eq_rows) do
+        local bal = tonumber(r.balance) or 0
+        equity_accounts_total = equity_accounts_total + bal
+        table.insert(eq_items, {
+            id = tonumber(r.id),
+            name = r.name or "",
+            acc_type = r.acc_type,
+            amount = bal
+        })
+    end
+
+    -- Retained Earnings: Cumulative revenue minus cumulative expenses up to as_of_date
+    local rev_cum_sql = [[
+        SELECT COALESCE(SUM(tl.credit_amount - tl.debit_amount), 0) as amt
+        FROM TransactionLines tl
+        JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 AND substr(t.txn_date, 1, 10) <= ?
+        JOIN Accounts a ON a.id = tl.account_id AND a.is_deleted = 0 AND a.acc_type = 'revenue'
+    ]]
+    local rev_cum_row = run_q(rev_cum_sql, { as_of_date })
+    local cum_revenue = (rev_cum_row and #rev_cum_row > 0) and (tonumber(rev_cum_row[1].amt) or 0) or 0
+
+    local exp_cum_sql = [[
+        SELECT COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as amt
+        FROM TransactionLines tl
+        JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 AND substr(t.txn_date, 1, 10) <= ?
+        JOIN Accounts a ON a.id = tl.account_id AND a.is_deleted = 0 AND a.acc_type = 'expenses'
+    ]]
+    local exp_cum_row = run_q(exp_cum_sql, { as_of_date })
+    local cum_expenses = (exp_cum_row and #exp_cum_row > 0) and (tonumber(exp_cum_row[1].amt) or 0) or 0
+
+    local retained_earnings = cum_revenue - cum_expenses
+    local total_equity = equity_accounts_total + retained_earnings
+    local total_liabilities_equity = total_liabilities + total_equity
+    local diff = total_assets - total_liabilities_equity
+    local is_balanced = (math.abs(diff) <= 1)
+
+    req.json(200, {
+        as_of_date = as_of_date,
+        assets = asset_items,
+        total_assets = total_assets,
+        liabilities = liab_items,
+        total_liabilities = total_liabilities,
+        equity = eq_items,
+        retained_earnings = retained_earnings,
+        total_equity = total_equity,
+        total_liabilities_equity = total_liabilities_equity,
+        difference = diff,
+        is_balanced = is_balanced,
+    })
+end
+
+-- 3. Cash Flow Statement
+local function report_cash_flow(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date = parse_report_dates(req)
+
+    -- Detect cash / bank accounts
+    local cash_acc_rows = run_q([[
+        SELECT id, name, acc_type FROM Accounts
+        WHERE is_deleted = 0 AND acc_type = 'assets'
+          AND (LOWER(name) LIKE '%cash%' OR LOWER(name) LIKE '%bank%' OR LOWER(name) LIKE '%wallet%')
+        ORDER BY id ASC
+    ]]) or {}
+
+    local cash_ids = {}
+    local cash_id_set = {}
+    for _, ca in ipairs(cash_acc_rows) do
+        local id = tonumber(ca.id)
+        if id then
+            table.insert(cash_ids, id)
+            cash_id_set[id] = true
+        end
+    end
+
+    if #cash_ids == 0 then
+        local first_asset = run_q("SELECT id, name, acc_type FROM Accounts WHERE is_deleted = 0 AND acc_type = 'assets' ORDER BY id ASC LIMIT 1")
+        if first_asset and #first_asset > 0 then
+            local id = tonumber(first_asset[1].id)
+            table.insert(cash_ids, id)
+            cash_id_set[id] = true
+            table.insert(cash_acc_rows, first_asset[1])
+        end
+    end
+
+    local in_clause = table.concat(cash_ids, ",")
+    if in_clause == "" then in_clause = "0" end
+
+    -- Opening cash balance prior to start_date
+    local opening_balance = 0
+    if start_date then
+        local op_sql = "SELECT COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as bal FROM TransactionLines tl JOIN Transactions t ON t.id = tl.txn_id WHERE t.is_deleted = 0 AND tl.account_id IN (" .. in_clause .. ") AND substr(t.txn_date, 1, 10) < ?"
+        local op_rows = run_q(op_sql, { start_date })
+        if op_rows and #op_rows > 0 then
+            opening_balance = tonumber(op_rows[1].bal) or 0
+        end
+    end
+
+    -- Transactions in range that touch cash accounts
+    local range_where = "t.is_deleted = 0 AND tl.account_id IN (" .. in_clause .. ")"
+    local range_args = {}
+    if start_date then
+        range_where = range_where .. " AND substr(t.txn_date, 1, 10) >= ?"
+        table.insert(range_args, start_date)
+    end
+    if end_date then
+        range_where = range_where .. " AND substr(t.txn_date, 1, 10) <= ?"
+        table.insert(range_args, end_date)
+    end
+
+    local cash_lines_sql = [[
+        SELECT tl.id as line_id, tl.account_id, tl.txn_id, tl.debit_amount, tl.credit_amount,
+               t.txn_date, t.title, t.notes, t.txn_type, t.reference_id, a.name as cash_account_name
+        FROM TransactionLines tl
+        JOIN Transactions t ON t.id = tl.txn_id
+        JOIN Accounts a ON a.id = tl.account_id
+        WHERE ]] .. range_where .. [[
+        ORDER BY t.txn_date ASC, t.id ASC
+    ]]
+    local cash_lines = run_q(cash_lines_sql, range_args) or {}
+
+    local operating_inflows = 0
+    local operating_outflows = 0
+    local investing_inflows = 0
+    local investing_outflows = 0
+    local financing_inflows = 0
+    local financing_outflows = 0
+
+    local movement_items = {}
+
+    for _, line in ipairs(cash_lines) do
+        local debit = tonumber(line.debit_amount) or 0
+        local credit = tonumber(line.credit_amount) or 0
+        local net = debit - credit
+        local txn_id = tonumber(line.txn_id)
+
+        local cp_rows = run_q([[
+            SELECT tl.account_id, tl.debit_amount, tl.credit_amount, a.name, a.acc_type
+            FROM TransactionLines tl
+            JOIN Accounts a ON a.id = tl.account_id
+            WHERE tl.txn_id = ? AND tl.id != ?
+        ]], { txn_id, line.line_id }) or {}
+
+        local category = "operating"
+        local cp_name = ""
+        for _, cp in ipairs(cp_rows) do
+            local atype = cp.acc_type
+            if atype == "equity" then
+                category = "financing"
+                cp_name = cp.name
+                break
+            elseif atype == "assets" and not cash_id_set[tonumber(cp.account_id)] and (string.find(string.lower(cp.name or ""), "equipment") or string.find(string.lower(cp.name or ""), "asset")) then
+                category = "investing"
+                cp_name = cp.name
+            else
+                if cp_name == "" then cp_name = cp.name end
+            end
+        end
+
+        if net > 0 then
+            if category == "financing" then
+                financing_inflows = financing_inflows + net
+            elseif category == "investing" then
+                investing_inflows = investing_inflows + net
+            else
+                operating_inflows = operating_inflows + net
+            end
+        elseif net < 0 then
+            local amt = -net
+            if category == "financing" then
+                financing_outflows = financing_outflows + amt
+            elseif category == "investing" then
+                investing_outflows = investing_outflows + amt
+            else
+                operating_outflows = operating_outflows + amt
+            end
+        end
+
+        table.insert(movement_items, {
+            line_id = tonumber(line.line_id),
+            txn_id = txn_id,
+            date = line.txn_date,
+            title = line.title,
+            reference_id = line.reference_id,
+            account_name = line.cash_account_name,
+            counterpart_account = cp_name,
+            category = category,
+            inflow = net > 0 and net or 0,
+            outflow = net < 0 and (-net) or 0,
+            net = net,
+        })
+    end
+
+    local net_operating = operating_inflows - operating_outflows
+    local net_investing = investing_inflows - investing_outflows
+    local net_financing = financing_inflows - financing_outflows
+    local total_inflows = operating_inflows + investing_inflows + financing_inflows
+    local total_outflows = operating_outflows + investing_outflows + financing_outflows
+    local net_cash_change = total_inflows - total_outflows
+    local closing_balance = opening_balance + net_cash_change
+
+    local cash_acc_details = {}
+    for _, ca in ipairs(cash_acc_rows) do
+        local id = tonumber(ca.id)
+        local cur_bal_sql = "SELECT COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as bal FROM TransactionLines tl JOIN Transactions t ON t.id = tl.txn_id WHERE t.is_deleted = 0 AND tl.account_id = ?"
+        local cur_args = { id }
+        if end_date then
+            cur_bal_sql = cur_bal_sql .. " AND substr(t.txn_date, 1, 10) <= ?"
+            table.insert(cur_args, end_date)
+        end
+        local c_rows = run_q(cur_bal_sql, cur_args)
+        local c_bal = (c_rows and #c_rows > 0) and (tonumber(c_rows[1].bal) or 0) or 0
+        table.insert(cash_acc_details, {
+            id = id,
+            name = ca.name,
+            balance = c_bal,
+        })
+    end
+
+    req.json(200, {
+        start_date = start_date,
+        end_date = end_date,
+        opening_balance = opening_balance,
+        operating_inflows = operating_inflows,
+        operating_outflows = operating_outflows,
+        net_operating = net_operating,
+        investing_inflows = investing_inflows,
+        investing_outflows = investing_outflows,
+        net_investing = net_investing,
+        financing_inflows = financing_inflows,
+        financing_outflows = financing_outflows,
+        net_financing = net_financing,
+        total_inflows = total_inflows,
+        total_outflows = total_outflows,
+        net_cash_change = net_cash_change,
+        closing_balance = closing_balance,
+        cash_accounts = cash_acc_details,
+        items = movement_items,
+    })
+end
+
+-- 4. Trial Balance
+local function report_trial_balance(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date, as_of_date = parse_report_dates(req)
+
+    local date_where = ""
+    local date_args = {}
+    if as_of_date then
+        date_where = " AND substr(t.txn_date, 1, 10) <= ?"
+        table.insert(date_args, as_of_date)
+    else
+        if start_date then
+            date_where = date_where .. " AND substr(t.txn_date, 1, 10) >= ?"
+            table.insert(date_args, start_date)
+        end
+        if end_date then
+            date_where = date_where .. " AND substr(t.txn_date, 1, 10) <= ?"
+            table.insert(date_args, end_date)
+        end
+    end
+
+    local tb_sql = [[
+        SELECT a.id, a.name, a.acc_type,
+               COALESCE(SUM(tl.debit_amount), 0) as total_debit,
+               COALESCE(SUM(tl.credit_amount), 0) as total_credit
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0 ]] .. date_where .. [[
+        WHERE a.is_deleted = 0
+        GROUP BY a.id, a.name, a.acc_type
+        ORDER BY a.acc_type ASC, a.id ASC
+    ]]
+    local rows = run_q(tb_sql, date_args) or {}
+
+    local total_debits = 0
+    local total_credits = 0
+    local total_net_debits = 0
+    local total_net_credits = 0
+    local items = {}
+
+    for _, r in ipairs(rows) do
+        local deb = tonumber(r.total_debit) or 0
+        local cred = tonumber(r.total_credit) or 0
+        total_debits = total_debits + deb
+        total_credits = total_credits + cred
+
+        local net_debit = deb > cred and (deb - cred) or 0
+        local net_credit = cred > deb and (cred - deb) or 0
+        total_net_debits = total_net_debits + net_debit
+        total_net_credits = total_net_credits + net_credit
+
+        table.insert(items, {
+            id = tonumber(r.id),
+            name = r.name,
+            acc_type = r.acc_type,
+            debit = deb,
+            credit = cred,
+            net_debit = net_debit,
+            net_credit = net_credit,
+        })
+    end
+
+    local is_balanced = (math.abs(total_debits - total_credits) <= 1) and (math.abs(total_net_debits - total_net_credits) <= 1)
+
+    req.json(200, {
+        as_of_date = as_of_date,
+        start_date = start_date,
+        end_date = end_date,
+        total_debits = total_debits,
+        total_credits = total_credits,
+        total_net_debits = total_net_debits,
+        total_net_credits = total_net_credits,
+        difference = total_debits - total_credits,
+        is_balanced = is_balanced,
+        items = items,
+    })
+end
+
+-- 5. General Ledger
+local function report_general_ledger(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date = parse_report_dates(req)
+    local account_id_str = req.default_query("accountId", "")
+    local search = req.default_query("search", ""):match("^%s*(.-)%s*$") or ""
+
+    local target_account_id = (account_id_str ~= "" and account_id_str ~= "all") and tonumber(account_id_str) or nil
+
+    local acc_sql = "SELECT id, name, acc_type FROM Accounts WHERE is_deleted = 0"
+    local acc_args = {}
+    if target_account_id then
+        acc_sql = acc_sql .. " AND id = ?"
+        table.insert(acc_args, target_account_id)
+    end
+    acc_sql = acc_sql .. " ORDER BY acc_type ASC, name ASC"
+    local accounts = run_q(acc_sql, acc_args) or {}
+
+    local result_accounts = {}
+    local grand_debits = 0
+    local grand_credits = 0
+
+    for _, a in ipairs(accounts) do
+        local acc_id = tonumber(a.id)
+        local is_debit_normal = (a.acc_type == "assets" or a.acc_type == "expenses")
+
+        local opening_bal = 0
+        if start_date then
+            local op_sql = "SELECT COALESCE(SUM(tl.debit_amount), 0) as deb, COALESCE(SUM(tl.credit_amount), 0) as cred FROM TransactionLines tl JOIN Transactions t ON t.id = tl.txn_id WHERE t.is_deleted = 0 AND tl.account_id = ? AND substr(t.txn_date, 1, 10) < ?"
+            local op_r = run_q(op_sql, { acc_id, start_date })
+            if op_r and #op_r > 0 then
+                local d = tonumber(op_r[1].deb) or 0
+                local c = tonumber(op_r[1].cred) or 0
+                opening_bal = is_debit_normal and (d - c) or (c - d)
+            end
+        end
+
+        local tx_where = "t.is_deleted = 0 AND tl.account_id = ?"
+        local tx_args = { acc_id }
+        if start_date then
+            tx_where = tx_where .. " AND substr(t.txn_date, 1, 10) >= ?"
+            table.insert(tx_args, start_date)
+        end
+        if end_date then
+            tx_where = tx_where .. " AND substr(t.txn_date, 1, 10) <= ?"
+            table.insert(tx_args, end_date)
+        end
+        if search ~= "" then
+            tx_where = tx_where .. " AND (t.title LIKE ? OR t.notes LIKE ? OR t.reference_id LIKE ?)"
+            local s = "%" .. search .. "%"
+            table.insert(tx_args, s)
+            table.insert(tx_args, s)
+            table.insert(tx_args, s)
+        end
+
+        local lines_sql = [[
+            SELECT t.id as txn_id, t.txn_date, t.title, t.notes, t.txn_type, t.reference_id,
+                   tl.id as line_id, tl.debit_amount, tl.credit_amount
+            FROM TransactionLines tl
+            JOIN Transactions t ON t.id = tl.txn_id
+            WHERE ]] .. tx_where .. [[
+            ORDER BY t.txn_date ASC, t.id ASC
+        ]]
+        local lines = run_q(lines_sql, tx_args) or {}
+
+        local running_balance = opening_bal
+        local acc_debits = 0
+        local acc_credits = 0
+        local entries = {}
+
+        for _, l in ipairs(lines) do
+            local deb = tonumber(l.debit_amount) or 0
+            local cred = tonumber(l.credit_amount) or 0
+            acc_debits = acc_debits + deb
+            acc_credits = acc_credits + cred
+
+            if is_debit_normal then
+                running_balance = running_balance + deb - cred
+            else
+                running_balance = running_balance + cred - deb
+            end
+
+            table.insert(entries, {
+                line_id = tonumber(l.line_id),
+                txn_id = tonumber(l.txn_id),
+                date = l.txn_date,
+                title = l.title,
+                notes = l.notes,
+                txn_type = l.txn_type,
+                reference_id = l.reference_id,
+                debit = deb,
+                credit = cred,
+                running_balance = running_balance,
+            })
+        end
+
+        grand_debits = grand_debits + acc_debits
+        grand_credits = grand_credits + acc_credits
+
+        if target_account_id or #entries > 0 or opening_bal ~= 0 then
+            table.insert(result_accounts, {
+                id = acc_id,
+                name = a.name,
+                acc_type = a.acc_type,
+                is_debit_normal = is_debit_normal,
+                opening_balance = opening_bal,
+                total_debit = acc_debits,
+                total_credit = acc_credits,
+                closing_balance = running_balance,
+                entries = entries,
+            })
+        end
+    end
+
+    req.json(200, {
+        start_date = start_date,
+        end_date = end_date,
+        total_accounts = #result_accounts,
+        total_debits = grand_debits,
+        total_credits = grand_credits,
+        accounts = result_accounts,
+    })
+end
+
+-- 6. Accounts Receivable Aging
+local function report_accounts_receivable(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local _, _, as_of_date = parse_report_dates(req)
+    if not as_of_date or as_of_date == "" then
+        as_of_date = os.date("%Y-%m-%d")
+    end
+
+    local ar_sql = [[
+        SELECT s.id, s.title, s.total, s.sales_status, s.payment_status, s.sales_date,
+               s.client_contact_id, s.client_alt_name,
+               c.name as contact_name, c.primary_email, c.primary_phone,
+               CAST(julianday(?) - julianday(substr(s.sales_date, 1, 10)) AS INTEGER) as days_overdue
+        FROM Sales s
+        LEFT JOIN Contacts c ON c.id = s.client_contact_id
+        WHERE s.sales_status = 'confirmed' AND s.payment_status != 'paid'
+          AND substr(s.sales_date, 1, 10) <= ?
+        ORDER BY s.sales_date ASC
+    ]]
+    local rows = run_q(ar_sql, { as_of_date, as_of_date }) or {}
+
+    local total_receivables = 0
+    local bucket_current = 0
+    local bucket_31_60 = 0
+    local bucket_61_90 = 0
+    local bucket_over_90 = 0
+
+    local contact_groups = {}
+    local invoices = {}
+
+    for _, r in ipairs(rows) do
+        local amt = tonumber(r.total) or 0
+        local days = tonumber(r.days_overdue) or 0
+        if days < 0 then days = 0 end
+
+        total_receivables = total_receivables + amt
+
+        local bucket = "current"
+        if days <= 30 then
+            bucket_current = bucket_current + amt
+            bucket = "current"
+        elseif days <= 60 then
+            bucket_31_60 = bucket_31_60 + amt
+            bucket = "31_60"
+        elseif days <= 90 then
+            bucket_61_90 = bucket_61_90 + amt
+            bucket = "61_90"
+        else
+            bucket_over_90 = bucket_over_90 + amt
+            bucket = "over_90"
+        end
+
+        local c_id = tonumber(r.client_contact_id) or 0
+        local c_name = r.contact_name or r.client_alt_name or "Unknown Customer"
+        if c_name == "" then c_name = "Customer #" .. c_id end
+
+        if not contact_groups[c_name] then
+            contact_groups[c_name] = {
+                contact_id = c_id,
+                contact_name = c_name,
+                email = r.primary_email or "",
+                phone = r.primary_phone or "",
+                total_due = 0,
+                current = 0,
+                days_31_60 = 0,
+                days_61_90 = 0,
+                days_over_90 = 0,
+                invoices_count = 0,
+            }
+        end
+
+        local cg = contact_groups[c_name]
+        cg.total_due = cg.total_due + amt
+        cg.invoices_count = cg.invoices_count + 1
+        if bucket == "current" then cg.current = cg.current + amt
+        elseif bucket == "31_60" then cg.days_31_60 = cg.days_31_60 + amt
+        elseif bucket == "61_90" then cg.days_61_90 = cg.days_61_90 + amt
+        else cg.days_over_90 = cg.days_over_90 + amt end
+
+        table.insert(invoices, {
+            id = tonumber(r.id),
+            title = r.title,
+            sales_date = r.sales_date,
+            contact_name = c_name,
+            amount = amt,
+            payment_status = r.payment_status,
+            days_overdue = days,
+            bucket = bucket,
+        })
+    end
+
+    local contact_list = {}
+    for _, cg in pairs(contact_groups) do
+        table.insert(contact_list, cg)
+    end
+    table.sort(contact_list, function(a, b) return a.total_due > b.total_due end)
+
+    req.json(200, {
+        as_of_date = as_of_date,
+        total_receivables = total_receivables,
+        bucket_current = bucket_current,
+        bucket_31_60 = bucket_31_60,
+        bucket_61_90 = bucket_61_90,
+        bucket_over_90 = bucket_over_90,
+        contacts = contact_list,
+        invoices = invoices,
+    })
+end
+
+-- 7. Accounts Payable Aging
+local function report_accounts_payable(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local _, _, as_of_date = parse_report_dates(req)
+    if not as_of_date or as_of_date == "" then
+        as_of_date = os.date("%Y-%m-%d")
+    end
+
+    local ap_sql = [[
+        SELECT psi.id, psi.info, psi.amount, psi.stockin_status, psi.payment_status, psi.stockin_date,
+               psi.reference_id, psi.vendor_contact_id, psi.vendor_alt_name,
+               c.name as contact_name, c.primary_email, c.primary_phone,
+               CAST(julianday(?) - julianday(substr(psi.stockin_date, 1, 10)) AS INTEGER) as days_overdue
+        FROM ProductStockIn psi
+        LEFT JOIN Contacts c ON c.id = psi.vendor_contact_id
+        WHERE psi.stockin_status = 'confirmed' AND psi.payment_status != 'paid'
+          AND substr(psi.stockin_date, 1, 10) <= ?
+        ORDER BY psi.stockin_date ASC
+    ]]
+    local rows = run_q(ap_sql, { as_of_date, as_of_date }) or {}
+
+    local total_payables = 0
+    local bucket_current = 0
+    local bucket_31_60 = 0
+    local bucket_61_90 = 0
+    local bucket_over_90 = 0
+
+    local vendor_groups = {}
+    local bills = {}
+
+    for _, r in ipairs(rows) do
+        local amt = tonumber(r.amount) or 0
+        local days = tonumber(r.days_overdue) or 0
+        if days < 0 then days = 0 end
+
+        total_payables = total_payables + amt
+
+        local bucket = "current"
+        if days <= 30 then
+            bucket_current = bucket_current + amt
+            bucket = "current"
+        elseif days <= 60 then
+            bucket_31_60 = bucket_31_60 + amt
+            bucket = "31_60"
+        elseif days <= 90 then
+            bucket_61_90 = bucket_61_90 + amt
+            bucket = "61_90"
+        else
+            bucket_over_90 = bucket_over_90 + amt
+            bucket = "over_90"
+        end
+
+        local v_id = tonumber(r.vendor_contact_id) or 0
+        local v_name = r.contact_name or r.vendor_alt_name or "Unknown Vendor"
+        if v_name == "" then v_name = "Vendor #" .. v_id end
+
+        if not vendor_groups[v_name] then
+            vendor_groups[v_name] = {
+                contact_id = v_id,
+                contact_name = v_name,
+                email = r.primary_email or "",
+                phone = r.primary_phone or "",
+                total_payable = 0,
+                current = 0,
+                days_31_60 = 0,
+                days_61_90 = 0,
+                days_over_90 = 0,
+                bills_count = 0,
+            }
+        end
+
+        local vg = vendor_groups[v_name]
+        vg.total_payable = vg.total_payable + amt
+        vg.bills_count = vg.bills_count + 1
+        if bucket == "current" then vg.current = vg.current + amt
+        elseif bucket == "31_60" then vg.days_31_60 = vg.days_31_60 + amt
+        elseif bucket == "61_90" then vg.days_61_90 = vg.days_61_90 + amt
+        else vg.days_over_90 = vg.days_over_90 + amt end
+
+        table.insert(bills, {
+            id = tonumber(r.id),
+            info = r.info,
+            reference_id = r.reference_id,
+            stockin_date = r.stockin_date,
+            vendor_name = v_name,
+            amount = amt,
+            payment_status = r.payment_status,
+            days_overdue = days,
+            bucket = bucket,
+        })
+    end
+
+    local vendor_list = {}
+    for _, vg in pairs(vendor_groups) do
+        table.insert(vendor_list, vg)
+    end
+    table.sort(vendor_list, function(a, b) return a.total_payable > b.total_payable end)
+
+    req.json(200, {
+        as_of_date = as_of_date,
+        total_payables = total_payables,
+        bucket_current = bucket_current,
+        bucket_31_60 = bucket_31_60,
+        bucket_61_90 = bucket_61_90,
+        bucket_over_90 = bucket_over_90,
+        vendors = vendor_list,
+        bills = bills,
+    })
+end
+
+-- 8. Sales Report
+local function report_sales(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date = parse_report_dates(req)
+
+    local date_where = ""
+    local date_args = {}
+    if start_date then
+        date_where = date_where .. " AND substr(sales_date, 1, 10) >= ?"
+        table.insert(date_args, start_date)
+    end
+    if end_date then
+        date_where = date_where .. " AND substr(sales_date, 1, 10) <= ?"
+        table.insert(date_args, end_date)
+    end
+
+    local metrics_sql = [[
+        SELECT COUNT(*) as total_orders,
+               COALESCE(SUM(total_item_price), 0) as gross_sales,
+               COALESCE(SUM(total_item_discount_amount + overall_discount_amount), 0) as total_discounts,
+               COALESCE(SUM(total_item_tax_amount + overall_tax_amount), 0) as total_tax,
+               COALESCE(SUM(total), 0) as net_sales,
+               COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN total ELSE 0 END), 0) as paid_sales,
+               COALESCE(SUM(CASE WHEN payment_status != 'paid' THEN total ELSE 0 END), 0) as unpaid_sales
+        FROM Sales
+        WHERE sales_status = 'confirmed' ]] .. date_where
+    local m_rows = run_q(metrics_sql, date_args) or {}
+    local m = m_rows[1] or {}
+
+    local total_orders = tonumber(m.total_orders) or 0
+    local gross_sales = tonumber(m.gross_sales) or 0
+    local total_discounts = tonumber(m.total_discounts) or 0
+    local total_tax = tonumber(m.total_tax) or 0
+    local net_sales = tonumber(m.net_sales) or 0
+    local paid_sales = tonumber(m.paid_sales) or 0
+    local unpaid_sales = tonumber(m.unpaid_sales) or 0
+    local avg_order_value = total_orders > 0 and math.floor(net_sales / total_orders) or 0
+
+    local status_sql = "SELECT sales_status, COUNT(*) as count, COALESCE(SUM(total), 0) as amount FROM Sales WHERE 1=1 " .. date_where .. " GROUP BY sales_status"
+    local status_rows = run_q(status_sql, date_args) or {}
+    local status_breakdown = {}
+    for _, sr in ipairs(status_rows) do
+        table.insert(status_breakdown, {
+            status = sr.sales_status,
+            count = tonumber(sr.count) or 0,
+            amount = tonumber(sr.amount) or 0,
+        })
+    end
+
+    local prod_where = ""
+    local prod_args = {}
+    if start_date then
+        prod_where = prod_where .. " AND substr(s.sales_date, 1, 10) >= ?"
+        table.insert(prod_args, start_date)
+    end
+    if end_date then
+        prod_where = prod_where .. " AND substr(s.sales_date, 1, 10) <= ?"
+        table.insert(prod_args, end_date)
+    end
+    local prod_sql = [[
+        SELECT sl.product_id, COALESCE(p.name, sl.info) as product_name,
+               SUM(sl.qty) as total_qty, SUM(sl.total_amount) as total_revenue
+        FROM SalesLines sl
+        JOIN Sales s ON s.id = sl.sale_id
+        LEFT JOIN Products p ON p.id = sl.product_id
+        WHERE s.sales_status = 'confirmed' ]] .. prod_where .. [[
+        GROUP BY sl.product_id, product_name
+        ORDER BY total_revenue DESC
+        LIMIT 10
+    ]]
+    local prod_rows = run_q(prod_sql, prod_args) or {}
+    local top_products = {}
+    for _, pr in ipairs(prod_rows) do
+        table.insert(top_products, {
+            product_id = tonumber(pr.product_id),
+            product_name = pr.product_name or "Custom Item",
+            qty = tonumber(pr.total_qty) or 0,
+            revenue = tonumber(pr.total_revenue) or 0,
+        })
+    end
+
+    local cust_sql = [[
+        SELECT s.client_contact_id,
+               COALESCE(c.name, s.client_alt_name, 'Guest Customer') as customer_name,
+               COUNT(s.id) as orders_count,
+               SUM(s.total) as total_spent
+        FROM Sales s
+        LEFT JOIN Contacts c ON c.id = s.client_contact_id
+        WHERE s.sales_status = 'confirmed' ]] .. prod_where .. [[
+        GROUP BY s.client_contact_id, customer_name
+        ORDER BY total_spent DESC
+        LIMIT 10
+    ]]
+    local cust_rows = run_q(cust_sql, prod_args) or {}
+    local top_customers = {}
+    for _, cr in ipairs(cust_rows) do
+        table.insert(top_customers, {
+            contact_id = tonumber(cr.client_contact_id),
+            name = cr.customer_name,
+            orders_count = tonumber(cr.orders_count) or 0,
+            total_spent = tonumber(cr.total_spent) or 0,
+        })
+    end
+
+    local timeline_sql = [[
+        SELECT substr(sales_date, 1, 10) as day_date,
+               COUNT(*) as order_count,
+               COALESCE(SUM(total), 0) as total_revenue
+        FROM Sales
+        WHERE sales_status = 'confirmed' ]] .. date_where .. [[
+        GROUP BY day_date
+        ORDER BY day_date ASC
+    ]]
+    local tl_rows = run_q(timeline_sql, date_args) or {}
+    local timeline = {}
+    for _, tr in ipairs(tl_rows) do
+        table.insert(timeline, {
+            date = tr.day_date,
+            order_count = tonumber(tr.order_count) or 0,
+            revenue = tonumber(tr.total_revenue) or 0,
+        })
+    end
+
+    req.json(200, {
+        start_date = start_date,
+        end_date = end_date,
+        total_orders = total_orders,
+        gross_sales = gross_sales,
+        total_discounts = total_discounts,
+        total_tax = total_tax,
+        net_sales = net_sales,
+        paid_sales = paid_sales,
+        unpaid_sales = unpaid_sales,
+        avg_order_value = avg_order_value,
+        status_breakdown = status_breakdown,
+        top_products = top_products,
+        top_customers = top_customers,
+        timeline = timeline,
+    })
+end
+
+-- 9. Expense Report
+local function report_expenses(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date = parse_report_dates(req)
+    local account_id_str = req.default_query("accountId", "")
+    local target_account_id = (account_id_str ~= "" and account_id_str ~= "all") and tonumber(account_id_str) or nil
+
+    local date_where = "t.is_deleted = 0 AND a.is_deleted = 0 AND a.acc_type = 'expenses'"
+    local date_args = {}
+    if target_account_id then
+        date_where = date_where .. " AND a.id = ?"
+        table.insert(date_args, target_account_id)
+    end
+    if start_date then
+        date_where = date_where .. " AND substr(t.txn_date, 1, 10) >= ?"
+        table.insert(date_args, start_date)
+    end
+    if end_date then
+        date_where = date_where .. " AND substr(t.txn_date, 1, 10) <= ?"
+        table.insert(date_args, end_date)
+    end
+
+    local by_acc_sql = [[
+        SELECT a.id, a.name, COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as amount,
+               COUNT(DISTINCT t.id) as txn_count
+        FROM Accounts a
+        JOIN TransactionLines tl ON tl.account_id = a.id
+        JOIN Transactions t ON t.id = tl.txn_id
+        WHERE ]] .. date_where .. [[
+        GROUP BY a.id, a.name
+        ORDER BY amount DESC
+    ]]
+    local acc_rows = run_q(by_acc_sql, date_args) or {}
+    local total_expenses = 0
+    local by_account = {}
+    for _, ar in ipairs(acc_rows) do
+        local amt = tonumber(ar.amount) or 0
+        total_expenses = total_expenses + amt
+        table.insert(by_account, {
+            id = tonumber(ar.id),
+            name = ar.name,
+            amount = amt,
+            txn_count = tonumber(ar.txn_count) or 0,
+        })
+    end
+
+    for _, item in ipairs(by_account) do
+        item.percentage = total_expenses > 0 and ((item.amount / total_expenses) * 100) or 0
+    end
+
+    local txns_sql = [[
+        SELECT t.id as txn_id, t.txn_date, t.title, t.notes, t.reference_id,
+               a.name as account_name, tl.debit_amount as amount
+        FROM TransactionLines tl
+        JOIN Transactions t ON t.id = tl.txn_id
+        JOIN Accounts a ON a.id = tl.account_id
+        WHERE ]] .. date_where .. [[ AND tl.debit_amount > 0
+        ORDER BY t.txn_date DESC, t.id DESC
+        LIMIT 100
+    ]]
+    local txn_rows = run_q(txns_sql, date_args) or {}
+    local transactions = {}
+    for _, tr in ipairs(txn_rows) do
+        table.insert(transactions, {
+            txn_id = tonumber(tr.txn_id),
+            date = tr.txn_date,
+            title = tr.title,
+            notes = tr.notes,
+            reference_id = tr.reference_id,
+            account_name = tr.account_name,
+            amount = tonumber(tr.amount) or 0,
+        })
+    end
+
+    local tl_sql = [[
+        SELECT substr(t.txn_date, 1, 10) as day_date,
+               COALESCE(SUM(tl.debit_amount - tl.credit_amount), 0) as amount
+        FROM TransactionLines tl
+        JOIN Transactions t ON t.id = tl.txn_id
+        JOIN Accounts a ON a.id = tl.account_id
+        WHERE ]] .. date_where .. [[
+        GROUP BY day_date
+        ORDER BY day_date ASC
+    ]]
+    local tl_rows = run_q(tl_sql, date_args) or {}
+    local timeline = {}
+    for _, r in ipairs(tl_rows) do
+        table.insert(timeline, {
+            date = r.day_date,
+            amount = tonumber(r.amount) or 0,
+        })
+    end
+
+    local total_entries = #transactions
+    local avg_expense = total_entries > 0 and math.floor(total_expenses / total_entries) or 0
+
+    req.json(200, {
+        start_date = start_date,
+        end_date = end_date,
+        total_expenses = total_expenses,
+        total_entries = total_entries,
+        avg_expense = avg_expense,
+        by_account = by_account,
+        transactions = transactions,
+        timeline = timeline,
+    })
+end
+
+-- 10. Tax Report
+local function report_tax(ctx)
+    local req = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+
+    local start_date, end_date = parse_report_dates(req)
+
+    local date_where = ""
+    local date_args = {}
+    if start_date then
+        date_where = date_where .. " AND substr(sales_date, 1, 10) >= ?"
+        table.insert(date_args, start_date)
+    end
+    if end_date then
+        date_where = date_where .. " AND substr(sales_date, 1, 10) <= ?"
+        table.insert(date_args, end_date)
+    end
+
+    local sales_tax_sql = [[
+        SELECT COALESCE(SUM(total_item_tax_amount + overall_tax_amount), 0) as tax_collected,
+               COALESCE(SUM(total_item_price), 0) as taxable_sales,
+               COUNT(*) as sales_count
+        FROM Sales
+        WHERE sales_status = 'confirmed' ]] .. date_where
+    local st_rows = run_q(sales_tax_sql, date_args) or {}
+    local st = st_rows[1] or {}
+
+    local tax_collected = tonumber(st.tax_collected) or 0
+    local taxable_sales = tonumber(st.taxable_sales) or 0
+    local sales_count = tonumber(st.sales_count) or 0
+
+    local taxes = run_q("SELECT id, name, ttype, rate, info FROM Tax WHERE is_deleted = 0 ORDER BY name ASC") or {}
+    local tax_rates = {}
+    for _, t in ipairs(taxes) do
+        table.insert(tax_rates, {
+            id = tonumber(t.id),
+            name = t.name,
+            ttype = t.ttype,
+            rate = tonumber(t.rate) or 0,
+            info = t.info,
+        })
+    end
+
+    local tax_acc_sql = [[
+        SELECT a.id, a.name, COALESCE(SUM(tl.credit_amount - tl.debit_amount), 0) as balance,
+               COALESCE(SUM(tl.credit_amount), 0) as total_credited,
+               COALESCE(SUM(tl.debit_amount), 0) as total_debited
+        FROM Accounts a
+        LEFT JOIN TransactionLines tl ON tl.account_id = a.id
+        LEFT JOIN Transactions t ON t.id = tl.txn_id AND t.is_deleted = 0
+        WHERE a.is_deleted = 0 AND (LOWER(a.name) LIKE '%tax%' OR a.acc_type = 'liabilities' AND LOWER(a.name) LIKE '%tax%')
+        GROUP BY a.id, a.name
+    ]]
+    local tax_acc_rows = run_q(tax_acc_sql) or {}
+    local tax_payable_balance = 0
+    local tax_accounts = {}
+    for _, ta in ipairs(tax_acc_rows) do
+        local bal = tonumber(ta.balance) or 0
+        tax_payable_balance = tax_payable_balance + bal
+        table.insert(tax_accounts, {
+            id = tonumber(ta.id),
+            name = ta.name,
+            balance = bal,
+            total_credited = tonumber(ta.total_credited) or 0,
+            total_debited = tonumber(ta.total_debited) or 0,
+        })
+    end
+
+    local tax_sales_where = "s.sales_status = 'confirmed' AND (s.total_item_tax_amount > 0 OR s.overall_tax_amount > 0)"
+    local tax_sales_args = {}
+    if start_date then
+        tax_sales_where = tax_sales_where .. " AND substr(s.sales_date, 1, 10) >= ?"
+        table.insert(tax_sales_args, start_date)
+    end
+    if end_date then
+        tax_sales_where = tax_sales_where .. " AND substr(s.sales_date, 1, 10) <= ?"
+        table.insert(tax_sales_args, end_date)
+    end
+
+    local items_sql = [[
+        SELECT s.id, s.title, s.sales_date, s.client_alt_name, c.name as contact_name,
+               s.total_item_price, (s.total_item_tax_amount + s.overall_tax_amount) as tax_amount,
+               s.total
+        FROM Sales s
+        LEFT JOIN Contacts c ON c.id = s.client_contact_id
+        WHERE ]] .. tax_sales_where .. [[
+        ORDER BY s.sales_date DESC
+        LIMIT 50
+    ]]
+    local item_rows = run_q(items_sql, tax_sales_args) or {}
+    local tax_items = {}
+    for _, ir in ipairs(item_rows) do
+        table.insert(tax_items, {
+            id = tonumber(ir.id),
+            title = ir.title,
+            date = ir.sales_date,
+            customer = ir.contact_name or ir.client_alt_name or "Customer",
+            taxable_amount = tonumber(ir.total_item_price) or 0,
+            tax_amount = tonumber(ir.tax_amount) or 0,
+            total = tonumber(ir.total) or 0,
+        })
+    end
+
+    req.json(200, {
+        start_date = start_date,
+        end_date = end_date,
+        tax_collected = tax_collected,
+        taxable_sales = taxable_sales,
+        sales_count = sales_count,
+        tax_payable_balance = tax_payable_balance,
+        tax_rates = tax_rates,
+        tax_accounts = tax_accounts,
+        items = tax_items,
+    })
+end
+
+-- ============================================================
 -- HTTP ROUTER
 -- ============================================================
 
@@ -3887,6 +5119,18 @@ function on_http(ctx)
         if method == "PUT" or method == "PATCH" then return update_sale(ctx, sale_id) end
         if method == "DELETE"                   then return delete_sale(ctx, sale_id) end
     end
+
+    -- Reports
+    if path == "/reports/profit-loss"          and method == "GET" then return report_profit_loss(ctx) end
+    if path == "/reports/balance-sheet"        and method == "GET" then return report_balance_sheet(ctx) end
+    if path == "/reports/cash-flow"            and method == "GET" then return report_cash_flow(ctx) end
+    if path == "/reports/trial-balance"        and method == "GET" then return report_trial_balance(ctx) end
+    if path == "/reports/general-ledger"       and method == "GET" then return report_general_ledger(ctx) end
+    if path == "/reports/accounts-receivable"  and method == "GET" then return report_accounts_receivable(ctx) end
+    if path == "/reports/accounts-payable"     and method == "GET" then return report_accounts_payable(ctx) end
+    if path == "/reports/sales"                and method == "GET" then return report_sales(ctx) end
+    if path == "/reports/expenses"             and method == "GET" then return report_expenses(ctx) end
+    if path == "/reports/tax"                  and method == "GET" then return report_tax(ctx) end
 
     req.json(404, { error = "Not found" })
 end

@@ -113,7 +113,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
     ];
 
     const isActive = (path: string) => {
-        return currentPath.includes(`/${path}`);
+        const trimmedPath = currentPath.replace(BASE_PATH, '');
+        return trimmedPath.startsWith(`${path}`);
     };
 
     return (

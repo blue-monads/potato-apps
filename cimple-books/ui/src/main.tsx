@@ -18,6 +18,7 @@ const SalesForm = lazy(() => import("./pages/sales/SalesForm"));
 const ListTxn = lazy(() => import("./pages/txn/ListTxn"));
 const ListTax = lazy(() => import("./pages/tax/ListTax"));
 const ReportsList = lazy(() => import("./pages/reports/ReportsList"));
+const ReportViewer = lazy(() => import("./pages/reports/ReportViewer"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 
 const LoadingFallback = () => (
@@ -147,12 +148,7 @@ const router = createBrowserRouter([
               },
               {
                 path: ":reportId",
-                element: <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-                  <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Report Coming Soon</h2>
-                    <p className="text-gray-600">This report will be implemented in a future update.</p>
-                  </div>
-                </div>,
+                element: <ReportViewer />,
               },
             ],
           },

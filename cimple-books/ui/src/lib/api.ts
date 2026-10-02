@@ -886,3 +886,370 @@ export const updateSettings = async (settings: AppSettings): Promise<ApiResponse
     }
     return resp;
 };
+
+// ==========================================
+// Reports API
+// ==========================================
+
+export interface ProfitLossReportData {
+    start_date?: string | null;
+    end_date?: string | null;
+    total_revenue: number;
+    total_expenses: number;
+    net_profit: number;
+    net_margin_pct: number;
+    revenue: Array<{ id: number; name: string; acc_type: string; amount: number }>;
+    expenses: Array<{ id: number; name: string; acc_type: string; amount: number }>;
+}
+
+export interface BalanceSheetReportData {
+    as_of_date: string;
+    assets: Array<{ id: number; name: string; acc_type: string; amount: number }>;
+    total_assets: number;
+    liabilities: Array<{ id: number; name: string; acc_type: string; amount: number }>;
+    total_liabilities: number;
+    equity: Array<{ id: number; name: string; acc_type: string; amount: number }>;
+    retained_earnings: number;
+    total_equity: number;
+    total_liabilities_equity: number;
+    difference: number;
+    is_balanced: boolean;
+}
+
+export interface CashFlowReportData {
+    start_date?: string | null;
+    end_date?: string | null;
+    opening_balance: number;
+    operating_inflows: number;
+    operating_outflows: number;
+    net_operating: number;
+    investing_inflows: number;
+    investing_outflows: number;
+    net_investing: number;
+    financing_inflows: number;
+    financing_outflows: number;
+    net_financing: number;
+    total_inflows: number;
+    total_outflows: number;
+    net_cash_change: number;
+    closing_balance: number;
+    cash_accounts: Array<{ id: number; name: string; balance: number }>;
+    items: Array<{
+        line_id: number;
+        txn_id: number;
+        date: string;
+        title: string;
+        reference_id: string;
+        account_name: string;
+        counterpart_account: string;
+        category: string;
+        inflow: number;
+        outflow: number;
+        net: number;
+    }>;
+}
+
+export interface TrialBalanceItem {
+    id: number;
+    name: string;
+    acc_type: string;
+    debit: number;
+    credit: number;
+    net_debit: number;
+    net_credit: number;
+}
+
+export interface TrialBalanceReportData {
+    as_of_date?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    total_debits: number;
+    total_credits: number;
+    total_net_debits: number;
+    total_net_credits: number;
+    difference: number;
+    is_balanced: boolean;
+    items: TrialBalanceItem[];
+}
+
+export interface GeneralLedgerEntry {
+    line_id: number;
+    txn_id: number;
+    date: string;
+    title: string;
+    notes?: string;
+    txn_type: string;
+    reference_id: string;
+    debit: number;
+    credit: number;
+    running_balance: number;
+}
+
+export interface GeneralLedgerAccount {
+    id: number;
+    name: string;
+    acc_type: string;
+    is_debit_normal: boolean;
+    opening_balance: number;
+    total_debit: number;
+    total_credit: number;
+    closing_balance: number;
+    entries: GeneralLedgerEntry[];
+}
+
+export interface GeneralLedgerReportData {
+    start_date?: string | null;
+    end_date?: string | null;
+    total_accounts: number;
+    total_debits: number;
+    total_credits: number;
+    accounts: GeneralLedgerAccount[];
+}
+
+export interface AccountsReceivableContact {
+    contact_id: number;
+    contact_name: string;
+    email: string;
+    phone: string;
+    total_due: number;
+    current: number;
+    days_31_60: number;
+    days_61_90: number;
+    days_over_90: number;
+    invoices_count: number;
+}
+
+export interface AccountsReceivableInvoice {
+    id: number;
+    title: string;
+    sales_date: string;
+    contact_name: string;
+    amount: number;
+    payment_status: string;
+    days_overdue: number;
+    bucket: string;
+}
+
+export interface AccountsReceivableReportData {
+    as_of_date: string;
+    total_receivables: number;
+    bucket_current: number;
+    bucket_31_60: number;
+    bucket_61_90: number;
+    bucket_over_90: number;
+    contacts: AccountsReceivableContact[];
+    invoices: AccountsReceivableInvoice[];
+}
+
+export interface AccountsPayableVendor {
+    contact_id: number;
+    contact_name: string;
+    email: string;
+    phone: string;
+    total_payable: number;
+    current: number;
+    days_31_60: number;
+    days_61_90: number;
+    days_over_90: number;
+    bills_count: number;
+}
+
+export interface AccountsPayableBill {
+    id: number;
+    info: string;
+    reference_id: string;
+    stockin_date: string;
+    vendor_name: string;
+    amount: number;
+    payment_status: string;
+    days_overdue: number;
+    bucket: string;
+}
+
+export interface AccountsPayableReportData {
+    as_of_date: string;
+    total_payables: number;
+    bucket_current: number;
+    bucket_31_60: number;
+    bucket_61_90: number;
+    bucket_over_90: number;
+    vendors: AccountsPayableVendor[];
+    bills: AccountsPayableBill[];
+}
+
+export interface SalesReportProduct {
+    product_id?: number;
+    product_name: string;
+    qty: number;
+    revenue: number;
+}
+
+export interface SalesReportCustomer {
+    contact_id?: number;
+    name: string;
+    orders_count: number;
+    total_spent: number;
+}
+
+export interface SalesReportTimelinePoint {
+    date: string;
+    order_count: number;
+    revenue: number;
+}
+
+export interface SalesReportData {
+    start_date?: string | null;
+    end_date?: string | null;
+    total_orders: number;
+    gross_sales: number;
+    total_discounts: number;
+    total_tax: number;
+    net_sales: number;
+    paid_sales: number;
+    unpaid_sales: number;
+    avg_order_value: number;
+    status_breakdown: Array<{ status: string; count: number; amount: number }>;
+    top_products: SalesReportProduct[];
+    top_customers: SalesReportCustomer[];
+    timeline: SalesReportTimelinePoint[];
+}
+
+export interface ExpenseReportAccount {
+    id: number;
+    name: string;
+    amount: number;
+    txn_count: number;
+    percentage: number;
+}
+
+export interface ExpenseReportTransaction {
+    txn_id: number;
+    date: string;
+    title: string;
+    notes?: string;
+    reference_id: string;
+    account_name: string;
+    amount: number;
+}
+
+export interface ExpenseReportData {
+    start_date?: string | null;
+    end_date?: string | null;
+    total_expenses: number;
+    total_entries: number;
+    avg_expense: number;
+    by_account: ExpenseReportAccount[];
+    transactions: ExpenseReportTransaction[];
+    timeline: Array<{ date: string; amount: number }>;
+}
+
+export interface TaxReportRate {
+    id: number;
+    name: string;
+    ttype: string;
+    rate: number;
+    info: string;
+}
+
+export interface TaxReportItem {
+    id: number;
+    title: string;
+    date: string;
+    customer: string;
+    taxable_amount: number;
+    tax_amount: number;
+    total: number;
+}
+
+export interface TaxReportData {
+    start_date?: string | null;
+    end_date?: string | null;
+    tax_collected: number;
+    taxable_sales: number;
+    sales_count: number;
+    tax_payable_balance: number;
+    tax_rates: TaxReportRate[];
+    tax_accounts: Array<{ id: number; name: string; balance: number; total_credited: number; total_debited: number }>;
+    items: TaxReportItem[];
+}
+
+export const getProfitLossReport = async (params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<ProfitLossReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<ProfitLossReportData>(`/reports/profit-loss${qs}`, { method: 'GET' });
+};
+
+export const getBalanceSheetReport = async (params?: { asOfDate?: string }): Promise<ApiResponse<BalanceSheetReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.asOfDate) q.append('asOfDate', params.asOfDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<BalanceSheetReportData>(`/reports/balance-sheet${qs}`, { method: 'GET' });
+};
+
+export const getCashFlowReport = async (params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<CashFlowReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<CashFlowReportData>(`/reports/cash-flow${qs}`, { method: 'GET' });
+};
+
+export const getTrialBalanceReport = async (params?: { asOfDate?: string; startDate?: string; endDate?: string }): Promise<ApiResponse<TrialBalanceReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.asOfDate) q.append('asOfDate', params.asOfDate);
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<TrialBalanceReportData>(`/reports/trial-balance${qs}`, { method: 'GET' });
+};
+
+export const getGeneralLedgerReport = async (params?: { accountId?: string | number; startDate?: string; endDate?: string; search?: string }): Promise<ApiResponse<GeneralLedgerReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.accountId && params.accountId !== 'all') q.append('accountId', String(params.accountId));
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    if (params?.search) q.append('search', params.search);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<GeneralLedgerReportData>(`/reports/general-ledger${qs}`, { method: 'GET' });
+};
+
+export const getAccountsReceivableReport = async (params?: { asOfDate?: string }): Promise<ApiResponse<AccountsReceivableReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.asOfDate) q.append('asOfDate', params.asOfDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<AccountsReceivableReportData>(`/reports/accounts-receivable${qs}`, { method: 'GET' });
+};
+
+export const getAccountsPayableReport = async (params?: { asOfDate?: string }): Promise<ApiResponse<AccountsPayableReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.asOfDate) q.append('asOfDate', params.asOfDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<AccountsPayableReportData>(`/reports/accounts-payable${qs}`, { method: 'GET' });
+};
+
+export const getSalesReport = async (params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<SalesReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<SalesReportData>(`/reports/sales${qs}`, { method: 'GET' });
+};
+
+export const getExpenseReport = async (params?: { accountId?: string | number; startDate?: string; endDate?: string }): Promise<ApiResponse<ExpenseReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.accountId && params.accountId !== 'all') q.append('accountId', String(params.accountId));
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<ExpenseReportData>(`/reports/expenses${qs}`, { method: 'GET' });
+};
+
+export const getTaxReport = async (params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<TaxReportData>> => {
+    const q = new URLSearchParams();
+    if (params?.startDate) q.append('startDate', params.startDate);
+    if (params?.endDate) q.append('endDate', params.endDate);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return apiRequest<TaxReportData>(`/reports/tax${qs}`, { method: 'GET' });
+};
