@@ -488,6 +488,34 @@ export const syncProductStock = async (): Promise<ApiResponse<{ message: string 
     });
 };
 
+export interface ScrapProductPayload {
+    variant_id?: number;
+    qty: number;
+    reason?: string;
+    scrap_date?: string;
+    unit_cost?: number;
+}
+
+export const scrapProduct = async (
+    productId: number,
+    payload: ScrapProductPayload
+): Promise<ApiResponse<{ success: boolean; sale: Sale; txn_id?: number; product: Product }>> => {
+    return apiRequest<{ success: boolean; sale: Sale; txn_id?: number; product: Product }>(`/products/${productId}/scrap`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+};
+
+export const scrapVariant = async (
+    variantId: number,
+    payload: ScrapProductPayload
+): Promise<ApiResponse<{ success: boolean; sale: Sale; txn_id?: number; product: Product }>> => {
+    return apiRequest<{ success: boolean; sale: Sale; txn_id?: number; product: Product }>(`/variants/${variantId}/scrap`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+};
+
 export const uploadProductImage = async (file: File): Promise<string> => {
     const token = getAuthToken();
     const formData = new FormData();
@@ -675,7 +703,7 @@ export interface SalesLine {
 export interface Sale {
     id: number;
     title: string;
-    sales_status?: 'draft' | 'confirmed' | 'cancelled' | string;
+    sales_status?: 'draft' | 'confirmed' | 'cancelled' | 'scrapped' | string;
     client_contact_id?: number | null;
     client_alt_name?: string;
     client_id?: number;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router';
 import { 
-    BookOpen, 
+    Box, 
     Wallet, 
     ShoppingCart, 
     Receipt, 
@@ -76,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
         {
             href: `${BASE_PATH}products`,
             label: 'Products',
-            icon: ShoppingCart,
+            icon: Box,
             path: 'products',
         },
         {
@@ -88,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
         {
             href: `${BASE_PATH}sales`,
             label: 'Sales',
-            icon: BookOpen,
+            icon: ShoppingCart,
             path: 'sales',
         },
 

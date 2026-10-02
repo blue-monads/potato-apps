@@ -203,6 +203,12 @@ const SalesForm = () => {
             return;
         }
 
+        if (salesStatus === 'scrapped') {
+            setError('Cannot set order status to scrapped directly. Use the scrap flow from the Products catalogue instead.');
+            setSaving(false);
+            return;
+        }
+
         if (lines.length === 0) {
             setError('Sale must have at least one line item');
             setSaving(false);
@@ -290,8 +296,18 @@ const SalesForm = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-xl border border-[#E1E3DB] shadow-sm p-6">
                     {isLocked && (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm font-medium flex items-center gap-2">
-                            <span>This sale is marked as <strong className="uppercase">{salesStatus}</strong> and cannot be edited. Only sales in <strong>draft</strong> state can be modified.</span>
+                        <div className={`p-4 rounded-lg text-sm font-medium flex items-center gap-2 border ${
+                            salesStatus === 'scrapped'
+                                ? 'bg-purple-50 border-purple-200 text-purple-800'
+                                : 'bg-amber-50 border-amber-200 text-amber-800'
+                        }`}>
+                            <span>
+                                {salesStatus === 'scrapped' ? (
+                                    <>This order is marked as <strong className="uppercase">SCRAPPED</strong> (write-off) and was generated from the product scrap workflow. It cannot be edited directly.</>
+                                ) : (
+                                    <>This sale is marked as <strong className="uppercase">{salesStatus}</strong> and cannot be edited. Only sales in <strong>draft</strong> state can be modified.</>
+                                )}
+                            </span>
                         </div>
                     )}
 
@@ -361,8 +377,9 @@ const SalesForm = () => {
                     >
                         <option value="unpaid">Unpaid</option>
                         <option value="paid">Paid</option>
-                        {/* <option value="partially_paid">Partially Paid</option> */}
-                        <option value="refunded">Refunded</option>
+                        {paymentStatus === 'refunded' && (
+                            <option value="refunded" disabled>Refunded (Legacy)</option>
+                        )}
                     </select>
 
                     {paymentStatus === 'paid' && (
@@ -409,13 +426,16 @@ const SalesForm = () => {
                     </label>
                     <select
                         value={salesStatus}
-                        disabled={isLocked}
+                        disabled={isLocked || salesStatus === 'scrapped'}
                         onChange={(e) => setSalesStatus(e.target.value)}
                         className="w-full px-3 py-2 border border-[#E1E3DB] rounded-lg focus:outline-none focus:border-[#2E6E52] focus:ring-2 focus:ring-[#2E6E52]/20 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <option value="draft">Draft</option>
                         <option value="confirmed">Confirmed</option>
                         <option value="cancelled">Cancelled</option>
+                        {salesStatus === 'scrapped' && (
+                            <option value="scrapped" disabled>Scrapped (Created via Product Scrap Flow)</option>
+                        )}
                     </select>
                 </div>
             </div>

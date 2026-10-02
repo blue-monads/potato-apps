@@ -174,7 +174,7 @@ create table ProductStockInLines(
 create table Sales(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL DEFAULT '',
-    sales_status TEXT NOT NULL DEFAULT 'draft', -- draft, confirmed, cancelled
+    sales_status TEXT NOT NULL DEFAULT 'draft', -- draft, confirmed, cancelled, scrapped
     client_contact_id INTEGER,
     client_alt_name TEXT NOT NULL DEFAULT '',
 

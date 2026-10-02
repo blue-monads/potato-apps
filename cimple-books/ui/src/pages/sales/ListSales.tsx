@@ -83,9 +83,12 @@ const ListSales = () => {
 
     const handleCancel = async (sale: Sale) => {
         const isConfirmed = sale.sales_status === 'confirmed';
-        const msg = isConfirmed
-            ? `Cancel sale #${sale.id}? All associated journal transactions will be reversed (marked deleted).`
-            : `Cancel draft sale #${sale.id}?`;
+        const isScrapped = sale.sales_status === 'scrapped';
+        const msg = isScrapped
+            ? `Cancel scrap #${sale.id}? The inventory write-off will be reversed and stock restored.`
+            : (isConfirmed
+                ? `Cancel sale #${sale.id}? All associated journal transactions will be reversed (marked deleted).`
+                : `Cancel draft sale #${sale.id}?`);
         if (!confirm(msg)) {
             return;
         }
@@ -254,6 +257,7 @@ const ListSales = () => {
                                         const isDraft = sStatus === 'draft';
                                         const isConfirmed = sStatus === 'confirmed';
                                         const isCancelled = sStatus === 'cancelled';
+                                        const isScrapped = sStatus === 'scrapped';
                                         const isPaid = sale.payment_status === 'paid';
                                         const isProcessing = actionLoadingId === sale.id;
 
@@ -282,6 +286,7 @@ const ListSales = () => {
                                             <td className="px-5 py-4 whitespace-nowrap">
                                                 <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full capitalize border ${
                                                     sStatus === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                    sStatus === 'scrapped'  ? 'bg-purple-50 text-purple-700 border-purple-200' :
                                                     sStatus === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                                                     'bg-amber-50 text-amber-700 border-amber-200'
                                                 }`}>
@@ -308,7 +313,7 @@ const ListSales = () => {
                                                             )}
 
                                                             {/* Flow 3 & 5: Register Payment */}
-                                                            {(!isCancelled && !isPaid) && (
+                                                            {(!isCancelled && !isScrapped && !isPaid) && (
                                                                 <button
                                                                     onClick={() => handleOpenPaymentModal(sale)}
                                                                     className="text-stone-600 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
@@ -341,7 +346,7 @@ const ListSales = () => {
                                                                 <button
                                                                     onClick={() => handleCancel(sale)}
                                                                     className="text-stone-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition-colors"
-                                                                    title={isConfirmed ? "Cancel sale (reverses journal transactions)" : "Cancel draft sale"}
+                                                                    title={isConfirmed ? "Cancel sale (reverses journal transactions)" : (isScrapped ? "Cancel scrap (reverses write-off and restores inventory)" : "Cancel draft sale")}
                                                                 >
                                                                     <Ban className="w-4 h-4 text-rose-500" />
                                                                 </button>

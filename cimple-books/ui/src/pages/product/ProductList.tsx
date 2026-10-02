@@ -1,14 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Package, Layers, ArrowDownToLine } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Layers, ArrowDownToLine, PackageX, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router';
-import { listProducts, deleteProduct, listCategories, getCurrencySymbol, type Product, type Category } from '../../lib/api';
+import { listProducts, deleteProduct, listCategories, getCurrencySymbol, type Product, type Category, type Sale } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
+import { ScrapProductModal } from './components/ScrapProductModal';
 
 const ProductList = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Scrap Modal state
+    const [scrapModalOpen, setScrapModalOpen] = useState(false);
+    const [scrapTargetProduct, setScrapTargetProduct] = useState<Product | null>(null);
+    const [scrapBannerMessage, setScrapBannerMessage] = useState<string | null>(null);
+
+    const handleOpenScrapModal = (product?: Product) => {
+        setScrapTargetProduct(product || null);
+        setScrapModalOpen(true);
+    };
+
+    const handleScrapSuccess = (sale: Sale, updatedProduct: Product) => {
+        setScrapBannerMessage(`Successfully scrapped item(s). Scrap order #${sale.id} created.`);
+        setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+        loadData();
+        setTimeout(() => setScrapBannerMessage(null), 8000);
+    };
 
     const loadData = async () => {
         setLoading(true);
@@ -88,6 +106,14 @@ const ProductList = () => {
                     <p className="text-xs text-stone-500 mt-0.5">Manage catalogue items, sales pricing, pictures, and variants</p>
                 </div>
                 <div className="flex items-center gap-2.5">
+                    <button
+                        onClick={() => handleOpenScrapModal()}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-[#E1E3DB] hover:bg-amber-50 hover:border-amber-300 text-stone-700 hover:text-amber-800 rounded-lg text-sm font-semibold transition-colors shadow-xs"
+                        title="Scrap damaged goods or lost items (creates scrap sale record)"
+                    >
+                        <PackageX className="w-4 h-4 text-amber-600" />
+                        Scrap Product
+                    </button>
                     <Link
                         to={`${BASE_PATH}stockin/new`}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white border border-[#E1E3DB] hover:bg-stone-50 text-stone-700 rounded-lg text-sm font-semibold transition-colors shadow-xs"
@@ -104,6 +130,21 @@ const ProductList = () => {
                     </Link>
                 </div>
             </div>
+
+            {scrapBannerMessage && (
+                <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm flex items-center justify-between gap-3 animate-in fade-in">
+                    <div className="flex items-center gap-2.5">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <span>{scrapBannerMessage}</span>
+                    </div>
+                    <Link
+                        to={`${BASE_PATH}sales`}
+                        className="text-xs font-semibold text-emerald-700 hover:underline shrink-0"
+                    >
+                        View in Sales →
+                    </Link>
+                </div>
+            )}
 
             {error && (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -203,6 +244,13 @@ const ProductList = () => {
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end gap-1.5">
+                                                    <button
+                                                        onClick={() => handleOpenScrapModal(product)}
+                                                        className="text-stone-400 hover:text-amber-700 p-1.5 hover:bg-amber-50 rounded-lg transition-colors"
+                                                        title="Scrap product (damaged / lost write-off)"
+                                                    >
+                                                        <PackageX className="w-4 h-4 text-amber-600" />
+                                                    </button>
                                                     <Link
                                                         to={`${BASE_PATH}stockin/new`}
                                                         className="text-stone-500 hover:text-[#2E6E52] p-1.5 hover:bg-[#EEF0EA] rounded-lg transition-colors"
@@ -234,6 +282,15 @@ const ProductList = () => {
                     </table>
                 </div>
             </div>
+
+            {/* Scrap Product Modal */}
+            <ScrapProductModal
+                isOpen={scrapModalOpen}
+                onClose={() => setScrapModalOpen(false)}
+                onSuccess={handleScrapSuccess}
+                products={products}
+                initialProduct={scrapTargetProduct}
+            />
         </div>
     );
 };

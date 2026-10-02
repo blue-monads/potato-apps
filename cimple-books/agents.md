@@ -126,6 +126,10 @@ Sales state transitions manage double-entry journal transactions automatically:
 5. **Confirmed + Unpaid sale $\rightarrow$ Register Payment**: Sale becomes paid; creates payment transaction: Debit Payment Asset account, Credit Accounts Receivable.
 6. **Confirmed + Unpaid sale $\rightarrow$ Cancel**: Status becomes `cancelled`; linked invoice transaction is reversed (`is_deleted = 1`).
 7. **Confirmed + Paid sale $\rightarrow$ Cancel**: Status becomes `cancelled`; all linked invoice and payment transactions are reversed (`is_deleted = 1`).
+8. **Scrapped Sale flow**: Initiated from the Products catalogue (via the "Scrap Product" button or `POST /products/:id/scrap`). Cannot be directly chosen in sales creation/editing forms. Creates a Sale with `sales_status = 'scrapped'` and `payment_status = 'paid'`, generates one line item for the damaged/lost goods, decrements stock count (`total_sold_qty` increments), and posts an automated double-entry journal transaction:
+   - Debit: Scrap / Loss Expense Account (`expenses` type, e.g. "Scrapped Goods Expense" or fallback COGS / Purchase Expense)
+   - Credit: Inventory Asset Account (`assets` type, e.g. "Inventory Asset" or product asset account)
+   - Cancellation of a scrapped sale reverses the scrap transaction lines and restores inventory.
 
 ### 7. Product Accounting Account Restrictions
 To enforce accounting integrity across ledger accounts:
@@ -188,6 +192,7 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Products** | `PUT`/`PATCH` | `/products/:id` | Updates a product |
 | **Products** | `DELETE` | `/products/:id` | Soft-deletes a product |
 | **Products** | `POST` | `/products/:id/adjust-stock` | Adjusts product stock count (delta or new count) |
+| **Products** | `POST` | `/products/:id/scrap` | Scraps product inventory (damaged/lost): creates a scrapped sale and posts scrap expense transaction |
 | **Products** | `POST` | `/products/sync-stock` | Recomputes and synchronizes stock counts across all products/variants |
 | **Variants** | `GET` | `/products/:id/variants` | Lists variants for a specific product |
 | **Variants** | `POST` | `/products/:id/variants` | Adds a variant to a product |
@@ -195,6 +200,7 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Variants** | `PUT`/`PATCH` | `/variants/:id` | Updates variant details |
 | **Variants** | `DELETE` | `/variants/:id` | Soft-deletes a variant |
 | **Variants** | `POST` | `/variants/:id/adjust-stock` | Adjusts variant stock count (delta or new count) |
+| **Variants** | `POST` | `/variants/:id/scrap` | Scraps variant inventory (damaged/lost): creates a scrapped sale and posts scrap expense transaction |
 | **Stock In** | `GET` | `/stockin` | Lists stock intake records |
 | **Stock In** | `POST` | `/stockin` | Creates stock intake record and line items (auto-posts transaction if confirmed) |
 | **Stock In** | `GET` | `/stockin/:id` | Gets stock intake record with lines |

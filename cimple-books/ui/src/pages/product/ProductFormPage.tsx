@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router';
-import { ArrowLeft, Plus, Trash2, Edit2, Upload, Image as ImageIcon, X, Package, Save, Layers, Receipt } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit2, Upload, Image as ImageIcon, X, Package, Save, Layers, Receipt, PackageX } from 'lucide-react';
 import { 
     getProduct,
     createProduct, 
@@ -21,6 +21,7 @@ import {
     type Tax
 } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
+import { ScrapProductModal } from './components/ScrapProductModal';
 
 const ProductFormPage = () => {
     const { id } = useParams<{ id?: string }>();
@@ -66,6 +67,11 @@ const ProductFormPage = () => {
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Scrap Modal state
+    const [scrapModalOpen, setScrapModalOpen] = useState(false);
+    const [currentProductObj, setCurrentProductObj] = useState<Product | null>(null);
+    const [scrapSuccessMessage, setScrapSuccessMessage] = useState<string | null>(null);
 
     const salesAccounts = useMemo(
         () => accounts.filter((a) => !a.is_deleted && a.acc_type === 'revenue'),
@@ -120,6 +126,7 @@ const ProductFormPage = () => {
                     const prodResp = await getProduct(productId);
                     if (prodResp.status === 200 && prodResp.data) {
                         const prod = prodResp.data;
+                        setCurrentProductObj(prod);
                         setName(prod.name || '');
                         setInfo(prod.info || '');
                         setCategoryId(prod.catagory_id || 0);
@@ -275,6 +282,22 @@ const ProductFormPage = () => {
         setShowVariantForm(false);
     };
 
+    const handleScrapSuccess = async (sale: any, updatedProduct: Product) => {
+        setScrapSuccessMessage(`Scrap order #${sale.id} completed. Product stock has been updated.`);
+        if (productId) {
+            const prodResp = await getProduct(productId);
+            if (prodResp.status === 200 && prodResp.data) {
+                setCurrentProductObj(prodResp.data);
+                setStockCount(prodResp.data.stock_count || 0);
+            } else {
+                setCurrentProductObj(updatedProduct);
+                setStockCount(updatedProduct.stock_count || 0);
+            }
+            await loadVariants(productId);
+            setTimeout(() => setScrapSuccessMessage(null), 8000);
+        }
+    };
+
     const handleEditVariant = (v: ProductVariant) => {
         setEditingVariantId(v.id);
         setVariantName(v.name);
@@ -386,6 +409,17 @@ const ProductFormPage = () => {
                         >
                             Cancel
                         </Link>
+                        {isEdit && productId && (
+                            <button
+                                type="button"
+                                onClick={() => setScrapModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors font-semibold text-sm shadow-xs"
+                                title="Scrap damaged goods or lost items"
+                            >
+                                <PackageX className="w-4 h-4 text-amber-600" />
+                                Scrap Product
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={handleSubmit}
@@ -397,6 +431,20 @@ const ProductFormPage = () => {
                         </button>
                     </div>
                 </div>
+
+                {scrapSuccessMessage && (
+                    <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm flex items-center justify-between gap-3 animate-in fade-in">
+                        <div className="flex items-center gap-2">
+                            <span>{scrapSuccessMessage}</span>
+                        </div>
+                        <Link
+                            to={`${BASE_PATH}sales`}
+                            className="text-xs font-semibold text-emerald-700 hover:underline shrink-0"
+                        >
+                            View in Sales →
+                        </Link>
+                    </div>
+                )}
 
                 {error && (
                     <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
@@ -1000,6 +1048,22 @@ const ProductFormPage = () => {
                     </div>
                 </form>
             </div>
+
+            {currentProductObj && (
+                <ScrapProductModal
+                    isOpen={scrapModalOpen}
+                    onClose={() => setScrapModalOpen(false)}
+                    onSuccess={handleScrapSuccess}
+                    initialProduct={{
+                        ...currentProductObj,
+                        name: name || currentProductObj.name,
+                        variants: variants,
+                        sales_price: Math.round(parseFloat(salesPrice || '0') * 100) || currentProductObj.sales_price,
+                        track_inventory: trackInventory,
+                        stock_count: stockCount
+                    }}
+                />
+            )}
         </div>
     );
 };

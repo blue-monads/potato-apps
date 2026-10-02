@@ -1225,9 +1225,11 @@ sync_all_product_stock_counts = function()
         end
     end
 
-    local sales, _ = potato.db.find_all_by_cond("Sales", { sales_status = "confirmed" })
+    local confirmed_sales, _ = potato.db.find_all_by_cond("Sales", { sales_status = "confirmed" })
+    local scrapped_sales, _  = potato.db.find_all_by_cond("Sales", { sales_status = "scrapped" })
     local sale_id_map = {}
-    for _, s in ipairs(sales or {}) do sale_id_map[s.id] = true end
+    for _, s in ipairs(confirmed_sales or {}) do sale_id_map[s.id] = true end
+    for _, s in ipairs(scrapped_sales or {})  do sale_id_map[s.id] = true end
 
     local sold_by_prod = {}
     local sold_by_var  = {}
@@ -3098,6 +3100,10 @@ function create_sale(ctx)
     if userId == nil then return end
 
     local data = req.bind_json()
+    if data.sales_status == "scrapped" then
+        req.json(400, { error = "Cannot set sales_status to 'scrapped' directly. Use the scrap flow from products instead." })
+        return
+    end
     if data.lines == nil or type(data.lines) ~= "table" or #data.lines == 0 then
         req.json(400, { error = "Sale must have at least one line" })
         return
@@ -3181,6 +3187,10 @@ function update_sale(ctx, sale_id)
     end
 
     local data = req.bind_json()
+    if data.sales_status == "scrapped" then
+        req.json(400, { error = "Cannot set sales_status to 'scrapped' directly. Use the scrap flow from products instead." })
+        return
+    end
 
     if data.lines ~= nil and type(data.lines) == "table" and #data.lines > 0 then
         local lines_err = replace_sale_lines(data.lines, sale_id, userId)
@@ -3261,6 +3271,10 @@ function confirm_sale(ctx, sale_id)
         return
     end
 
+    if sale.sales_status == "scrapped" then
+        req.json(400, { error = "Scrapped sales are already finalized" })
+        return
+    end
     if (sale.sales_status or "draft") ~= "draft" then
         -- Allow re-confirmation only if no transaction has been posted yet
         local existing_txns = run_q(
@@ -3324,6 +3338,10 @@ function register_sale_payment(ctx, sale_id)
     end
     if sale.sales_status == "cancelled" then
         req.json(400, { error = "Cannot register payment for cancelled sale" })
+        return
+    end
+    if sale.sales_status == "scrapped" then
+        req.json(400, { error = "Cannot register payment for scrapped sales" })
         return
     end
     if sale.payment_status == "paid" then
@@ -3425,8 +3443,8 @@ function cancel_sale(ctx, sale_id)
     sale.lines = lines or {}
     sale.sales_status = "cancelled"
 
-    -- Revert linked transactions and inventory only if the sale was previously confirmed
-    if prev_status == "confirmed" then
+    -- Revert linked transactions and inventory if the sale was previously confirmed or scrapped
+    if prev_status == "confirmed" or prev_status == "scrapped" then
         revert_sale_transactions(sale_id, userId)
         adjust_lines_inventory(lines or {}, "sale", -1, userId)
     end
@@ -3448,7 +3466,7 @@ function delete_sale(ctx, sale_id)
         return
     end
 
-    if sale.sales_status == "confirmed" then
+    if sale.sales_status == "confirmed" or sale.sales_status == "scrapped" then
         local lines, _ = potato.db.find_all_by_cond("SalesLines", { sale_id = sale_id })
         adjust_lines_inventory(lines or {}, "sale", -1, userId)
     end
@@ -3463,6 +3481,262 @@ function delete_sale(ctx, sale_id)
     potato.db.delete_by_cond("SalesLines", { sale_id = sale_id })
 
     req.json(200, { message = "Sale deleted" })
+end
+
+-- ============================================================
+-- SCRAP / DAMAGED GOODS FLOW
+-- ============================================================
+
+local function post_scrap_transaction(sale, line, userId)
+    local accounts = resolve_sales_accounts()
+
+    -- 1. Debit account: Scrap/Loss Expense account
+    local expense_acc_id = find_account_by_type("expenses", { "Scrap", "Damage", "Shrinkage", "Loss", "Cost of Goods", "Expense" })
+    if not expense_acc_id then
+        expense_acc_id = find_account_by_type("expenses", {})
+    end
+    if not expense_acc_id then
+        expense_acc_id = accounts.payment_acc_id or accounts.revenue_acc_id
+    end
+
+    -- 2. Credit account: Inventory Asset or Purchase/Sales account
+    local inventory_acc_id = find_account_by_type("assets", { "Inventory", "Stock" })
+    if not inventory_acc_id then
+        if line and line.product_id then
+            local prod, _ = potato.db.find_by_id("Products", line.product_id)
+            if prod and prod.purchase_account_id and tonumber(prod.purchase_account_id) and tonumber(prod.purchase_account_id) > 0 then
+                inventory_acc_id = tonumber(prod.purchase_account_id)
+            elseif prod and prod.sales_account_id and tonumber(prod.sales_account_id) and tonumber(prod.sales_account_id) > 0 then
+                inventory_acc_id = tonumber(prod.sales_account_id)
+            end
+        end
+    end
+    if not inventory_acc_id then
+        inventory_acc_id = accounts.revenue_acc_id or accounts.payment_acc_id
+    end
+
+    if not expense_acc_id or not inventory_acc_id then
+        return nil, "Missing accounts for scrap transaction (requires expense and asset/inventory accounts)"
+    end
+
+    local total_amount = tonumber(sale.total) or 0
+    local txn_title = "Scrap #" .. tostring(sale.id)
+    if sale.title and sale.title ~= "" then
+        txn_title = txn_title .. " - " .. sale.title
+    end
+
+    local txn_id, err = potato.db.insert("Transactions", {
+        title          = txn_title,
+        notes          = "Auto-generated transaction for Scrap #" .. tostring(sale.id) .. (sale.notes and (": " .. sale.notes) or ""),
+        txn_type       = "sales",
+        reference_id   = tostring(sale.id),
+        reference_type = "sales",
+        attachments    = "",
+        created_by     = userId,
+        updated_by     = userId,
+        txn_date       = to_sqlite_datetime(sale.sales_date),
+        is_editable    = 0,
+        is_deleted     = 0
+    })
+    if err ~= nil or txn_id == nil then
+        return nil, "Failed to create scrap transaction: " .. tostring(err)
+    end
+
+    -- Debit line (Loss / Expense)
+    potato.db.insert("TransactionLines", {
+        account_id             = expense_acc_id,
+        txn_id                 = txn_id,
+        debit_amount           = total_amount,
+        credit_amount          = 0,
+        created_by             = userId,
+        updated_by             = userId,
+        linked_sales_line_id   = line and line.id or nil,
+        linked_stockin_line_id = nil
+    })
+
+    -- Credit line (Inventory Asset write-off)
+    potato.db.insert("TransactionLines", {
+        account_id             = inventory_acc_id,
+        txn_id                 = txn_id,
+        debit_amount           = 0,
+        credit_amount          = total_amount,
+        created_by             = userId,
+        updated_by             = userId,
+        linked_sales_line_id   = line and line.id or nil,
+        linked_stockin_line_id = nil
+    })
+
+    return txn_id
+end
+
+local function perform_scrap_product(req, product_id, data, userId)
+    local product, err = potato.db.find_by_id("Products", product_id)
+    if err ~= nil or product == nil or product.is_deleted == 1 then
+        req.json(404, { error = "Product not found" })
+        return
+    end
+
+    local qty = math.floor(tonumber(data.qty) or 0)
+    if qty <= 0 then
+        req.json(400, { error = "Scrap quantity must be a positive integer" })
+        return
+    end
+
+    local variant_id = (data.variant_id ~= nil and data.variant_id ~= "" and tonumber(data.variant_id) > 0)
+        and tonumber(data.variant_id) or nil
+    local variant = nil
+    if variant_id ~= nil then
+        variant, err = potato.db.find_by_id("ProductVariants", variant_id)
+        if err ~= nil or variant == nil or variant.is_deleted == 1 or variant.product_id ~= product_id then
+            req.json(404, { error = "Variant not found for this product" })
+            return
+        end
+    end
+
+    local is_tracked = not (product.track_inventory == false or product.track_inventory == 0)
+    if is_tracked then
+        local current_stock = 0
+        if variant ~= nil then
+            current_stock = (variant.total_stockin_qty or 0) - (variant.total_sold_qty or 0)
+        else
+            current_stock = (product.total_stockin_qty or 0) - (product.total_sold_qty or 0)
+        end
+        if qty > current_stock then
+            req.json(400, { error = "Cannot scrap " .. tostring(qty) .. " items: only " .. tostring(current_stock) .. " currently available in stock" })
+            return
+        end
+    end
+
+    local unit_price = 0
+    if data.unit_cost ~= nil then
+        unit_price = tonumber(data.unit_cost) or 0
+    elseif data.price ~= nil then
+        unit_price = tonumber(data.price) or 0
+    elseif variant ~= nil and variant.sales_price ~= nil and tonumber(variant.sales_price) > 0 then
+        unit_price = tonumber(variant.sales_price) or 0
+    else
+        unit_price = tonumber(product.sales_price) or 0
+    end
+
+    local total_amount = qty * unit_price
+    local reason = (data.reason and data.reason ~= "") and data.reason or "Damaged goods / lost order"
+
+    local item_label = product.name
+    if variant ~= nil then
+        item_label = item_label .. " (" .. variant.name .. ")"
+    end
+
+    local sale_title = "SCRAP - " .. item_label
+
+    -- 1. Create Sale record with status 'scrapped'
+    local sale_id, create_err = potato.db.insert("Sales", {
+        title                      = sale_title,
+        sales_status               = "scrapped",
+        payment_status             = "paid",
+        client_contact_id          = nil,
+        client_alt_name            = "Internal Write-Off (Scrapped)",
+        notes                      = reason,
+        attachments                = data.attachments or "",
+        total_item_price           = total_amount,
+        total_item_tax_amount      = 0,
+        total_item_discount_amount = 0,
+        sub_total                  = total_amount,
+        overall_discount_amount    = 0,
+        overall_tax_amount         = 0,
+        total                      = total_amount,
+        sales_date                 = to_sqlite_datetime(data.scrap_date or os.time()),
+        created_by                 = userId,
+        updated_by                 = userId
+    })
+    if create_err ~= nil or sale_id == nil then
+        req.json(500, { error = "Failed to create scrap sale record: " .. tostring(create_err) })
+        return
+    end
+
+    -- 2. Insert the single SalesLine
+    local line_id, line_err = potato.db.insert("SalesLines", {
+        sale_id         = sale_id,
+        product_id      = product_id,
+        variant_id      = variant_id,
+        info            = "Scrapped: " .. item_label .. " - " .. reason,
+        qty             = qty,
+        price           = unit_price,
+        tax_amount      = 0,
+        discount_amount = 0,
+        total_amount    = total_amount,
+        created_by      = userId,
+        updated_by      = userId
+    })
+    if line_err ~= nil then
+        req.json(500, { error = "Failed to create scrap sales line: " .. tostring(line_err) })
+        return
+    end
+
+    local line = {
+        id           = line_id,
+        sale_id      = sale_id,
+        product_id   = product_id,
+        variant_id   = variant_id,
+        qty          = qty,
+        price        = unit_price,
+        total_amount = total_amount
+    }
+
+    local sale, _ = potato.db.find_by_id("Sales", sale_id)
+    if sale ~= nil then
+        sale.lines = { line }
+    end
+
+    -- 3. Adjust inventory outflow
+    adjust_lines_inventory({ line }, "sale", 1, userId)
+
+    -- 4. Post accounting transaction
+    local txn_id, post_err = post_scrap_transaction(sale, line, userId)
+    if post_err ~= nil then
+        print("Warning: failed to post scrap transaction: " .. tostring(post_err))
+    end
+
+    -- 5. Return updated product and created sale
+    local updated_prod, _ = potato.db.find_by_id("Products", product_id)
+    local variants, _     = potato.db.find_all_by_cond("ProductVariants", { product_id = product_id, is_deleted = 0 })
+    calculate_product_stocks({ updated_prod }, variants or {})
+
+    req.json(200, {
+        success = true,
+        sale    = sale,
+        txn_id  = txn_id,
+        product = updated_prod
+    })
+end
+
+--- @param ctx HttpContext
+--- @param product_id number
+function scrap_product_endpoint(ctx, product_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "product_id", product_id) then return end
+    local data = req.bind_json() or {}
+    return perform_scrap_product(req, product_id, data, userId)
+end
+
+--- @param ctx HttpContext
+--- @param variant_id number
+function scrap_variant_endpoint(ctx, variant_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "variant_id", variant_id) then return end
+
+    local variant, err = potato.db.find_by_id("ProductVariants", variant_id)
+    if err ~= nil or variant == nil or variant.is_deleted == 1 then
+        req.json(404, { error = "Variant not found" })
+        return
+    end
+
+    local data = req.bind_json() or {}
+    data.variant_id = variant_id
+    return perform_scrap_product(req, variant.product_id, data, userId)
 end
 
 -- ============================================================
@@ -3549,6 +3823,8 @@ function on_http(ctx)
     end
     local variant_id_adjust = string.match(path, "^/variants/(%d+)/adjust%-stock$")
     if variant_id_adjust and method == "POST" then return adjust_variant_stock_endpoint(ctx, tonumber(variant_id_adjust)) end
+    local variant_id_scrap  = string.match(path, "^/variants/(%d+)/scrap$")
+    if variant_id_scrap and method == "POST" then return scrap_variant_endpoint(ctx, tonumber(variant_id_scrap)) end
     local variant_id_match = string.match(path, "^/variants/(%d+)$")
     if variant_id_match then
         local variant_id = tonumber(variant_id_match)
@@ -3558,6 +3834,8 @@ function on_http(ctx)
     end
     local product_id_adjust = string.match(path, "^/products/(%d+)/adjust%-stock$")
     if product_id_adjust and method == "POST" then return adjust_product_stock_endpoint(ctx, tonumber(product_id_adjust)) end
+    local product_id_scrap  = string.match(path, "^/products/(%d+)/scrap$")
+    if product_id_scrap and method == "POST" then return scrap_product_endpoint(ctx, tonumber(product_id_scrap)) end
     local product_id_match = string.match(path, "^/products/(%d+)$")
     if product_id_match then
         local product_id = tonumber(product_id_match)
