@@ -16,7 +16,6 @@ const StockInForm = lazy(() => import("./pages/stockin/StockInForm"));
 const ListSales = lazy(() => import("./pages/sales/ListSales"));
 const SalesForm = lazy(() => import("./pages/sales/SalesForm"));
 const ListTxn = lazy(() => import("./pages/txn/ListTxn"));
-const ListEstimates = lazy(() => import("./pages/estimates/ListEstimates"));
 const ListTax = lazy(() => import("./pages/tax/ListTax"));
 const ReportsList = lazy(() => import("./pages/reports/ReportsList"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
@@ -134,11 +133,7 @@ const router = createBrowserRouter([
                 element: <SalesForm />,
               },
             ],
-          },
-          {
-            path: "estimates",
-            element: <ListEstimates />,
-          },
+          },          
           {
             path: "taxes",
             element: <ListTax />,

@@ -92,12 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
             icon: BookOpen,
             path: 'sales',
         },
-        {
-            href: `${BASE_PATH}estimates`,
-            label: 'Estimates',
-            icon: FileText,
-            path: 'estimates',
-        },
+
         {
             href: `${BASE_PATH}taxes`,
             label: 'Taxes',

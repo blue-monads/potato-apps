@@ -61,7 +61,6 @@ cimple-books/
         │   ├── product/         # Product catalog, categories, & variant manager
         │   ├── stockin/         # Stock receiving & inventory replenishment
         │   ├── sales/           # Sales orders, invoicing, & line items
-        │   ├── estimates/       # Quotation / estimates manager
         │   ├── tax/             # Tax rate configurations
         │   ├── reports/         # Financial reports list (P&L, Balance Sheet, etc.)
         │   └── settings/        # System configuration (currency, default accounts/taxes)
@@ -83,7 +82,6 @@ cimple-books/
 - **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Tracks intake status (`draft`, `confirmed`, `cancelled`) and updates stock levels.
 - **`Sales` & `SalesLines`**: Customer sales and invoicing. Tracks line item amounts, overall taxes, discounts, sales status (`draft`, `confirmed`, `cancelled`), and payment status (`unpaid`, `paid`, `partially_paid`, `refunded`).
 - **`Tax`**: Configurable tax rates for sales and purchases.
-- **`Estimates` & `EstimateLines`**: Quotes/estimates acting as draft precursors to sales orders.
 - **`Contacts`**: Clients, suppliers, and general contacts with addresses, phones, emails, and JSON metadata (`extra_data`).
 
 ### 2. Double-Entry Accounting Invariant
