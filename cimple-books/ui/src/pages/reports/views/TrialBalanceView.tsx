@@ -47,7 +47,10 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
         try {
             const resp = await getTrialBalanceReport({ asOfDate, startDate, endDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    items: Array.isArray(resp.data.items) ? resp.data.items : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -131,6 +134,8 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
         loadData();
     }, [asOfDate, startDate, endDate]);
 
+    const itemsList = Array.isArray(data?.items) ? data.items : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -139,7 +144,7 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
                 ['Date', asOfDate ? formatDate(asOfDate) : `${startDate || 'Start'} to ${endDate || 'Current'}`],
                 [],
                 ['Account ID', 'Account Name', 'Type', 'Debit ($)', 'Credit ($)', 'Net Debit ($)', 'Net Credit ($)'],
-                ...data.items.map((i) => [
+                ...itemsList.map((i) => [
                     i.id,
                     i.name,
                     i.acc_type,
@@ -154,7 +159,7 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
             ];
             downloadCsv(`trial_balance_${asOfDate || endDate || 'all'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, itemsList]);
 
     if (loading) {
         return (
@@ -172,7 +177,7 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
         );
     }
 
-    const filteredItems = data.items.filter((item) => {
+    const filteredItems = itemsList.filter((item) => {
         const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase()) || String(item.id).includes(search);
         const matchesType = typeFilter === 'all' || item.acc_type === typeFilter;
         return matchesSearch && matchesType;

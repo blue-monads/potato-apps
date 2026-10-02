@@ -39,3 +39,63 @@ body {
 h1, h2, h3, h4, .font-heading {
   font-family: "Space Grotesk", system-ui, sans-serif;
 }
+
+@media print {
+  /* Hide sidebar, navigation, controls, filters, buttons, breadcrumbs */
+  .print\:hidden,
+  aside,
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Reset main layout margins and backgrounds for print */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+  }
+
+  main {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Remove screen background colors and shadows */
+  .bg-\[\#F4F5F1\],
+  .bg-\[\#EEF0EA\],
+  .bg-\[\#F8F9F6\],
+  .bg-\[\#FAFBF9\] {
+    background-color: transparent !important;
+  }
+
+  .shadow-xs,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* Avoid page breaks inside table rows and KPI cards */
+  tr, .rounded-xl {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm 15mm;
+  }
+}

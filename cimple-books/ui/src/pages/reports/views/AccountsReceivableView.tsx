@@ -47,7 +47,11 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
         try {
             const resp = await getAccountsReceivableReport({ asOfDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    contacts: Array.isArray(resp.data.contacts) ? resp.data.contacts : [],
+                    invoices: Array.isArray(resp.data.invoices) ? resp.data.invoices : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -162,6 +166,9 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
         loadData();
     }, [asOfDate]);
 
+    const contactsList = Array.isArray(data?.contacts) ? data.contacts : [];
+    const invoicesList = Array.isArray(data?.invoices) ? data.invoices : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -171,7 +178,7 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                 ['Total Outstanding Receivables', (data.total_receivables / 100).toFixed(2)],
                 [],
                 ['CUSTOMER SUMMARY', 'Invoices', 'Current (0-30)', '31-60 Days', '61-90 Days', '90+ Days', 'Total Due ($)'],
-                ...data.contacts.map((c) => [
+                ...contactsList.map((c) => [
                     c.contact_name,
                     c.invoices_count,
                     (c.current / 100).toFixed(2),
@@ -182,7 +189,7 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                 ]),
                 [],
                 ['DETAILED INVOICES', 'Invoice #', 'Customer', 'Date', 'Age (Days)', 'Bucket', 'Amount ($)', 'Status'],
-                ...data.invoices.map((inv) => [
+                ...invoicesList.map((inv) => [
                     inv.title,
                     inv.id,
                     inv.contact_name,
@@ -195,7 +202,7 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
             ];
             downloadCsv(`ar_aging_${asOfDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, contactsList, invoicesList]);
 
     if (loading) {
         return (
@@ -291,7 +298,7 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                     }`}
                 >
                     <Users className="w-3.5 h-3.5" />
-                    By Customer ({data.contacts.length})
+                    By Customer ({contactsList.length})
                 </button>
                 <button
                     type="button"
@@ -303,7 +310,7 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                     }`}
                 >
                     <FileText className="w-3.5 h-3.5" />
-                    Individual Invoices ({data.invoices.length})
+                    Individual Invoices ({invoicesList.length})
                 </button>
             </div>
 
@@ -324,14 +331,14 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.contacts.length === 0 ? (
+                                {contactsList.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-12 text-center text-stone-400">
                                             No outstanding customer invoices found as of {formatDate(data.as_of_date)}
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.contacts.map((c) => (
+                                    contactsList.map((c) => (
                                         <tr key={c.contact_name} className="hover:bg-[#FAFBF9] transition-colors">
                                             <td className="px-5 py-3.5 font-medium text-stone-900">
                                                 <div>{c.contact_name}</div>
@@ -366,7 +373,7 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                             <tfoot className="bg-[#FAFBF9] border-t-2 border-[#E1E3DB] font-bold text-xs text-stone-900">
                                 <tr>
                                     <td className="px-5 py-4">Grand Total</td>
-                                    <td className="px-5 py-4 text-center">{data.invoices.length}</td>
+                                    <td className="px-5 py-4 text-center">{invoicesList.length}</td>
                                     <td className="px-5 py-4 text-right font-mono text-emerald-800">{formatCents(data.bucket_current, currencySymbol)}</td>
                                     <td className="px-5 py-4 text-right font-mono text-amber-800">{formatCents(data.bucket_31_60, currencySymbol)}</td>
                                     <td className="px-5 py-4 text-right font-mono text-orange-800">{formatCents(data.bucket_61_90, currencySymbol)}</td>
@@ -398,14 +405,14 @@ export const AccountsReceivableView: React.FC<AccountsReceivableViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.invoices.length === 0 ? (
+                                {invoicesList.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-12 text-center text-stone-400">
                                             No outstanding customer invoices found
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.invoices.map((inv) => (
+                                    invoicesList.map((inv) => (
                                         <tr key={inv.id} className="hover:bg-[#FAFBF9] transition-colors">
                                             <td className="px-5 py-3.5 font-mono text-stone-400">
                                                 #{inv.id}

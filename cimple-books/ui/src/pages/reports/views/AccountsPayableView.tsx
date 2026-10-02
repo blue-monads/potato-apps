@@ -47,7 +47,11 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
         try {
             const resp = await getAccountsPayableReport({ asOfDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    vendors: Array.isArray(resp.data.vendors) ? resp.data.vendors : [],
+                    bills: Array.isArray(resp.data.bills) ? resp.data.bills : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -163,6 +167,9 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
         loadData();
     }, [asOfDate]);
 
+    const vendorsList = Array.isArray(data?.vendors) ? data.vendors : [];
+    const billsList = Array.isArray(data?.bills) ? data.bills : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -172,7 +179,7 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                 ['Total Outstanding Payables', (data.total_payables / 100).toFixed(2)],
                 [],
                 ['VENDOR SUMMARY', 'Bills', 'Current (0-30)', '31-60 Days', '61-90 Days', '90+ Days', 'Total Payable ($)'],
-                ...data.vendors.map((v) => [
+                ...vendorsList.map((v) => [
                     v.contact_name,
                     v.bills_count,
                     (v.current / 100).toFixed(2),
@@ -183,7 +190,7 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                 ]),
                 [],
                 ['DETAILED BILLS', 'Intake ID', 'Info', 'Vendor', 'Date', 'Age (Days)', 'Bucket', 'Amount ($)', 'Status'],
-                ...data.bills.map((b) => [
+                ...billsList.map((b) => [
                     b.id,
                     b.info,
                     b.vendor_name,
@@ -196,7 +203,7 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
             ];
             downloadCsv(`ap_aging_${asOfDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, vendorsList, billsList]);
 
     if (loading) {
         return (
@@ -292,7 +299,7 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                     }`}
                 >
                     <Users className="w-3.5 h-3.5" />
-                    By Vendor ({data.vendors.length})
+                    By Vendor ({vendorsList.length})
                 </button>
                 <button
                     type="button"
@@ -304,7 +311,7 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                     }`}
                 >
                     <ArrowDownToLine className="w-3.5 h-3.5" />
-                    Individual Stock In Bills ({data.bills.length})
+                    Individual Stock In Bills ({billsList.length})
                 </button>
             </div>
 
@@ -325,14 +332,14 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.vendors.length === 0 ? (
+                                {vendorsList.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-12 text-center text-stone-400">
                                             No outstanding vendor payables found as of {formatDate(data.as_of_date)}
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.vendors.map((v) => (
+                                    vendorsList.map((v) => (
                                         <tr key={v.contact_name} className="hover:bg-[#FAFBF9] transition-colors">
                                             <td className="px-5 py-3.5 font-medium text-stone-900">
                                                 <div>{v.contact_name}</div>
@@ -367,7 +374,7 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                             <tfoot className="bg-[#FAFBF9] border-t-2 border-[#E1E3DB] font-bold text-xs text-stone-900">
                                 <tr>
                                     <td className="px-5 py-4">Grand Total</td>
-                                    <td className="px-5 py-4 text-center">{data.bills.length}</td>
+                                    <td className="px-5 py-4 text-center">{billsList.length}</td>
                                     <td className="px-5 py-4 text-right font-mono text-emerald-800">{formatCents(data.bucket_current, currencySymbol)}</td>
                                     <td className="px-5 py-4 text-right font-mono text-amber-800">{formatCents(data.bucket_31_60, currencySymbol)}</td>
                                     <td className="px-5 py-4 text-right font-mono text-orange-800">{formatCents(data.bucket_61_90, currencySymbol)}</td>
@@ -399,14 +406,14 @@ export const AccountsPayableView: React.FC<AccountsPayableViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.bills.length === 0 ? (
+                                {billsList.length === 0 ? (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-12 text-center text-stone-400">
                                             No outstanding vendor bills found
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.bills.map((b) => (
+                                    billsList.map((b) => (
                                         <tr key={b.id} className="hover:bg-[#FAFBF9] transition-colors">
                                             <td className="px-5 py-3.5 font-mono text-stone-400">
                                                 #{b.id}

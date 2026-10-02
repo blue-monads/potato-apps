@@ -31,9 +31,11 @@ function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F4F5F1]">
-      <Sidebar isCollapsed={collapsed} onToggle={handleToggle} />
-      <main className={`flex-1 transition-all duration-200 min-h-screen ${collapsed ? 'ml-16' : 'ml-36 md:ml-52'}`}>
+    <div className="flex min-h-screen bg-[#F4F5F1] print:block print:min-h-0 print:bg-white">
+      <div className="print:hidden">
+        <Sidebar isCollapsed={collapsed} onToggle={handleToggle} />
+      </div>
+      <main className={`flex-1 transition-all duration-200 min-h-screen print:min-h-0 print:ml-0 print:m-0 print:p-0 ${collapsed ? 'ml-16' : 'ml-36 md:ml-52'}`}>
         <Outlet />
       </main>
     </div>

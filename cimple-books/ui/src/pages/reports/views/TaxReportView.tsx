@@ -35,7 +35,11 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
         try {
             const resp = await getTaxReport({ startDate, endDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    tax_rates: Array.isArray(resp.data.tax_rates) ? resp.data.tax_rates : [],
+                    items: Array.isArray(resp.data.items) ? resp.data.items : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -125,6 +129,9 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
         loadData();
     }, [startDate, endDate]);
 
+    const taxRatesList = Array.isArray(data?.tax_rates) ? data.tax_rates : [];
+    const itemsList = Array.isArray(data?.items) ? data.items : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -137,10 +144,10 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
                 ['Net Tax Payable Balance', (data.tax_payable_balance / 100).toFixed(2)],
                 [],
                 ['CONFIGURED TAX RATES', 'Type', 'Rate (%)', 'Details'],
-                ...data.tax_rates.map((r) => [r.name, r.ttype, `${(r.rate / 100).toFixed(2)}%`, r.info]),
+                ...taxRatesList.map((r) => [r.name, r.ttype, `${(r.rate / 100).toFixed(2)}%`, r.info]),
                 [],
                 ['TAXABLE SALES LOG', 'Invoice #', 'Customer', 'Date', 'Taxable Base ($)', 'Tax Amount ($)', 'Total ($)'],
-                ...data.items.map((i) => [
+                ...itemsList.map((i) => [
                     i.title,
                     i.customer,
                     formatDate(i.date),
@@ -151,7 +158,7 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
             ];
             downloadCsv(`tax_report_${startDate || 'all'}_to_${endDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, taxRatesList, itemsList]);
 
     if (loading) {
         return (
@@ -229,14 +236,14 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                        {data.tax_rates.length === 0 ? (
+                        {taxRatesList.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="px-5 py-6 text-center text-stone-400">
                                     No tax rates configured
                                 </td>
                             </tr>
                         ) : (
-                            data.tax_rates.map((tax) => (
+                            taxRatesList.map((tax) => (
                                 <tr key={tax.id} className="hover:bg-[#FAFBF9] transition-colors">
                                     <td className="px-5 py-3.5 font-medium text-stone-900">
                                         {tax.name}
@@ -268,7 +275,7 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
                         <FileText className="w-4 h-4 text-stone-500" />
                         Tax Collected on Sales
                     </h3>
-                    <span className="text-xs text-stone-500">{data.items.length} records</span>
+                    <span className="text-xs text-stone-500">{itemsList.length} records</span>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-[#E1E3DB]">
@@ -283,14 +290,14 @@ export const TaxReportView: React.FC<TaxReportViewProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                            {data.items.length === 0 ? (
+                            {itemsList.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-6 py-8 text-center text-stone-400">
                                         No taxable sales recorded for this period
                                     </td>
                                 </tr>
                             ) : (
-                                data.items.map((item) => (
+                                itemsList.map((item) => (
                                     <tr key={item.id} className="hover:bg-[#FAFBF9] transition-colors">
                                         <td className="px-5 py-3 whitespace-nowrap text-stone-500">
                                             {formatDate(item.date)}

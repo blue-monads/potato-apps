@@ -60,7 +60,12 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
                 endDate,
             });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    by_account: Array.isArray(resp.data.by_account) ? resp.data.by_account : [],
+                    transactions: Array.isArray(resp.data.transactions) ? resp.data.transactions : [],
+                    timeline: Array.isArray(resp.data.timeline) ? resp.data.timeline : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -142,6 +147,9 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
         loadData();
     }, [startDate, endDate, selectedAccountId]);
 
+    const byAccountList = Array.isArray(data?.by_account) ? data.by_account : [];
+    const transactionsList = Array.isArray(data?.transactions) ? data.transactions : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -153,7 +161,7 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
                 ['Average Expense', (data.avg_expense / 100).toFixed(2)],
                 [],
                 ['EXPENSES BY ACCOUNT', 'Amount ($)', 'Transactions Count', 'Share (%)'],
-                ...data.by_account.map((a) => [
+                ...byAccountList.map((a) => [
                     a.name,
                     (a.amount / 100).toFixed(2),
                     a.txn_count,
@@ -161,7 +169,7 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
                 ]),
                 [],
                 ['EXPENSE TRANSACTIONS LOG', 'Date', 'Txn #', 'Description', 'Account', 'Amount ($)', 'Reference'],
-                ...data.transactions.map((t) => [
+                ...transactionsList.map((t) => [
                     formatDate(t.date),
                     `TXN-${t.txn_id}`,
                     t.title,
@@ -172,7 +180,7 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
             ];
             downloadCsv(`expense_report_${selectedAccountId}_${startDate || 'all'}`, rows);
         });
-    }, [data, selectedAccountId, onRegisterExport]);
+    }, [data, selectedAccountId, onRegisterExport, byAccountList, transactionsList]);
 
     if (loading) {
         return (
@@ -297,14 +305,14 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                        {data.by_account.length === 0 ? (
+                        {byAccountList.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="px-6 py-10 text-center text-stone-400">
                                     No expenses recorded for this selection
                                 </td>
                             </tr>
                         ) : (
-                            data.by_account.map((acc) => (
+                            byAccountList.map((acc) => (
                                 <tr key={acc.id} className="hover:bg-[#FAFBF9] transition-colors">
                                     <td className="px-5 py-3.5 font-medium text-stone-900">
                                         <Link
@@ -363,14 +371,14 @@ export const ExpenseReportView: React.FC<ExpenseReportViewProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                            {data.transactions.length === 0 ? (
+                            {transactionsList.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-5 py-8 text-center text-stone-400">
                                         No expense transactions recorded
                                     </td>
                                 </tr>
                             ) : (
-                                data.transactions.map((t) => (
+                                transactionsList.map((t) => (
                                     <tr key={`${t.txn_id}-${t.amount}`} className="hover:bg-[#FAFBF9] transition-colors">
                                         <td className="px-5 py-3 whitespace-nowrap text-stone-500">
                                             {formatDate(t.date)}

@@ -35,7 +35,13 @@ export const SalesReportView: React.FC<SalesReportViewProps> = ({
         try {
             const resp = await getSalesReport({ startDate, endDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    top_products: Array.isArray(resp.data.top_products) ? resp.data.top_products : [],
+                    top_customers: Array.isArray(resp.data.top_customers) ? resp.data.top_customers : [],
+                    status_breakdown: Array.isArray(resp.data.status_breakdown) ? resp.data.status_breakdown : [],
+                    timeline: Array.isArray(resp.data.timeline) ? resp.data.timeline : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -158,6 +164,9 @@ export const SalesReportView: React.FC<SalesReportViewProps> = ({
         loadData();
     }, [startDate, endDate]);
 
+    const topProducts = Array.isArray(data?.top_products) ? data.top_products : [];
+    const topCustomers = Array.isArray(data?.top_customers) ? data.top_customers : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -172,14 +181,14 @@ export const SalesReportView: React.FC<SalesReportViewProps> = ({
                 ['Average Order Value', (data.avg_order_value / 100).toFixed(2)],
                 [],
                 ['TOP SELLING PRODUCTS', 'Product Name', 'Quantity Sold', 'Revenue ($)'],
-                ...data.top_products.map((p) => [p.product_name, p.qty, (p.revenue / 100).toFixed(2)]),
+                ...topProducts.map((p) => [p.product_name, p.qty, (p.revenue / 100).toFixed(2)]),
                 [],
                 ['TOP CUSTOMERS', 'Customer Name', 'Orders Count', 'Total Spent ($)'],
-                ...data.top_customers.map((c) => [c.name, c.orders_count, (c.total_spent / 100).toFixed(2)]),
+                ...topCustomers.map((c) => [c.name, c.orders_count, (c.total_spent / 100).toFixed(2)]),
             ];
             downloadCsv(`sales_report_${startDate || 'all'}_to_${endDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, topProducts, topCustomers]);
 
     if (loading) {
         return (
@@ -313,14 +322,14 @@ export const SalesReportView: React.FC<SalesReportViewProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                            {data.top_products.length === 0 ? (
+                            {topProducts.length === 0 ? (
                                 <tr>
                                     <td colSpan={3} className="px-5 py-6 text-center text-stone-400">
                                         No sales lines recorded
                                     </td>
                                 </tr>
                             ) : (
-                                data.top_products.map((p, idx) => (
+                                topProducts.map((p, idx) => (
                                     <tr key={`${p.product_name}-${idx}`} className="hover:bg-[#FAFBF9] transition-colors">
                                         <td className="px-5 py-3 font-medium text-stone-900">
                                             {p.product_id ? (
@@ -365,14 +374,14 @@ export const SalesReportView: React.FC<SalesReportViewProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                            {data.top_customers.length === 0 ? (
+                            {topCustomers.length === 0 ? (
                                 <tr>
                                     <td colSpan={3} className="px-5 py-6 text-center text-stone-400">
                                         No customer orders recorded
                                     </td>
                                 </tr>
                             ) : (
-                                data.top_customers.map((c, idx) => (
+                                topCustomers.map((c, idx) => (
                                     <tr key={`${c.name}-${idx}`} className="hover:bg-[#FAFBF9] transition-colors">
                                         <td className="px-5 py-3 font-medium text-stone-900">
                                             {c.name}

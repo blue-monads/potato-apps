@@ -32,7 +32,12 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
         try {
             const resp = await getBalanceSheetReport({ asOfDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    assets: Array.isArray(resp.data.assets) ? resp.data.assets : [],
+                    liabilities: Array.isArray(resp.data.liabilities) ? resp.data.liabilities : [],
+                    equity: Array.isArray(resp.data.equity) ? resp.data.equity : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -119,6 +124,10 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
         loadData();
     }, [asOfDate]);
 
+    const assetsList = Array.isArray(data?.assets) ? data.assets : [];
+    const liabilitiesList = Array.isArray(data?.liabilities) ? data.liabilities : [];
+    const equityList = Array.isArray(data?.equity) ? data.equity : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -127,15 +136,15 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
                 ['As of Date', formatDate(data.as_of_date)],
                 [],
                 ['ASSETS', 'Type', 'Balance ($)'],
-                ...data.assets.map((a) => [a.name, a.acc_type, (a.amount / 100).toFixed(2)]),
+                ...assetsList.map((a) => [a.name, a.acc_type, (a.amount / 100).toFixed(2)]),
                 ['Total Assets', '', (data.total_assets / 100).toFixed(2)],
                 [],
                 ['LIABILITIES', 'Type', 'Balance ($)'],
-                ...data.liabilities.map((l) => [l.name, l.acc_type, (l.amount / 100).toFixed(2)]),
+                ...liabilitiesList.map((l) => [l.name, l.acc_type, (l.amount / 100).toFixed(2)]),
                 ['Total Liabilities', '', (data.total_liabilities / 100).toFixed(2)],
                 [],
                 ['EQUITY', 'Type', 'Balance ($)'],
-                ...data.equity.map((e) => [e.name, e.acc_type, (e.amount / 100).toFixed(2)]),
+                ...equityList.map((e) => [e.name, e.acc_type, (e.amount / 100).toFixed(2)]),
                 ['Retained / Current Earnings', 'equity', (data.retained_earnings / 100).toFixed(2)],
                 ['Total Equity', '', (data.total_equity / 100).toFixed(2)],
                 [],
@@ -145,7 +154,7 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
             ];
             downloadCsv(`balance_sheet_${asOfDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, assetsList, liabilitiesList, equityList]);
 
     if (loading) {
         return (
@@ -242,14 +251,14 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                        {data.assets.length === 0 ? (
+                        {assetsList.length === 0 ? (
                             <tr>
                                 <td colSpan={3} className="px-5 py-6 text-center text-stone-400">
                                     No assets recorded
                                 </td>
                             </tr>
                         ) : (
-                            data.assets.map((acc) => {
+                            assetsList.map((acc) => {
                                 const share = data.total_assets > 0 ? (acc.amount / data.total_assets) * 100 : 0;
                                 return (
                                     <tr key={acc.id} className="hover:bg-[#FAFBF9] transition-colors">
@@ -306,14 +315,14 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.liabilities.length === 0 ? (
+                                {liabilitiesList.length === 0 ? (
                                     <tr>
                                         <td colSpan={2} className="px-5 py-6 text-center text-stone-400">
                                             No liabilities recorded
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.liabilities.map((acc) => (
+                                    liabilitiesList.map((acc) => (
                                         <tr key={acc.id} className="hover:bg-[#FAFBF9] transition-colors">
                                             <td className="px-5 py-3.5 font-medium text-stone-900">
                                                 <Link
@@ -361,7 +370,7 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.equity.map((acc) => (
+                                {equityList.map((acc) => (
                                     <tr key={acc.id} className="hover:bg-[#FAFBF9] transition-colors">
                                         <td className="px-5 py-3.5 font-medium text-stone-900">
                                             <Link

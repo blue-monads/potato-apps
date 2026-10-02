@@ -49,7 +49,13 @@ export const GeneralLedgerView: React.FC<GeneralLedgerViewProps> = ({
                 search,
             });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    accounts: Array.isArray(resp.data.accounts) ? resp.data.accounts.map((a) => ({
+                        ...a,
+                        entries: Array.isArray(a.entries) ? a.entries : [],
+                    })) : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -149,6 +155,8 @@ export const GeneralLedgerView: React.FC<GeneralLedgerViewProps> = ({
         loadData();
     }, [startDate, endDate, selectedAccountId, search]);
 
+    const accountsListSafe = Array.isArray(data?.accounts) ? data.accounts : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -160,10 +168,10 @@ export const GeneralLedgerView: React.FC<GeneralLedgerViewProps> = ({
                 ['Account', 'Date', 'Txn #', 'Description', 'Reference', 'Debit ($)', 'Credit ($)', 'Running Balance ($)'],
             ];
 
-            data.accounts.forEach((acc) => {
+            accountsListSafe.forEach((acc) => {
                 rows.push([`>>> ${acc.name} (${acc.acc_type})`, '', '', '', '', '', '', '']);
                 rows.push(['Opening Balance', '', '', '', '', '', '', (acc.opening_balance / 100).toFixed(2)]);
-                acc.entries.forEach((e) => {
+                (acc.entries || []).forEach((e) => {
                     rows.push([
                         acc.name,
                         formatDate(e.date),
@@ -181,7 +189,7 @@ export const GeneralLedgerView: React.FC<GeneralLedgerViewProps> = ({
 
             downloadCsv(`general_ledger_${selectedAccountId}_${startDate || 'all'}`, rows);
         });
-    }, [data, selectedAccountId, onRegisterExport]);
+    }, [data, selectedAccountId, onRegisterExport, accountsListSafe]);
 
     if (loading) {
         return (
@@ -261,13 +269,13 @@ export const GeneralLedgerView: React.FC<GeneralLedgerViewProps> = ({
             </div>
 
             {/* Accounts Ledgers */}
-            {data.accounts.length === 0 ? (
+            {accountsListSafe.length === 0 ? (
                 <div className="bg-white rounded-xl border border-[#E1E3DB] p-12 text-center text-stone-400 shadow-xs">
                     No transactions found for the selected account and date filters
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {data.accounts.map((acc) => (
+                    {accountsListSafe.map((acc) => (
                         <div key={acc.id} className="bg-white rounded-xl border border-[#E1E3DB] shadow-xs overflow-hidden">
                             {/* Account Ledger Header */}
                             <div className="px-5 py-4 bg-[#F8F9F6] border-b border-[#E1E3DB] flex flex-wrap items-center justify-between gap-3">

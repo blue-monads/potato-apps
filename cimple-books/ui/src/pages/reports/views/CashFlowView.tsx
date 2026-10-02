@@ -34,7 +34,11 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({
         try {
             const resp = await getCashFlowReport({ startDate, endDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    items: Array.isArray(resp.data.items) ? resp.data.items : [],
+                    cash_accounts: Array.isArray(resp.data.cash_accounts) ? resp.data.cash_accounts : [],
+                });
             } else {
                 await fallbackCompute();
             }
@@ -151,6 +155,8 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({
         loadData();
     }, [startDate, endDate]);
 
+    const itemsList = Array.isArray(data?.items) ? data.items : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -173,11 +179,11 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({
                 ['Closing Cash Balance', '', '', (data.closing_balance / 100).toFixed(2)],
                 [],
                 ['CASH TRANSACTIONS LOG', 'Date', 'Cash Account', 'Counterpart Account', 'Category', 'Net ($)'],
-                ...data.items.map((i) => [i.title, formatDate(i.date), i.account_name, i.counterpart_account, i.category, (i.net / 100).toFixed(2)]),
+                ...itemsList.map((i) => [i.title, formatDate(i.date), i.account_name, i.counterpart_account, i.category, (i.net / 100).toFixed(2)]),
             ];
             downloadCsv(`cash_flow_${startDate || 'all'}_to_${endDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, itemsList]);
 
     if (loading) {
         return (
@@ -360,14 +366,14 @@ export const CashFlowView: React.FC<CashFlowViewProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                            {data.items.length === 0 ? (
+                            {itemsList.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="px-5 py-8 text-center text-stone-400">
                                         No cash transactions found for this period
                                     </td>
                                 </tr>
                             ) : (
-                                data.items.map((item) => (
+                                itemsList.map((item) => (
                                     <tr key={`${item.txn_id}-${item.line_id}`} className="hover:bg-[#FAFBF9] transition-colors">
                                         <td className="px-5 py-3.5 whitespace-nowrap text-stone-500">
                                             {formatDate(item.date)}

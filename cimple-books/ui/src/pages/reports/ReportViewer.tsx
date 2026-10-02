@@ -136,8 +136,8 @@ export const ReportViewer: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F4F5F1] p-6 lg:p-8 font-sans">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-[#F4F5F1] p-6 lg:p-8 font-sans print:p-0 print:bg-white print:min-h-0">
+            <div className="max-w-7xl mx-auto print:max-w-none print:m-0 print:p-0">
                 {/* Print Header only visible when printing */}
                 <div className="hidden print:block mb-6 border-b border-stone-800 pb-4">
                     <h1 className="text-2xl font-bold text-black font-display">{info.title}</h1>

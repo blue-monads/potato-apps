@@ -34,7 +34,11 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
         try {
             const resp = await getProfitLossReport({ startDate, endDate });
             if (resp.status === 200 && resp.data) {
-                setData(resp.data);
+                setData({
+                    ...resp.data,
+                    revenue: Array.isArray(resp.data.revenue) ? resp.data.revenue : [],
+                    expenses: Array.isArray(resp.data.expenses) ? resp.data.expenses : [],
+                });
             } else {
                 // Fallback computation
                 await fallbackCompute();
@@ -104,6 +108,9 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
         loadData();
     }, [startDate, endDate]);
 
+    const revenueList = Array.isArray(data?.revenue) ? data.revenue : [];
+    const expensesList = Array.isArray(data?.expenses) ? data.expenses : [];
+
     useEffect(() => {
         if (!onRegisterExport || !data) return;
         onRegisterExport(() => {
@@ -112,11 +119,11 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
                 ['Period', `${startDate || 'Start'} to ${endDate || 'Current'}`],
                 [],
                 ['REVENUE ACCOUNTS', 'Account Type', 'Amount ($)'],
-                ...data.revenue.map((r) => [r.name, r.acc_type, (r.amount / 100).toFixed(2)]),
+                ...revenueList.map((r) => [r.name, r.acc_type, (r.amount / 100).toFixed(2)]),
                 ['Total Revenue', '', (data.total_revenue / 100).toFixed(2)],
                 [],
                 ['EXPENSE ACCOUNTS', 'Account Type', 'Amount ($)'],
-                ...data.expenses.map((e) => [e.name, e.acc_type, (e.amount / 100).toFixed(2)]),
+                ...expensesList.map((e) => [e.name, e.acc_type, (e.amount / 100).toFixed(2)]),
                 ['Total Expenses', '', (data.total_expenses / 100).toFixed(2)],
                 [],
                 ['Net Profit / (Loss)', '', (data.net_profit / 100).toFixed(2)],
@@ -124,7 +131,7 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
             ];
             downloadCsv(`profit_loss_${startDate || 'all'}_to_${endDate || 'today'}`, rows);
         });
-    }, [data, onRegisterExport]);
+    }, [data, onRegisterExport, revenueList, expensesList]);
 
     if (loading) {
         return (
@@ -240,14 +247,14 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.revenue.length === 0 ? (
+                                {revenueList.length === 0 ? (
                                     <tr>
                                         <td colSpan={3} className="px-5 py-6 text-center text-stone-400">
                                             No revenue recorded in this period
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.revenue.map((acc) => {
+                                    revenueList.map((acc) => {
                                         const share = data.total_revenue > 0 ? (acc.amount / data.total_revenue) * 100 : 0;
                                         return (
                                             <tr key={acc.id} className="hover:bg-[#FAFBF9] transition-colors">
@@ -304,14 +311,14 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#E1E3DB] text-xs">
-                                {data.expenses.length === 0 ? (
+                                {expensesList.length === 0 ? (
                                     <tr>
                                         <td colSpan={3} className="px-5 py-6 text-center text-stone-400">
                                             No expenses recorded in this period
                                         </td>
                                     </tr>
                                 ) : (
-                                    data.expenses.map((acc) => {
+                                    expensesList.map((acc) => {
                                         const share = data.total_expenses > 0 ? (acc.amount / data.total_expenses) * 100 : 0;
                                         return (
                                             <tr key={acc.id} className="hover:bg-[#FAFBF9] transition-colors">

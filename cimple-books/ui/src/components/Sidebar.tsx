@@ -121,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed: propCollapsed, onToggle 
         <aside
             className={`fixed left-0 top-0 h-full ${
                 isCollapsed ? 'w-16' : 'w-36 md:w-52'
-            } bg-[#EEF0EA] text-[#1C1E1A] flex flex-col border-r border-[#E1E3DB] z-10 transition-all duration-200 select-none`}
+            } bg-[#EEF0EA] text-[#1C1E1A] flex flex-col border-r border-[#E1E3DB] z-10 transition-all duration-200 select-none print:hidden`}
         >
             {isCollapsed ? (
                 <div className="p-3 flex items-center justify-center border-b border-[#E1E3DB] h-[65px]">
