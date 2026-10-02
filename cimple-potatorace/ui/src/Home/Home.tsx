@@ -29,10 +29,10 @@ export default function Home() {
         try {
             const conn_id = await ensureWsConn()
             const room = await roomsApi.create({ name: roomName.trim(), conn_id, max_players: 4 })
-            // store ws token so Lobby can connect
+            // TV is default screen when creating a room:
             sessionStorage.setItem('pr_conn_id', conn_id)
             sessionStorage.setItem('pr_ws_token', connTokenRef.current)
-            navigate(`${BASE_PATH}lobby/${room.id}`)
+            navigate(`${BASE_PATH}tv/${room.id}?token=${encodeURIComponent(connTokenRef.current)}`)
         } catch (e: any) {
             setError(e.message)
         } finally {
@@ -87,7 +87,7 @@ export default function Home() {
                                 cursor: 'pointer',
                             }}
                         >
-                            {t === 'home' ? '🏠 Home' : t === 'create' ? '➕ Create' : '🔑 Join'}
+                            {t === 'home' ? '🏠 Home' : t === 'create' ? '📺 Host TV' : '🎮 Join'}
                         </button>
                     ))}
                 </div>
@@ -96,10 +96,10 @@ export default function Home() {
                 {tab === 'home' && (
                     <div className="flex flex-col gap-3">
                         <p className="text-center text-sm" style={{ color: 'var(--mut)' }}>
-                            Host or join a potato race session with friends.
+                            Host a TV display on this screen, or join with a room code to turn this device into a controller!
                         </p>
-                        <button className="btn" onClick={() => setTab('create')}>Create a Room</button>
-                        <button className="btn ghost" onClick={() => setTab('join')}>Join with Code</button>
+                        <button className="btn" onClick={() => setTab('create')}>📺 Host TV Screen</button>
+                        <button className="btn ghost" onClick={() => setTab('join')}>🎮 Join as Player</button>
                     </div>
                 )}
 
@@ -117,8 +117,11 @@ export default function Home() {
                                 maxLength={40}
                             />
                         </label>
+                        <p className="text-xs" style={{ color: 'var(--mut)' }}>
+                            This screen will become the TV display. Players will join with their phones/controllers!
+                        </p>
                         <button className="btn" disabled={loading} onClick={handleCreate}>
-                            {loading ? 'Creating…' : '🚀 Create Room'}
+                            {loading ? 'Creating…' : '📺 Create TV Screen'}
                         </button>
                     </div>
                 )}

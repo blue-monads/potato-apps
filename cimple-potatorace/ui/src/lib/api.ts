@@ -79,13 +79,21 @@ export const buildWsUrl = (token: string): string => {
     return `${protocol}//${host}${WS_CAP_PATH}?token=${encodeURIComponent(token)}`;
 };
 
+export function normalizeRoom(room: Room | null | undefined): Room | null {
+    if (!room) return null;
+    if (!Array.isArray(room.players)) {
+        room.players = [];
+    }
+    return room;
+}
+
 // ─── rooms API ─────────────────────────────────────────────────────────────────
 
 export const roomsApi = {
     list: async (): Promise<Room[]> => {
         const res = await apiRequest<Room[]>('/rooms', { method: 'GET' });
         if (res.error) throw new Error(res.error);
-        return res.data ?? [];
+        return (res.data || []).map(r => normalizeRoom(r)!);
     },
 
     create: async (payload: { name: string; conn_id: string; max_players?: number }): Promise<Room> => {
@@ -94,13 +102,13 @@ export const roomsApi = {
             body: JSON.stringify(payload),
         });
         if (res.error) throw new Error(res.error);
-        return res.data!;
+        return normalizeRoom(res.data)!;
     },
 
     get: async (id: number): Promise<Room> => {
         const res = await apiRequest<Room>(`/rooms/${id}`, { method: 'GET' });
         if (res.error) throw new Error(res.error);
-        return res.data!;
+        return normalizeRoom(res.data)!;
     },
 
     joinByCode: async (code: string): Promise<Room> => {
@@ -109,7 +117,7 @@ export const roomsApi = {
             body: JSON.stringify({ code }),
         });
         if (res.error) throw new Error(res.error);
-        return res.data!;
+        return normalizeRoom(res.data)!;
     },
 
     join: async (roomId: number, conn_id: string): Promise<Room> => {
@@ -118,7 +126,7 @@ export const roomsApi = {
             body: JSON.stringify({ conn_id }),
         });
         if (res.error) throw new Error(res.error);
-        return res.data!;
+        return normalizeRoom(res.data)!;
     },
 
     leave: async (roomId: number, conn_id: string): Promise<void> => {
@@ -134,15 +142,24 @@ export const roomsApi = {
             body: JSON.stringify({ ready, conn_id }),
         });
         if (res.error) throw new Error(res.error);
-        return res.data!;
+        return normalizeRoom(res.data)!;
     },
 
-    startGame: async (roomId: number): Promise<Room> => {
+    startGame: async (roomId: number, conn_id?: string): Promise<Room> => {
         const res = await apiRequest<Room>(`/rooms/${roomId}/start`, {
+            method: 'POST',
+            body: JSON.stringify({ conn_id }),
+        });
+        if (res.error) throw new Error(res.error);
+        return normalizeRoom(res.data)!;
+    },
+
+    resetGame: async (roomId: number): Promise<Room> => {
+        const res = await apiRequest<Room>(`/rooms/${roomId}/reset`, {
             method: 'POST',
         });
         if (res.error) throw new Error(res.error);
-        return res.data!;
+        return normalizeRoom(res.data)!;
     },
 };
 
@@ -150,5 +167,6 @@ export const roomsApi = {
 export const getRoomView = async (roomId: number): Promise<Room> => {
     const response = await fetch(`${API_BASE_PATH}/rooms/${roomId}/view`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
+    const data = await response.json();
+    return normalizeRoom(data)!;
 };

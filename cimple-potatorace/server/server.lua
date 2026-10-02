@@ -90,19 +90,6 @@ function create_room(ctx)
     local name  = body.name or ""
     local code  = random_code()
 
-    -- host is first player
-    local host_player = {
-        user_id = userId,
-        conn_id = body.conn_id or "",
-        ready   = false,
-        is_host = true
-    }
-    local players_json_str, encErr = json.encode({ host_player })
-    if encErr then
-        req.json(500, { error = "Failed to encode players: " .. tostring(encErr) })
-        return
-    end
-
     local id, err = potato.db.insert("rooms", {
         code          = code,
         name          = name,
@@ -110,8 +97,8 @@ function create_room(ctx)
         host_conn_id  = body.conn_id or "",
         status        = "waiting",
         max_players   = body.max_players or 4,
-        player_count  = 1,
-        players_json  = players_json_str,
+        player_count  = 0,
+        players_json  = "[]",
     })
     if err then
         req.json(500, { error = "Failed to create room: " .. tostring(err) })
@@ -226,11 +213,13 @@ function join_room(ctx, room_id)
         return
     end
 
+    local is_first = (#players == 0)
+
     table.insert(players, {
         user_id = userId,
         conn_id = conn_id,
         ready   = false,
-        is_host = false
+        is_host = is_first
     })
 
     local players_json_str, encErr = json.encode(players)
@@ -239,10 +228,16 @@ function join_room(ctx, room_id)
         return
     end
 
-    local updateErr = potato.db.update_by_id("rooms", room_id, {
+    local updateData = {
         player_count = #players,
         players_json = players_json_str
-    })
+    }
+    if is_first then
+        updateData.host_user_id = userId
+        updateData.host_conn_id = conn_id
+    end
+
+    local updateErr = potato.db.update_by_id("rooms", room_id, updateData)
     if updateErr then
         req.json(500, { error = "Failed to update room: " .. tostring(updateErr) })
         return
@@ -282,21 +277,41 @@ function leave_room(ctx, room_id)
     if not ok or type(players) ~= "table" then players = {} end
 
     local new_players = {}
+    local removed_was_host = false
     for _, p in ipairs(players) do
-        if p.user_id ~= userId then
+        local is_target = (conn_id ~= "" and p.conn_id == conn_id) or
+                          (conn_id == "" and p.user_id == userId)
+        if not is_target then
             table.insert(new_players, p)
+        else
+            if p.is_host then removed_was_host = true end
         end
     end
 
-    -- if room is now empty, delete it
+    -- if room is now empty, reset players and keep TV room open
     if #new_players == 0 then
-        potato.db.delete_by_id("rooms", room_id)
-        req.json(200, { message = "Room closed" })
+        potato.db.update_by_id("rooms", room_id, {
+            player_count = 0,
+            players_json = "[]",
+            status       = "waiting"
+        })
+        local emptyRoom = {
+            id           = room.id,
+            code         = room.code,
+            name         = room.name,
+            status       = "waiting",
+            max_players  = room.max_players,
+            player_count = 0,
+            players      = {},
+            created_at   = room.created_at
+        }
+        broadcast_room(room_id, "player_left", emptyRoom)
+        req.json(200, emptyRoom)
         return
     end
 
-    -- if host left, assign new host
-    if room.host_user_id == userId then
+    -- if the host/admin left, assign new host to the next player
+    if removed_was_host or room.host_user_id == userId then
         new_players[1].is_host = true
     end
 
@@ -382,13 +397,30 @@ function start_game(ctx, room_id)
         return
     end
 
-    if room.host_user_id ~= userId then
-        req.json(403, { error = "Only the host can start the game" })
-        return
-    end
+    local body = req.bind_json() or {}
+    local conn_id = body.conn_id or ""
 
     local ok, players = pcall(json.decode, room.players_json or "[]")
     if not ok or type(players) ~= "table" then players = {} end
+
+    if #players == 0 then
+        req.json(400, { error = "Need at least 1 player to start" })
+        return
+    end
+
+    -- authorized if room creator (host_user_id == userId) or player with conn_id is_host
+    local authorized = (room.host_user_id == userId)
+    for _, p in ipairs(players) do
+        if conn_id ~= "" and p.conn_id == conn_id and p.is_host then
+            authorized = true
+            break
+        end
+    end
+
+    if not authorized then
+        req.json(403, { error = "Only the admin or room host can start the game" })
+        return
+    end
 
     -- all non-host players must be ready
     for _, p in ipairs(players) do
@@ -406,12 +438,48 @@ function start_game(ctx, room_id)
         name         = room.name,
         status       = "playing",
         max_players  = room.max_players,
-        player_count = room.player_count,
+        player_count = #players,
         players      = players,
         created_at   = room.created_at
     }
 
     broadcast_room(room_id, "game_started", updated)
+    req.json(200, updated)
+end
+
+function reset_game(ctx, room_id)
+    local req = ctx.request()
+    local room, err = potato.db.find_by_id("rooms", room_id)
+    if err then
+        req.json(404, { error = "Room not found" })
+        return
+    end
+
+    local ok, players = pcall(json.decode, room.players_json or "[]")
+    if not ok or type(players) ~= "table" then players = {} end
+
+    for _, p in ipairs(players) do
+        p.ready = false
+    end
+
+    local players_json_str, _ = json.encode(players)
+    potato.db.update_by_id("rooms", room_id, {
+        status       = "waiting",
+        players_json = players_json_str
+    })
+
+    local updated = {
+        id           = room.id,
+        code         = room.code,
+        name         = room.name,
+        status       = "waiting",
+        max_players  = room.max_players,
+        player_count = #players,
+        players      = players,
+        created_at   = room.created_at
+    }
+
+    broadcast_room(room_id, "game_reset", updated)
     req.json(200, updated)
 end
 
@@ -496,6 +564,15 @@ function on_http(ctx)
         local room_id = tonumber(start_match)
         if method == "POST" then
             return start_game(ctx, room_id)
+        end
+    end
+
+    -- reset game back to lobby
+    local reset_match = string.match(path, "^/rooms/(%d+)/reset$")
+    if reset_match then
+        local room_id = tonumber(reset_match)
+        if method == "POST" then
+            return reset_game(ctx, room_id)
         end
     end
 

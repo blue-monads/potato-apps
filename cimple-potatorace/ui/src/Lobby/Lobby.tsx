@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { BASE_PATH } from '../lib/base'
-import { roomsApi, buildWsUrl, getWsToken } from '../lib/api'
+import { roomsApi, buildWsUrl, getWsToken, normalizeRoom } from '../lib/api'
 import type { Room, Player } from '../lib/api'
+import Controller from '../Controller/Controller'
 
 const AVATAR_COLORS = ['#7c5cff', '#2ee59d', '#ffb84d', '#e5484d', '#2f7bff', '#ff6bd6']
 
@@ -108,9 +109,9 @@ export default function Lobby() {
                 if (inner.room_id !== id) return
 
                 const eventType: string = inner.type
-                const data: Room = inner.data
+                const data: Room = normalizeRoom(inner.data)!
 
-                if (['player_joined', 'player_left', 'ready_changed'].includes(eventType)) {
+                if (['player_joined', 'player_left', 'ready_changed', 'game_reset'].includes(eventType)) {
                     setRoom(() => data)
                 } else if (eventType === 'game_started') {
                     setRoom(() => data)
@@ -132,7 +133,8 @@ export default function Lobby() {
 
     const handleReady = async () => {
         if (!room) return
-        const me = room.players.find(p => p.conn_id === connId)
+        const players = Array.isArray(room.players) ? room.players : []
+        const me = players.find(p => p.conn_id === connId)
         const currentReady = me?.ready ?? false
         try {
             const updated = await roomsApi.setReady(id, !currentReady, connId)
@@ -147,7 +149,7 @@ export default function Lobby() {
         // Optimistic: flip status immediately so the host doesn't wait for the round-trip
         setRoom(prev => prev ? { ...prev, status: 'playing' } : prev)
         try {
-            await roomsApi.startGame(id)
+            await roomsApi.startGame(id, connId)
         } catch (e: any) {
             // Revert on failure
             setRoom(prev => prev ? { ...prev, status: 'waiting' } : prev)
@@ -178,35 +180,22 @@ export default function Lobby() {
         </div>
     )
 
-    const me = room.players.find(p => p.conn_id === connId)
+    const players = Array.isArray(room.players) ? room.players : []
+    const me = players.find(p => p.conn_id === connId)
     const isHost = me?.is_host ?? false
     const iAmReady = me?.ready ?? false
-    const allReady = room.players.every(p => p.is_host || p.ready)
+    const allReady = players.length > 0 && players.every(p => p.is_host || p.ready)
     const emptySlots = Math.max(0, room.max_players - room.player_count)
 
-    // ── Game started screen ──────────────────────────────────────────────────
+    // ── When game starts, players see the Couch Gamepad Controller! ──────────
     if (room.status === 'playing') {
         return (
-            <div className="min-h-screen w-full flex flex-col items-center justify-center gap-6 p-6"
-                style={{ background: 'var(--bg)', color: 'var(--txt)' }}>
-                <div className="text-7xl animate-bounce">🥔</div>
-                <h1 className="font-black text-3xl uppercase tracking-widest" style={{ color: 'var(--ok)' }}>
-                    Race Started!
-                </h1>
-                <p style={{ color: 'var(--mut)' }}>Room: <strong style={{ color: 'var(--txt)' }}>{room.name}</strong></p>
-                <div className="flex flex-col gap-2 w-full max-w-xs">
-                    {room.players.map(p => (
-                        <div key={p.conn_id} className="flex items-center gap-3 rounded-xl p-3"
-                            style={{ background: 'var(--panel)', border: '1px solid var(--line)' }}>
-                            <Avatar uid={p.user_id} size={32} />
-                            <span className="flex-1 text-sm font-bold">Player {p.user_id}</span>
-                            {p.conn_id === connId && <span className="text-xs" style={{ color: 'var(--mut)' }}>(you)</span>}
-                        </div>
-                    ))}
-                </div>
-                <p className="text-sm" style={{ color: 'var(--mut)' }}>Game screen coming soon…</p>
-                <button className="btn ghost" style={{ maxWidth: 200 }} onClick={handleLeave}>Leave</button>
-            </div>
+            <Controller
+                room={room}
+                connId={connId}
+                ws={wsRef.current}
+                onLeave={handleLeave}
+            />
         )
     }
 
@@ -262,7 +251,7 @@ export default function Lobby() {
                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--mut)' }}>
                     Players {room.player_count}/{room.max_players}
                 </p>
-                {room.players.map(p => (
+                {players.map(p => (
                     <PlayerSlot
                         key={p.conn_id}
                         player={p}
