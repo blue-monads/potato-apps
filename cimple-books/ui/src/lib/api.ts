@@ -365,6 +365,8 @@ export interface ProductVariant {
     name: string;
     description: string;
     sales_price: number;
+    total_sold_qty?: number;
+    total_stockin_qty?: number;
     stock_count?: number;
     images?: string;
     created_by?: number;
@@ -384,6 +386,8 @@ export interface Product {
     images?: string;
     alt_images?: string;
     epoch?: number;
+    total_sold_qty?: number;
+    total_stockin_qty?: number;
     stock_count: number;
     track_inventory?: boolean;
     has_variants?: boolean;
@@ -455,6 +459,32 @@ export const updateProductVariant = async (variantId: number, variant: Partial<P
 export const deleteProductVariant = async (variantId: number): Promise<ApiResponse<{ message: string }>> => {
     return apiRequest<{ message: string }>(`/variants/${variantId}`, {
         method: 'DELETE',
+    });
+};
+
+export const adjustProductStock = async (
+    productId: number,
+    data: { new_stock_count?: number; delta?: number; notes?: string }
+): Promise<ApiResponse<Product>> => {
+    return apiRequest<Product>(`/products/${productId}/adjust-stock`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+};
+
+export const adjustVariantStock = async (
+    variantId: number,
+    data: { new_stock_count?: number; delta?: number; notes?: string }
+): Promise<ApiResponse<ProductVariant>> => {
+    return apiRequest<ProductVariant>(`/variants/${variantId}/adjust-stock`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+};
+
+export const syncProductStock = async (): Promise<ApiResponse<{ message: string }>> => {
+    return apiRequest<{ message: string }>('/products/sync-stock', {
+        method: 'POST',
     });
 };
 

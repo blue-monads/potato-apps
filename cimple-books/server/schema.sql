@@ -99,6 +99,8 @@ create table Products(
     notes TEXT NOT NULL DEFAULT '',
 
     sales_price INTEGER NOT NULL DEFAULT 0,
+    total_sold_qty INTEGER NOT NULL DEFAULT 0,
+    total_stockin_qty INTEGER NOT NULL DEFAULT 0,
     stock_count INTEGER NOT NULL DEFAULT 0, 
 
     track_inventory BOOLEAN NOT NULL DEFAULT TRUE,
@@ -122,6 +124,8 @@ create table ProductVariants(
     images TEXT NOT NULL DEFAULT '',
     
     sales_price INTEGER NOT NULL DEFAULT 0,
+    total_sold_qty INTEGER NOT NULL DEFAULT 0,
+    total_stockin_qty INTEGER NOT NULL DEFAULT 0,
     stock_count INTEGER NOT NULL DEFAULT 0, 
     
     

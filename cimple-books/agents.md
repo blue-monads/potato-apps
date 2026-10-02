@@ -78,7 +78,7 @@ cimple-books/
 - **`Accounts`**: Chart of accounts (`acc_type`: `expenses`, `revenue`, `assets`, `liabilities`, `equity`). Supports hierarchical parents (`parent_id`) and contact associations (`contact_id`).
 - **`Transactions` & `TransactionLines`**: Double-entry journal entries. Every transaction enforces that total debits equal total credits. `TransactionLines` includes `linked_sales_line_id` and `linked_stockin_line_id` referencing specific line items. Auto-generated transactions from sales and stock in are marked `is_editable = false`.
 - **`Catagories`**: Categorization for products with `product_class` (`physical_item`, `service`, `digital_item`).
-- **`Products` & `ProductVariants`**: Inventory tracking. Products can have multiple variants with specific sales pricing and tracked counts.
+- **`Products` & `ProductVariants`**: Inventory tracking. Both tables track cumulative inflow (`total_stockin_qty`) and outflow (`total_sold_qty`), along with net `stock_count` (`total_stockin_qty - total_sold_qty` when `track_inventory == true`, or manual count when `track_inventory == false`). Products can have multiple variants with individual variant pricing and stock tracking.
 - **`ProductStockIn` & `ProductStockInLines`**: Inventory intake linked to supplier/vendor contacts. Tracks intake status (`draft`, `confirmed`, `cancelled`), payment status (`unpaid`, `paid`), reference identifier (`reference_id`), and updates stock levels when confirmed.
 - **`Sales` & `SalesLines`**: Customer sales and invoicing. Tracks line item amounts, overall taxes, discounts, sales status (`draft`, `confirmed`, `cancelled`), and payment status (`unpaid`, `paid`, `partially_paid`, `refunded`).
 - **`Tax`**: Configurable tax rates for sales and purchases.
@@ -89,10 +89,16 @@ Any transaction submitted via `transaction_create` or `transaction_update` check
 $$\sum \text{debits} == \sum \text{credits}$$
 If unbalanced, the API rejects the request with HTTP 400.
 
-### 3. Dynamic Inventory Calculation
-Product inventory is calculated dynamically in Lua (`calculate_product_stocks` in `server/server.lua`):
-- For tracked products (`track_inventory == true`), `stock_count` is derived by aggregating quantities from active `ProductStockInLines` where parent `ProductStockIn.stockin_status == 'confirmed'`. Draft or cancelled receipts do not increment on-hand inventory.
-- For non-tracked products (`track_inventory == false`), the manual `stock_count` value from `Products` or `ProductVariants` is returned.
+### 3. Inventory Counter Architecture
+Inventory tracking utilizes denormalized aggregate counters for $O(1)$ fast lookups:
+- When `track_inventory == true`:
+  - `total_stockin_qty` auto-increments upon confirmed Stock In (+qty), and decrements upon cancellation or deletion (-qty).
+  - `total_sold_qty` auto-increments upon confirmed Sales (+qty), and decrements upon cancellation or deletion (-qty).
+  - `stock_count` is synchronized as `total_stockin_qty - total_sold_qty`.
+  - For products with variants, variant counters track per-variant stock, while the parent product aggregates totals across all its variants.
+- When `track_inventory == false`:
+  - `stock_count` represents a manual count directly editable on the product/variant record.
+- Manual audit adjustments can be made via `POST /products/:id/adjust-stock` and `POST /variants/:id/adjust-stock`. Full recalculation from confirmed transactions can be triggered via `POST /products/sync-stock`.
 
 ### 4. Initialization & Seeding (`server/spages/init.html`)
 - On initial launch, Potatoverse routes to the `init.html` special page when `INIT_VERSION` in the KV store is not present or differs from the current version.
@@ -176,16 +182,19 @@ All API calls require authentication header `Authorization` populated via `(wind
 | **Categories** | `POST` | `/categories` | Creates a category |
 | **Categories** | `PUT`/`PATCH` | `/categories/:id` | Updates a category |
 | **Categories** | `DELETE` | `/categories/:id` | Soft-deletes a category |
-| **Products** | `GET` | `/products` | Lists products with computed stock counts and variants |
+| **Products** | `GET` | `/products` | Lists products with stock counts and variants |
 | **Products** | `POST` | `/products` | Creates a product |
 | **Products** | `GET` | `/products/:id` | Gets product details with computed stock |
 | **Products** | `PUT`/`PATCH` | `/products/:id` | Updates a product |
 | **Products** | `DELETE` | `/products/:id` | Soft-deletes a product |
+| **Products** | `POST` | `/products/:id/adjust-stock` | Adjusts product stock count (delta or new count) |
+| **Products** | `POST` | `/products/sync-stock` | Recomputes and synchronizes stock counts across all products/variants |
 | **Variants** | `GET` | `/products/:id/variants` | Lists variants for a specific product |
 | **Variants** | `POST` | `/products/:id/variants` | Adds a variant to a product |
 | **Variants** | `GET` | `/variants/:id` | Gets variant details |
 | **Variants** | `PUT`/`PATCH` | `/variants/:id` | Updates variant details |
 | **Variants** | `DELETE` | `/variants/:id` | Soft-deletes a variant |
+| **Variants** | `POST` | `/variants/:id/adjust-stock` | Adjusts variant stock count (delta or new count) |
 | **Stock In** | `GET` | `/stockin` | Lists stock intake records |
 | **Stock In** | `POST` | `/stockin` | Creates stock intake record and line items (auto-posts transaction if confirmed) |
 | **Stock In** | `GET` | `/stockin/:id` | Gets stock intake record with lines |

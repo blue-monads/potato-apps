@@ -6,6 +6,7 @@ local json = require("json")
 -- ============================================================
 
 local unpack_fn = table.unpack or unpack
+local sync_all_product_stock_counts
 
 -- Run a parameterized SQL query.
 local function run_q(sql, params)
@@ -267,13 +268,17 @@ function seed_template_data(userId, template)
             track_inv = false
         end
 
+        local init_stock = prod.stock_count or 0
+
         local pid, _ = potato.db.insert("Products", {
             name                = prod.name,
             info                = prod.info or "",
             catagory_id         = cat_id,
             sales_price         = prod.sales_price or 0,
             images              = prod.images or prod.image or "",
-            stock_count         = prod.stock_count or 0,
+            total_sold_qty      = 0,
+            total_stockin_qty   = track_inv and init_stock or 0,
+            stock_count         = track_inv and 0 or init_stock,
             track_inventory     = track_inv and 1 or 0,
             has_variants        = has_vars and 1 or 0,
             sales_account_id    = prod.sales_account_id,
@@ -287,16 +292,19 @@ function seed_template_data(userId, template)
         if pid ~= nil then
             table.insert(created_product_ids, pid)
             for _, var in ipairs(item.variants or {}) do
+                local var_stock = var.stock_count or 0
                 potato.db.insert("ProductVariants", {
-                    product_id   = pid,
-                    name         = var.name,
-                    description  = var.description or "",
-                    sales_price  = var.sales_price or 0,
-                    stock_count  = var.stock_count or 0,
-                    images       = var.images or "",
-                    created_by   = userId,
-                    updated_by   = userId,
-                    is_deleted   = var.is_deleted or 0
+                    product_id        = pid,
+                    name              = var.name,
+                    description       = var.description or "",
+                    sales_price       = var.sales_price or 0,
+                    total_sold_qty    = 0,
+                    total_stockin_qty = track_inv and var_stock or 0,
+                    stock_count       = track_inv and 0 or var_stock,
+                    images            = var.images or "",
+                    created_by        = userId,
+                    updated_by        = userId,
+                    is_deleted        = var.is_deleted or 0
                 })
             end
         end
@@ -307,8 +315,8 @@ function seed_template_data(userId, template)
     if s and #created_product_ids >= 1 then
         local sale_id, _ = potato.db.insert("Sales", {
             title                        = s.title or "INV-001 - First Customer Order",
-            client_id                    = s.client_id or 101,
-            client_name                  = s.client_name or "Global Ventures Inc.",
+            client_contact_id            = s.client_contact_id or s.client_id or nil,
+            client_alt_name              = s.client_alt_name or s.client_name or "Global Ventures Inc.",
             notes                        = s.notes or "Initial demo order created upon system setup",
             attachments                  = s.attachments or "",
             total_item_price             = s.total_item_price or 0,
@@ -448,6 +456,10 @@ function init_app(ctx)
     if not seed_ok then
         req.json(500, { error = "Failed to seed template data: " .. tostring(seed_err) })
         return
+    end
+
+    if type(sync_all_product_stock_counts) == "function" then
+        sync_all_product_stock_counts()
     end
 
     space_kv_upsert("SYSTEM", "INIT_VERSION", { value = INIT_VERSION })
@@ -1127,15 +1139,145 @@ end
 -- PRODUCTS
 -- ============================================================
 
-local function get_confirmed_stockin_id_map()
-    local map = {}
-    local stockins, _ = potato.db.find_all_by_cond("ProductStockIn", {})
-    for _, s in ipairs(stockins or {}) do
-        if s.stockin_status == "confirmed" then
-            map[s.id] = true
+-- Adjust stock counters on a product or variant.
+-- delta_stockin: change in cumulative received stock (positive for new stockin, negative for cancelled/deleted)
+-- delta_sold:    change in cumulative sold stock (positive for new sale, negative for cancelled/deleted)
+local function adjust_single_inventory_item(product_id, variant_id, delta_stockin, delta_sold, userId)
+    if not product_id or product_id <= 0 then return end
+    delta_stockin = tonumber(delta_stockin) or 0
+    delta_sold    = tonumber(delta_sold) or 0
+    if delta_stockin == 0 and delta_sold == 0 then return end
+
+    -- 1. Variant adjustment (if variant_id is provided)
+    if variant_id ~= nil and variant_id > 0 then
+        local variant, _ = potato.db.find_by_id("ProductVariants", variant_id)
+        if variant ~= nil then
+            local v_stockin = math.max(0, (variant.total_stockin_qty or 0) + delta_stockin)
+            local v_sold    = math.max(0, (variant.total_sold_qty or 0) + delta_sold)
+            local v_stock   = v_stockin - v_sold
+            potato.db.update_by_id("ProductVariants", variant_id, {
+                total_stockin_qty = v_stockin,
+                total_sold_qty    = v_sold,
+                stock_count       = v_stock,
+                updated_by        = userId or variant.updated_by
+            })
         end
     end
-    return map
+
+    -- 2. Product adjustment (if track_inventory is true)
+    local product, _ = potato.db.find_by_id("Products", product_id)
+    if product ~= nil then
+        local is_tracked = not (product.track_inventory == false or product.track_inventory == 0)
+        if is_tracked then
+            local p_stockin = math.max(0, (product.total_stockin_qty or 0) + delta_stockin)
+            local p_sold    = math.max(0, (product.total_sold_qty or 0) + delta_sold)
+            local p_stock   = p_stockin - p_sold
+            potato.db.update_by_id("Products", product_id, {
+                total_stockin_qty = p_stockin,
+                total_sold_qty    = p_sold,
+                stock_count       = p_stock,
+                updated_by        = userId or product.updated_by
+            })
+        end
+    end
+end
+
+-- Adjust inventory for a list of lines (from SalesLines or ProductStockInLines)
+-- delta_type: "stockin" (inflow) or "sale" (outflow)
+-- sign: +1 (confirming/posting) or -1 (cancelling/reverting/deleting)
+local function adjust_lines_inventory(lines, delta_type, sign, userId)
+    if not lines or type(lines) ~= "table" then return end
+    sign = sign or 1
+    for _, line in ipairs(lines) do
+        local pid = line.product_id
+        local vid = line.variant_id
+        local qty = (line.qty or 0) * sign
+        if qty ~= 0 and pid ~= nil and pid > 0 then
+            if delta_type == "stockin" then
+                adjust_single_inventory_item(pid, vid, qty, 0, userId)
+            elseif delta_type == "sale" then
+                adjust_single_inventory_item(pid, vid, 0, qty, userId)
+            end
+        end
+    end
+end
+
+-- Synchronize all product and variant counters from existing confirmed stockin and sales records.
+sync_all_product_stock_counts = function()
+    local stockins, _ = potato.db.find_all_by_cond("ProductStockIn", { stockin_status = "confirmed" })
+    local sid_map = {}
+    for _, s in ipairs(stockins or {}) do sid_map[s.id] = true end
+
+    local stockin_by_prod = {}
+    local stockin_by_var  = {}
+    local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
+    for _, l in ipairs(stockin_lines or {}) do
+        if sid_map[l.product_stockin_id] then
+            local pid = l.product_id
+            local vid = l.variant_id or 0
+            local q   = l.qty or 0
+            if pid ~= nil and pid > 0 then
+                stockin_by_prod[pid] = (stockin_by_prod[pid] or 0) + q
+            end
+            if vid > 0 then
+                stockin_by_var[vid] = (stockin_by_var[vid] or 0) + q
+            end
+        end
+    end
+
+    local sales, _ = potato.db.find_all_by_cond("Sales", { sales_status = "confirmed" })
+    local sale_id_map = {}
+    for _, s in ipairs(sales or {}) do sale_id_map[s.id] = true end
+
+    local sold_by_prod = {}
+    local sold_by_var  = {}
+    local sales_lines, _ = potato.db.find_all_by_cond("SalesLines", {})
+    for _, l in ipairs(sales_lines or {}) do
+        if sale_id_map[l.sale_id] then
+            local pid = l.product_id
+            local vid = l.variant_id or 0
+            local q   = l.qty or 0
+            if pid ~= nil and pid > 0 then
+                sold_by_prod[pid] = (sold_by_prod[pid] or 0) + q
+            end
+            if vid > 0 then
+                sold_by_var[vid] = (sold_by_var[vid] or 0) + q
+            end
+        end
+    end
+
+    local variants, _ = potato.db.find_all_by_cond("ProductVariants", {})
+    for _, v in ipairs(variants or {}) do
+        local si = stockin_by_var[v.id]
+        local so = sold_by_var[v.id]
+        if si ~= nil or so ~= nil then
+            si = si or 0
+            so = so or 0
+            potato.db.update_by_id("ProductVariants", v.id, {
+                total_stockin_qty = si,
+                total_sold_qty    = so,
+                stock_count       = 0
+            })
+        end
+    end
+
+    local products, _ = potato.db.find_all_by_cond("Products", {})
+    for _, p in ipairs(products or {}) do
+        local is_tracked = not (p.track_inventory == false or p.track_inventory == 0)
+        if is_tracked then
+            local si = stockin_by_prod[p.id]
+            local so = sold_by_prod[p.id]
+            if si ~= nil or so ~= nil then
+                si = si or 0
+                so = so or 0
+                potato.db.update_by_id("Products", p.id, {
+                    total_stockin_qty = si,
+                    total_sold_qty    = so,
+                    stock_count       = 0
+                })
+            end
+        end
+    end
 end
 
 local function calculate_product_stocks(products, variants)
@@ -1146,28 +1288,9 @@ local function calculate_product_stocks(products, variants)
         if variants_by_product[pid] == nil then
             variants_by_product[pid] = {}
         end
+        v.total_sold_qty    = v.total_sold_qty or 0
+        v.total_stockin_qty = v.total_stockin_qty or 0
         table.insert(variants_by_product[pid], v)
-    end
-
-    -- Build a set of active stockin IDs (confirmed only)
-    local active_sid_map = get_confirmed_stockin_id_map()
-
-    -- Aggregate stock from active stockin lines
-    local stock_by_product = {}
-    local stock_by_variant = {}
-    local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {})
-    for _, line in ipairs(stockin_lines or {}) do
-        if active_sid_map[line.product_stockin_id] then
-            local pid = line.product_id
-            local vid = line.variant_id or 0
-            local q   = line.qty or 0
-            if pid ~= nil then
-                stock_by_product[pid] = (stock_by_product[pid] or 0) + q
-            end
-            if vid > 0 then
-                stock_by_variant[vid] = (stock_by_variant[vid] or 0) + q
-            end
-        end
     end
 
     for _, p in ipairs(products) do
@@ -1185,25 +1308,34 @@ local function calculate_product_stocks(products, variants)
         local has_vars = p.has_variants == true or p.has_variants == 1 or #p_vars > 0
         p.has_variants = has_vars
 
+        p.total_sold_qty    = p.total_sold_qty or 0
+        p.total_stockin_qty = p.total_stockin_qty or 0
+
         if track_inv then
-            -- Stock comes from stockin lines
-            if has_vars then
-                local total = 0
+            if has_vars and #p_vars > 0 then
+                local total_stock = 0
+                local total_in    = 0
+                local total_out   = 0
                 for _, v in ipairs(p_vars) do
-                    v.stock_count = stock_by_variant[v.id] or 0
-                    total = total + v.stock_count
+                    local v_cur   = (v.total_stockin_qty or 0) - (v.total_sold_qty or 0)
+                    v.stock_count = v_cur
+                    total_stock   = total_stock + v_cur
+                    total_in      = total_in + (v.total_stockin_qty or 0)
+                    total_out     = total_out + (v.total_sold_qty or 0)
                 end
-                -- Fall back to product-level stockin if variants have no lines yet
-                p.stock_count = (total == 0 and (stock_by_product[p.id] or 0) > 0)
-                    and stock_by_product[p.id] or total
+                p.stock_count       = total_stock
+                p.total_stockin_qty = total_in
+                p.total_sold_qty    = total_out
             else
-                p.stock_count = stock_by_product[p.id] or 0
+                p.stock_count = (p.total_stockin_qty or 0) - (p.total_sold_qty or 0)
             end
         else
-            -- Stock is stored directly on the record
-            if has_vars then
+            if has_vars and #p_vars > 0 then
                 local total = 0
-                for _, v in ipairs(p_vars) do total = total + (v.stock_count or 0) end
+                for _, v in ipairs(p_vars) do
+                    v.stock_count = v.stock_count or 0
+                    total = total + v.stock_count
+                end
                 p.stock_count = total
             else
                 p.stock_count = p.stock_count or 0
@@ -1286,14 +1418,20 @@ function create_product(ctx)
         return
     end
 
+    local is_tracked = (product.track_inventory == false or product.track_inventory == 0) and 0 or 1
+    local init_stock = tonumber(product.stock_count) or 0
+    local init_stockin = (is_tracked == 1) and init_stock or 0
+
     local id, err = potato.db.insert("Products", {
         name                = product.name or "",
         info                = product.info or "",
         catagory_id         = tonumber(product.catagory_id) or 0,
         images              = product.images or product.image or "",
         sales_price         = tonumber(product.sales_price or product.price) or 0,
-        stock_count         = tonumber(product.stock_count) or 0,
-        track_inventory     = (product.track_inventory == false or product.track_inventory == 0) and 0 or 1,
+        total_sold_qty      = 0,
+        total_stockin_qty   = init_stockin,
+        stock_count         = init_stock,
+        track_inventory     = is_tracked,
         has_variants        = (product.has_variants == true or product.has_variants == 1) and 1 or 0,
         sales_account_id    = sales_account_id,
         purchase_account_id = purchase_account_id,
@@ -1343,9 +1481,17 @@ function update_product(ctx, product_id)
         update_data.sales_price = tonumber(product.price) or 0
     end
 
-    if product.stock_count     ~= nil then update_data.stock_count     = tonumber(product.stock_count) or 0 end
-    if product.track_inventory ~= nil then update_data.track_inventory = (product.track_inventory == true or product.track_inventory == 1) and 1 or 0 end
-    if product.has_variants    ~= nil then update_data.has_variants    = (product.has_variants == true or product.has_variants == 1) and 1 or 0 end
+    local curr_prod, _ = potato.db.find_by_id("Products", product_id)
+    local will_be_tracked = curr_prod and not (curr_prod.track_inventory == false or curr_prod.track_inventory == 0)
+    if product.track_inventory ~= nil then
+        will_be_tracked = (product.track_inventory == true or product.track_inventory == 1)
+        update_data.track_inventory = will_be_tracked and 1 or 0
+    end
+
+    if not will_be_tracked and product.stock_count ~= nil then
+        update_data.stock_count = tonumber(product.stock_count) or 0
+    end
+    if product.has_variants ~= nil then update_data.has_variants = (product.has_variants == true or product.has_variants == 1) and 1 or 0 end
 
     if product.sales_account_id ~= nil then
         local id, err = resolve_product_account(product.sales_account_id, "Sales account", { "revenue" })
@@ -1410,27 +1556,14 @@ end
 -- PRODUCT VARIANTS
 -- ============================================================
 
--- Compute stock_count for each variant from stockin lines (if tracked).
+-- Compute stock_count for each variant from counters (if tracked).
 local function enrich_variant_stocks(variants, product_id, track_inv)
-    if track_inv then
-        local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
-            product_id = product_id
-        })
-        local active_sid_map = get_confirmed_stockin_id_map()
-        local stock_by_variant = {}
-        for _, l in ipairs(stockin_lines or {}) do
-            if active_sid_map[l.product_stockin_id] then
-                local vid = l.variant_id or 0
-                if vid > 0 then
-                    stock_by_variant[vid] = (stock_by_variant[vid] or 0) + (l.qty or 0)
-                end
-            end
-        end
-        for _, v in ipairs(variants or {}) do
-            v.stock_count = stock_by_variant[v.id] or 0
-        end
-    else
-        for _, v in ipairs(variants or {}) do
+    for _, v in ipairs(variants or {}) do
+        v.total_sold_qty    = v.total_sold_qty or 0
+        v.total_stockin_qty = v.total_stockin_qty or 0
+        if track_inv then
+            v.stock_count = v.total_stockin_qty - v.total_sold_qty
+        else
             v.stock_count = v.stock_count or 0
         end
     end
@@ -1471,21 +1604,31 @@ function create_product_variant(ctx, product_id)
     if userId == nil then return end
     if not require_param(req, "product_id", product_id) then return end
 
-    local variant = req.bind_json()
+    local variant        = req.bind_json()
+    local parent_tracked = get_parent_track_inv(product_id)
+    local init_v_stock   = tonumber(variant.stock_count) or 0
+    local init_v_stockin = parent_tracked and init_v_stock or 0
+
     local id, err = potato.db.insert("ProductVariants", {
-        product_id  = product_id,
-        name        = variant.name or "",
-        description = variant.description or "",
-        images      = variant.images or variant.image or "",
-        sales_price = tonumber(variant.sales_price or variant.price) or 0,
-        stock_count = tonumber(variant.stock_count) or 0,
-        created_by  = userId,
-        updated_by  = userId,
-        is_deleted  = 0
+        product_id        = product_id,
+        name              = variant.name or "",
+        description       = variant.description or "",
+        images            = variant.images or variant.image or "",
+        sales_price       = tonumber(variant.sales_price or variant.price) or 0,
+        total_sold_qty    = 0,
+        total_stockin_qty = init_v_stockin,
+        stock_count       = init_v_stock,
+        created_by        = userId,
+        updated_by        = userId,
+        is_deleted        = 0
     })
     if err ~= nil then
         req.json(400, { error = tostring(err) })
         return
+    end
+
+    if parent_tracked and init_v_stock > 0 then
+        adjust_single_inventory_item(product_id, nil, init_v_stock, 0, userId)
     end
 
     local created, err = potato.db.find_by_id("ProductVariants", id)
@@ -1511,18 +1654,10 @@ function get_product_variant(ctx, variant_id)
     end
 
     local track_inv = get_parent_track_inv(variant.product_id)
+    variant.total_sold_qty    = variant.total_sold_qty or 0
+    variant.total_stockin_qty = variant.total_stockin_qty or 0
     if track_inv then
-        local stockin_lines, _ = potato.db.find_all_by_cond("ProductStockInLines", {
-            variant_id = variant_id
-        })
-        local active_sid_map = get_confirmed_stockin_id_map()
-        local total = 0
-        for _, l in ipairs(stockin_lines or {}) do
-            if active_sid_map[l.product_stockin_id] then
-                total = total + (l.qty or 0)
-            end
-        end
-        variant.stock_count = total
+        variant.stock_count = variant.total_stockin_qty - variant.total_sold_qty
     else
         variant.stock_count = variant.stock_count or 0
     end
@@ -1550,7 +1685,12 @@ function update_product_variant(ctx, variant_id)
     elseif variant.price ~= nil then
         update_data.sales_price = tonumber(variant.price) or 0
     end
-    if variant.stock_count ~= nil then update_data.stock_count = tonumber(variant.stock_count) or 0 end
+
+    local current_var, _ = potato.db.find_by_id("ProductVariants", variant_id)
+    local parent_tracked = current_var and get_parent_track_inv(current_var.product_id)
+    if not parent_tracked and variant.stock_count ~= nil then
+        update_data.stock_count = tonumber(variant.stock_count) or 0
+    end
 
     local err = potato.db.update_by_id("ProductVariants", variant_id, update_data)
     if err ~= nil then
@@ -1580,6 +1720,97 @@ function delete_product_variant(ctx, variant_id)
         return
     end
     req.json(200, { message = "Variant deleted" })
+end
+
+--- @param ctx HttpContext
+--- @param product_id number
+function adjust_product_stock_endpoint(ctx, product_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "product_id", product_id) then return end
+
+    local product, err = potato.db.find_by_id("Products", product_id)
+    if err ~= nil or product == nil or product.is_deleted == 1 then
+        req.json(404, { error = "Product not found" })
+        return
+    end
+
+    local data = req.bind_json()
+    local is_tracked = not (product.track_inventory == false or product.track_inventory == 0)
+
+    if is_tracked then
+        local delta = 0
+        if data.delta ~= nil then
+            delta = tonumber(data.delta) or 0
+        elseif data.new_stock_count ~= nil or data.stock_count ~= nil then
+            local target = tonumber(data.new_stock_count or data.stock_count) or 0
+            local curr   = (product.total_stockin_qty or 0) - (product.total_sold_qty or 0)
+            delta = target - curr
+        end
+
+        if delta > 0 then
+            adjust_single_inventory_item(product_id, nil, delta, 0, userId)
+        elseif delta < 0 then
+            adjust_single_inventory_item(product_id, nil, 0, -delta, userId)
+        end
+    else
+        local target = tonumber(data.new_stock_count or data.stock_count) or 0
+        potato.db.update_by_id("Products", product_id, {
+            stock_count = target,
+            updated_by  = userId
+        })
+    end
+
+    local updated, _ = potato.db.find_by_id("Products", product_id)
+    local variants, _ = potato.db.find_all_by_cond("ProductVariants", { product_id = product_id, is_deleted = 0 })
+    calculate_product_stocks({ updated }, variants or {})
+    req.json(200, updated)
+end
+
+--- @param ctx HttpContext
+--- @param variant_id number
+function adjust_variant_stock_endpoint(ctx, variant_id)
+    local req    = ctx.request()
+    local userId = get_user_id(req)
+    if userId == nil then return end
+    if not require_param(req, "variant_id", variant_id) then return end
+
+    local variant, err = potato.db.find_by_id("ProductVariants", variant_id)
+    if err ~= nil or variant == nil or variant.is_deleted == 1 then
+        req.json(404, { error = "Variant not found" })
+        return
+    end
+
+    local data = req.bind_json()
+    local parent_tracked = get_parent_track_inv(variant.product_id)
+
+    if parent_tracked then
+        local delta = 0
+        if data.delta ~= nil then
+            delta = tonumber(data.delta) or 0
+        elseif data.new_stock_count ~= nil or data.stock_count ~= nil then
+            local target = tonumber(data.new_stock_count or data.stock_count) or 0
+            local curr   = (variant.total_stockin_qty or 0) - (variant.total_sold_qty or 0)
+            delta = target - curr
+        end
+
+        if delta > 0 then
+            adjust_single_inventory_item(variant.product_id, variant_id, delta, 0, userId)
+        elseif delta < 0 then
+            adjust_single_inventory_item(variant.product_id, variant_id, 0, -delta, userId)
+        end
+    else
+        local target = tonumber(data.new_stock_count or data.stock_count) or 0
+        potato.db.update_by_id("ProductVariants", variant_id, {
+            stock_count = target,
+            updated_by  = userId
+        })
+    end
+
+    local updated, _ = potato.db.find_by_id("ProductVariants", variant_id)
+    enrich_variant_stocks({ updated }, updated.product_id, parent_tracked)
+    req.json(200, updated)
 end
 
 -- ============================================================
@@ -2026,6 +2257,7 @@ function create_stockin(ctx)
         if post_err ~= nil then
             print("Warning: failed to post stockin transaction on creation: " .. tostring(post_err))
         end
+        adjust_lines_inventory(stockin.lines, "stockin", 1, userId)
     end
 
     req.json(200, stockin)
@@ -2140,6 +2372,7 @@ function update_stockin(ctx, stockin_id)
             if post_err ~= nil then
                 print("Warning: failed to post stockin transaction on update: " .. tostring(post_err))
             end
+            adjust_lines_inventory(updated.lines, "stockin", 1, userId)
         end
     end
 
@@ -2203,6 +2436,8 @@ function confirm_stockin(ctx, stockin_id)
         return
     end
 
+    adjust_lines_inventory(lines, "stockin", 1, userId)
+
     req.json(200, stockin)
 end
 
@@ -2265,6 +2500,7 @@ function register_stockin_payment(ctx, stockin_id)
         if post_err ~= nil then
             print("Warning: failed to post stockin transaction on draft payment: " .. tostring(post_err))
         end
+        adjust_lines_inventory(lines, "stockin", 1, userId)
         req.json(200, stockin)
         return
     end
@@ -2318,14 +2554,16 @@ function cancel_stockin(ctx, stockin_id)
         return
     end
 
-    -- Revert linked transactions only if the stock in was previously confirmed
-    if prev_status == "confirmed" then
-        revert_stockin_transactions(stockin_id, userId)
-    end
-
-    stockin.stockin_status = "cancelled"
     local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
     stockin.lines = lines or {}
+    stockin.stockin_status = "cancelled"
+
+    -- Revert linked transactions and inventory only if the stock in was previously confirmed
+    if prev_status == "confirmed" then
+        revert_stockin_transactions(stockin_id, userId)
+        adjust_lines_inventory(lines or {}, "stockin", -1, userId)
+    end
+
     resolve_stockin_vendor_name(stockin)
 
     req.json(200, stockin)
@@ -2343,6 +2581,11 @@ function delete_stockin(ctx, stockin_id)
     if err ~= nil or stockin == nil then
         req.json(404, { error = "StockIn not found" })
         return
+    end
+
+    if stockin.stockin_status == "confirmed" then
+        local lines, _ = potato.db.find_all_by_cond("ProductStockInLines", { product_stockin_id = stockin_id })
+        adjust_lines_inventory(lines or {}, "stockin", -1, userId)
     end
 
     revert_stockin_transactions(stockin_id, userId)
@@ -2913,6 +3156,7 @@ function create_sale(ctx)
         if post_err ~= nil then
             print("Warning: failed to post sale transaction on creation: " .. tostring(post_err))
         end
+        adjust_lines_inventory(sale.lines, "sale", 1, userId)
     end
 
     req.json(200, sale)
@@ -2996,6 +3240,7 @@ function update_sale(ctx, sale_id)
             if post_err ~= nil then
                 print("Warning: failed to post sale transaction on update: " .. tostring(post_err))
             end
+            adjust_lines_inventory(updated_sale.lines, "sale", 1, userId)
         end
     end
 
@@ -3059,6 +3304,8 @@ function confirm_sale(ctx, sale_id)
         return
     end
 
+    adjust_lines_inventory(lines, "sale", 1, userId)
+
     req.json(200, sale)
 end
 
@@ -3120,6 +3367,7 @@ function register_sale_payment(ctx, sale_id)
         if post_err ~= nil then
             print("Warning: failed to post sale transaction on draft payment: " .. tostring(post_err))
         end
+        adjust_lines_inventory(lines, "sale", 1, userId)
         req.json(200, sale)
         return
     end
@@ -3173,14 +3421,15 @@ function cancel_sale(ctx, sale_id)
         return
     end
 
-    -- Revert linked transactions only if the sale was previously confirmed
-    if prev_status == "confirmed" then
-        revert_sale_transactions(sale_id, userId)
-    end
-
-    sale.sales_status = "cancelled"
     local lines, _ = potato.db.find_all_by_cond("SalesLines", { sale_id = sale_id })
     sale.lines = lines or {}
+    sale.sales_status = "cancelled"
+
+    -- Revert linked transactions and inventory only if the sale was previously confirmed
+    if prev_status == "confirmed" then
+        revert_sale_transactions(sale_id, userId)
+        adjust_lines_inventory(lines or {}, "sale", -1, userId)
+    end
 
     req.json(200, sale)
 end
@@ -3197,6 +3446,11 @@ function delete_sale(ctx, sale_id)
     if err ~= nil or sale == nil then
         req.json(404, { error = "Sale not found" })
         return
+    end
+
+    if sale.sales_status == "confirmed" then
+        local lines, _ = potato.db.find_all_by_cond("SalesLines", { sale_id = sale_id })
+        adjust_lines_inventory(lines or {}, "sale", -1, userId)
     end
 
     revert_sale_transactions(sale_id, userId)
@@ -3282,12 +3536,19 @@ function on_http(ctx)
     -- Products
     if path == "/products" and method == "GET"  then return list_products(ctx) end
     if path == "/products" and method == "POST" then return create_product(ctx) end
+    if path == "/products/sync-stock" and method == "POST" then
+        sync_all_product_stock_counts()
+        req.json(200, { message = "Stock counts synchronized successfully" })
+        return
+    end
     local product_variants_match = string.match(path, "^/products/(%d+)/variants$")
     if product_variants_match then
         local product_id = tonumber(product_variants_match)
         if method == "GET"  then return list_product_variants(ctx, product_id) end
         if method == "POST" then return create_product_variant(ctx, product_id) end
     end
+    local variant_id_adjust = string.match(path, "^/variants/(%d+)/adjust%-stock$")
+    if variant_id_adjust and method == "POST" then return adjust_variant_stock_endpoint(ctx, tonumber(variant_id_adjust)) end
     local variant_id_match = string.match(path, "^/variants/(%d+)$")
     if variant_id_match then
         local variant_id = tonumber(variant_id_match)
@@ -3295,6 +3556,8 @@ function on_http(ctx)
         if method == "PUT" or method == "PATCH" then return update_product_variant(ctx, variant_id) end
         if method == "DELETE"                   then return delete_product_variant(ctx, variant_id) end
     end
+    local product_id_adjust = string.match(path, "^/products/(%d+)/adjust%-stock$")
+    if product_id_adjust and method == "POST" then return adjust_product_stock_endpoint(ctx, tonumber(product_id_adjust)) end
     local product_id_match = string.match(path, "^/products/(%d+)$")
     if product_id_match then
         local product_id = tonumber(product_id_match)
