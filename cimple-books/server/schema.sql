@@ -1,5 +1,28 @@
 
--- ACCOUNTING 
+
+create table Contacts(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL DEFAULT '',
+    parent_contact_id INTEGER,
+    info TEXT NOT NULL DEFAULT '',
+    images TEXT NOT NULL DEFAULT '',
+    contact_type TEXT NOT NULL DEFAULT 'individual', -- individual, company
+    relation_type TEXT NOT NULL DEFAULT 'customer', -- customer, supplier, general
+
+    primary_email TEXT NOT NULL DEFAULT '',
+    primary_phone TEXT NOT NULL DEFAULT '',
+    primary_address TEXT NOT NULL DEFAULT '',
+
+    notes TEXT NOT NULL DEFAULT '',
+
+    extra_data JSON NOT NULL DEFAULT '{}',
+    created_by INTEGER NOT NULL,
+    updated_by INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 
 create table Accounts(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7,7 +30,7 @@ create table Accounts(
     info TEXT NOT NULL DEFAULT '',
     acc_type TEXT NOT NULL DEFAULT 'expenses', -- expenses, revenue, assets, liabilities, equity
     parent_id INTEGER,
-    contact_id INTEGER NOT NULL DEFAULT 0,
+    contact_id INTEGER,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
@@ -65,31 +88,6 @@ create table Catagories(
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 );
-
-
-create table Contacts(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL DEFAULT '',
-    parent_contact_id INTEGER,
-    info TEXT NOT NULL DEFAULT '',
-    images TEXT NOT NULL DEFAULT '',
-    contact_type TEXT NOT NULL DEFAULT 'individual', -- individual, company
-    relation_type TEXT NOT NULL DEFAULT 'customer', -- customer, supplier, general
-
-    primary_email TEXT NOT NULL DEFAULT '',
-    primary_phone TEXT NOT NULL DEFAULT '',
-    primary_address TEXT NOT NULL DEFAULT '',
-
-    notes TEXT NOT NULL DEFAULT '',
-
-    extra_data JSON NOT NULL DEFAULT '{}',
-    created_by INTEGER NOT NULL,
-    updated_by INTEGER NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE
-);
-
 
 
 create table Products(
