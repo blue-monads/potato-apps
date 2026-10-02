@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/zz/static/libspace.js"></script>
+    <title>Init cimple-potatorace</title>
+</head>
+<body>
+    <h1>Init cimple-potatorace</h1>
+    <button id="runSchemaSqlButton" style="display: block;" onclick="runSchemaSql()">Run Schema SQL</button>
+    <button id="goHomeButton" style="display: none;" onclick="goHome()">Go Home</button>
+
+</body>
+
+<script>
+    if (!window.spaceGetToken('cimple-potatorace')) {
+        window.spaceRedirrectToAuth('/zz/space/cimple-potatorace', 'init.html');
+    }
+
+    function goHome() {
+        window.location.href = '/zz/space/cimple-potatorace';
+    }
+
+    function runSchemaSql() {
+        fetch('/zz/api/space/cimple-potatorace/setup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': window.spaceGetToken('cimple-potatorace'),
+            },
+        }).then(data => {
+            document.getElementById('runSchemaSqlButton').style.display = 'none';
+            document.getElementById('goHomeButton').style.display = 'block';
+        });
+    }
+
+
+</script>
+</html>
