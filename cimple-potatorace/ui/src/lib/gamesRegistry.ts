@@ -40,6 +40,14 @@ export const AVAILABLE_GAMES: GameMetadata[] = [
         btnALabel: 'TACKLE 💥',
         btnBLabel: 'BRACE 🧱',
     },
+    {
+        id: 'crossy-road',
+        name: 'Potato Crossy Road',
+        icon: '🦘',
+        description: '3D highway rush! Dodge cars & trucks, hop to the finish line.',
+        btnALabel: 'HOP ⬆️',
+        btnBLabel: 'HONK 📢',
+    },
 ];
 
 class GamesRegistry {
@@ -75,7 +83,29 @@ class GamesRegistry {
         return Array.from(this.games.values());
     }
 
+    async ensureThreeLoaded(): Promise<void> {
+        if (typeof window !== 'undefined' && (window as any).THREE) return;
+        return new Promise<void>((resolve, reject) => {
+            const existing = document.querySelector('script[data-lib="three"]');
+            if (existing) {
+                resolve();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = `${BASE_PATH}three.min.js`;
+            script.setAttribute('data-lib', 'three');
+            script.onload = () => resolve();
+            script.onerror = (err) => reject(new Error(`Failed to load three.min.js: ${err}`));
+            document.head.appendChild(script);
+        });
+    }
+
     async loadGameScript(id: string): Promise<any> {
+        // If ThreeJS is needed, ensure it is loaded first
+        if (id === 'crossy-road') {
+            await this.ensureThreeLoaded().catch(console.warn);
+        }
+
         // If already registered with gameClass
         const entry = this.get(id);
         if (entry?.gameClass) {
