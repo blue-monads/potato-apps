@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Package, Search, ArrowLeft, Plus, Check, Layers } from 'lucide-react';
 import { listProducts, getCurrencySymbol, type Product, type ProductVariant } from '../../../lib/api';
 import { useModal } from '../../../lib/shared/modal/modal';
+import { getFilePreviewUrl } from '../../../lib/spaceFile';
 
 export interface SelectedStockInLine {
     product_id: number;
@@ -108,7 +109,7 @@ const StockInItemPicker = ({ onSave }: StockInItemPickerProps) => {
     const getPrimaryImage = (imagesStr?: string) => {
         if (!imagesStr) return null;
         const first = imagesStr.split(',')[0].trim();
-        return first || null;
+        return first ? getFilePreviewUrl(first) : null;
     };
 
     return (

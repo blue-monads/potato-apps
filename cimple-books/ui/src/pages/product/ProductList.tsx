@@ -5,6 +5,7 @@ import { listProducts, deleteProduct, listCategories, getCurrencySymbol, type Pr
 import { BASE_PATH } from '../../lib/base';
 import { ScrapProductModal } from './components/ScrapProductModal';
 import { Pagination } from '../../components/Pagination';
+import { getFilePreviewUrl } from '../../lib/spaceFile';
 
 const ProductList = () => {
     const [products, setProducts] = useState<Product[]>([]);
@@ -117,11 +118,14 @@ const ProductList = () => {
     };
 
     const getProductThumbnail = (product: Product) => {
+        let raw = '';
         if (product.images) {
             const list = product.images.split(',').map(s => s.trim()).filter(Boolean);
-            if (list.length > 0) return list[0];
+            if (list.length > 0) raw = list[0];
+        } else if (product.image) {
+            raw = product.image;
         }
-        return product.image || null;
+        return raw ? getFilePreviewUrl(raw) : null;
     };
 
     return (

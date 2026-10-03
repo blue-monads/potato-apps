@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Edit2, Upload, X, Receipt, Package } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Receipt, Package } from 'lucide-react';
 import { 
     createProduct, 
     updateProduct, 
@@ -7,7 +7,6 @@ import {
     createProductVariant,
     updateProductVariant,
     deleteProductVariant,
-    uploadProductImage,
     listAccounts,
     listTaxes,
     getCurrencySymbol,
@@ -17,6 +16,7 @@ import {
     type Account,
     type Tax
 } from '../../lib/api';
+import { SpaceImagePicker } from '../../components/SpaceImagePicker';
 
 interface ProductFormProps {
     product?: Product | null;
@@ -31,8 +31,6 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
     const [salesPrice, setSalesPrice] = useState('');
     const [stockCount, setStockCount] = useState(0);
     const [images, setImages] = useState<string[]>([]);
-    const [newImageUrl, setNewImageUrl] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
 
     // Inventory & Variant settings
     const [trackInventory, setTrackInventory] = useState(true);
@@ -159,34 +157,6 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
         } finally {
             setLoadingVariants(false);
         }
-    };
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setIsUploading(true);
-        setError(null);
-        try {
-            const url = await uploadProductImage(file);
-            setImages(prev => [...prev, url]);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to upload image');
-        } finally {
-            setIsUploading(false);
-            e.target.value = '';
-        }
-    };
-
-    const handleAddImageUrl = () => {
-        const trimmed = newImageUrl.trim();
-        if (trimmed && !images.includes(trimmed)) {
-            setImages(prev => [...prev, trimmed]);
-            setNewImageUrl('');
-        }
-    };
-
-    const handleRemoveImage = (indexToRemove: number) => {
-        setImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
     };
 
     const handleSaveVariant = async (e: React.FormEvent) => {
@@ -535,60 +505,14 @@ const ProductForm = ({ product, categories, onSave }: ProductFormProps) => {
 
                 {/* Product Pictures */}
                 <div className="border border-[#E1E3DB] rounded-lg p-4 bg-stone-50/50">
-                    <div className="flex items-center justify-between mb-3">
-                        <label className="block text-sm font-semibold text-stone-700">
-                            Product Pictures
-                        </label>
-                        <span className="text-xs text-stone-500">{images.length} added</span>
-                    </div>
-
-                    {images.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {images.map((imgUrl, idx) => (
-                                <div key={idx} className="relative group w-16 h-16 rounded-lg overflow-hidden border border-[#E1E3DB] bg-white">
-                                    <img src={imgUrl} alt={`Product image ${idx + 1}`} className="w-full h-full object-cover" />
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveImage(idx)}
-                                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <label className="cursor-pointer inline-flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#E1E3DB] hover:bg-stone-50 text-stone-700 text-xs font-medium rounded-lg">
-                            <Upload className="w-3.5 h-3.5 text-[#2E6E52]" />
-                            {isUploading ? 'Uploading...' : 'Upload'}
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileUpload}
-                                disabled={isUploading}
-                                className="hidden"
-                            />
-                        </label>
-                        <div className="flex-1 flex gap-1.5">
-                            <input
-                                type="text"
-                                value={newImageUrl}
-                                onChange={(e) => setNewImageUrl(e.target.value)}
-                                placeholder="Paste image URL..."
-                                className="flex-1 px-3 py-1.5 border border-[#E1E3DB] bg-white rounded-lg text-xs"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleAddImageUrl}
-                                disabled={!newImageUrl.trim()}
-                                className="px-3 py-1.5 bg-stone-200 hover:bg-stone-300 disabled:opacity-50 text-stone-700 rounded-lg text-xs font-semibold"
-                            >
-                                Add
-                            </button>
-                        </div>
-                    </div>
+                    <SpaceImagePicker
+                        multiple
+                        label="Product Pictures"
+                        description="Upload photos from device, browse Potatoverse Space files, or link URLs"
+                        folderPath="cimple-books/products"
+                        value={images}
+                        onChange={(val) => setImages(val as string[])}
+                    />
                 </div>
 
                 {/* Variants Section */}

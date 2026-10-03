@@ -4,6 +4,7 @@ import { listCategories, deleteCategory, type Category } from '../../lib/api';
 import { useModal } from '../../lib/shared/modal/modal';
 import CategoryForm from './CategoryForm';
 import { Pagination } from '../../components/Pagination';
+import { getFilePreviewUrl } from '../../lib/spaceFile';
 
 const PRODUCT_CLASSES = [
     { value: 'all', label: 'All Classes' },
@@ -213,7 +214,7 @@ const CategoryList = () => {
                                             <div className="flex items-center gap-3.5">
                                                 {category.image ? (
                                                     <img
-                                                        src={category.image}
+                                                        src={getFilePreviewUrl(category.image)}
                                                         alt={category.name}
                                                         className="w-10 h-10 object-cover rounded-lg border border-[#E1E3DB]"
                                                     />

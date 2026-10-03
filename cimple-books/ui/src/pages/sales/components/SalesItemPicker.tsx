@@ -10,6 +10,7 @@ import {
     type Tax 
 } from '../../../lib/api';
 import { useModal } from '../../../lib/shared/modal/modal';
+import { getFilePreviewUrl } from '../../../lib/spaceFile';
 
 export interface SalesItemLine {
     info: string;
@@ -158,11 +159,14 @@ const SalesItemPicker = ({ initialLine, onSave }: SalesItemPickerProps) => {
     const cs = getCurrencySymbol();
 
     const getFirstImage = (item: { image?: string; images?: string }) => {
+        let raw = '';
         if (item.images) {
             const list = item.images.split(',').map(s => s.trim()).filter(Boolean);
-            if (list.length > 0) return list[0];
+            if (list.length > 0) raw = list[0];
+        } else if (item.image) {
+            raw = item.image;
         }
-        return item.image || null;
+        return raw ? getFilePreviewUrl(raw) : null;
     };
 
     if (loading && mode === 'pick_product') {
