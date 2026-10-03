@@ -195,7 +195,7 @@ export const Canvas: React.FC<CanvasProps> = ({
         backgroundPosition: `${pan.x}px ${pan.y}px`,
       }}
     >
-      {/* Zoom / Viewport HUD Controls - Modern Airtable Style */}
+      {/* Zoom / Viewport HUD Controls - Modern Style */}
       <div className="absolute bottom-5 left-5 z-20 flex items-center gap-1 bg-white/95 backdrop-blur-xs border border-slate-200/90 shadow-sm rounded-lg p-1">
         <button
           onClick={() => setZoom((z) => Math.min(z + 0.15, 1.8))}

@@ -1,0 +1,37 @@
+# Potato Chat Todo & Progress
+
+- [x] **1. Fix direct chat active styling**: Active DM conversation now has proper selection styles, presence indicator, and responsive state.
+- [x] **2. Full WebSocket support**:
+  - Live message delivery without full page reload.
+  - Live reaction updates, message editing, message deletion.
+  - Live typing indicator broadcast and display.
+  - Automatic reconnection with exponential backoff on disconnect.
+  - Header connection status indicator (Live / Connecting / Offline).
+- [x] **3. Return actual user list**:
+  - Backend queries space users via `xUser` with fallback to `Users` table.
+  - Real-time online presence detected via active WebSocket connections.
+- [x] **4. Files and assets support**:
+  - Full image rendering with hover zoom and lightbox full-screen preview.
+  - Document & file attachment cards with file-type icons, formatted file sizes, and download links.
+  - Drag-and-drop file upload support onto message input.
+- [x] **5. Mobile view**:
+  - Responsive layout with off-canvas slide-out sidebar drawer.
+  - Hamburger menu button on screens < 768px.
+  - Tap-outside backdrop dismiss and automatic drawer close on channel select.
+- [x] **6. About channel page & details**:
+  - Channel info modal with topic, description, created by, and created date.
+  - Real channel member list with admin badges and online status indicators.
+  - In-modal teammate invitation to channels.
+  - Channel leave and delete capabilities.
+- [x] **Additional full-fledged chat app features**:
+  - Emoji reactions (quick reaction bar + reaction pills with count and toggle).
+  - Message replies with quoted context and click-to-scroll.
+  - Message editing and deletion with permission checks.
+  - Channel message search filter.
+  - Markdown-like formatting (code blocks, inline code, links).
+  - Modern dark slate sidebar with quick search filter.
+- [x] **Potatoverse Space Files & libspace.js integration**:
+  - Direct upload via `/zz/api/core/space_file/upload`.
+  - Space File Picker modal support via `window.spaceFilePicker` from `/zz/static/libspace.js`.
+  - Preview and download routes using `/zz/api/core/space_file/preview/:ref_id` and `/download/:ref_id`.
+  - Fixed Lua `tonumber` multiple-return panic in `upload_message_file`.
