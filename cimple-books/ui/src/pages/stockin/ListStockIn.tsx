@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Search, Calendar, User, ArrowDownToLine, Layers, CheckCircle, CreditCard, Ban, RefreshCw, X } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, Calendar, User, ArrowDownToLine, Layers, CheckCircle, CreditCard, Ban, RefreshCw, X, Paperclip } from 'lucide-react';
 import { Link } from 'react-router';
 import { 
     listStockIn, 
@@ -14,6 +14,7 @@ import {
     type Account 
 } from '../../lib/api';
 import { BASE_PATH } from '../../lib/base';
+import { parseAttachments, getFileName, getFilePreviewUrl } from '../../lib/spaceFile';
 
 const ListStockIn = () => {
     const [stockins, setStockins] = useState<ProductStockIn[]>([]);
@@ -333,15 +334,38 @@ const ListStockIn = () => {
                                                         <span className="text-xs text-stone-400 italic">No vendor specified</span>
                                                     )}
                                                 </td>
-                                                <td className="px-5 py-4 max-w-xs truncate">
-                                                    {s.reference_id && (
-                                                        <span className="inline-block px-2 py-0.5 bg-stone-100 text-stone-700 rounded text-xs font-mono font-medium mr-2">
-                                                            {s.reference_id}
+                                                <td className="px-5 py-4 max-w-xs">
+                                                    <div className="truncate">
+                                                        {s.reference_id && (
+                                                            <span className="inline-block px-2 py-0.5 bg-stone-100 text-stone-700 rounded text-xs font-mono font-medium mr-2">
+                                                                {s.reference_id}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-xs text-stone-600">
+                                                            {s.info || '—'}
                                                         </span>
+                                                    </div>
+                                                    {s.attachments && parseAttachments(s.attachments).length > 0 && (
+                                                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                                            {parseAttachments(s.attachments).map((att, aIdx) => {
+                                                                const fileName = getFileName(att);
+                                                                return (
+                                                                    <a
+                                                                        key={aIdx}
+                                                                        href={getFilePreviewUrl(att)}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#FAFBF9] hover:bg-[#EAF3EE] text-[#2E6E52] border border-[#E1E3DB] hover:border-[#2E6E52]/40 transition-colors"
+                                                                        title={`Open document: ${fileName}`}
+                                                                    >
+                                                                        <Paperclip className="w-2.5 h-2.5 shrink-0" />
+                                                                        <span className="max-w-[120px] truncate">{fileName}</span>
+                                                                    </a>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     )}
-                                                    <span className="text-xs text-stone-600">
-                                                        {s.info || '—'}
-                                                    </span>
                                                 </td>
                                                 <td className="px-5 py-4">
                                                     <div className="flex flex-col gap-1">

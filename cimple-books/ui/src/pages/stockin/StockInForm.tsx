@@ -16,6 +16,7 @@ import { BASE_PATH } from '../../lib/base';
 import { useModal } from '../../lib/shared/modal/modal';
 import StockInItemPicker, { type SelectedStockInLine } from './components/StockInItemPicker';
 import ContactPicker from '../../components/ContactPicker';
+import { SpaceAttachmentPicker } from '../../components/SpaceAttachmentPicker';
 
 interface FormLine {
     product_id: number;
@@ -43,6 +44,7 @@ const StockInForm = () => {
     const [vendorAltName, setVendorAltName] = useState('');
     const [referenceId, setReferenceId] = useState('');
     const [info, setInfo] = useState('');
+    const [attachments, setAttachments] = useState('');
     const [stockinDate, setStockinDate] = useState(() => {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -92,6 +94,7 @@ const StockInForm = () => {
                     setVendorAltName(s.vendor_alt_name || s.vendor_name || '');
                     setReferenceId(s.reference_id || '');
                     setInfo(s.info || '');
+                    setAttachments(s.attachments || '');
                     if (s.stockin_date) {
                         try {
                             const d = new Date(s.stockin_date);
@@ -213,6 +216,7 @@ const StockInForm = () => {
             vendor_name: vendorAltName.trim(),
             reference_id: referenceId.trim(),
             info: info.trim(),
+            attachments: attachments.trim(),
             stockin_date: new Date(stockinDate).toISOString(),
             amount: totalAmountCents,
             lines: lines.map(l => ({
@@ -428,6 +432,17 @@ const StockInForm = () => {
                                 rows={3}
                                 className="w-full px-3.5 py-2.5 bg-stone-50 border border-[#E1E3DB] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2E6E52] focus:bg-white text-stone-900 disabled:opacity-60 disabled:cursor-not-allowed"
                                 placeholder="Additional details about delivery condition, courier, tracking number, etc."
+                            />
+                        </div>
+
+                        <div className="mt-5 pt-5 border-t border-[#E1E3DB]">
+                            <SpaceAttachmentPicker
+                                value={attachments}
+                                onChange={setAttachments}
+                                folderPath="cimple-books/stockin"
+                                disabled={isLocked}
+                                label="Supporting Documents (Bills, Invoices, Receipts)"
+                                description="Upload supplier bills, invoice scans, receipts, or browse Potatoverse Space files"
                             />
                         </div>
                     </div>

@@ -2296,7 +2296,7 @@ local function post_stockin_transaction(stockin, lines, payment_account_id, user
         txn_type       = "stockin",
         reference_id   = tostring(stockin.id),
         reference_type = "stockin",
-        attachments    = "",
+        attachments    = stockin.attachments or "",
         created_by     = userId,
         updated_by     = userId,
         txn_date       = to_sqlite_datetime(stockin.stockin_date),
@@ -2525,6 +2525,7 @@ function create_stockin(ctx)
         reference_id      = data.reference_id or "",
         vendor_contact_id = vendor_cid,
         vendor_alt_name   = vendor_alt,
+        attachments       = data.attachments or "",
         stockin_date      = to_sqlite_datetime(data.stockin_date),
         created_by        = userId,
         updated_by        = userId
@@ -2623,6 +2624,7 @@ function update_stockin(ctx, stockin_id)
     if data.stockin_status ~= nil then update_data.stockin_status = data.stockin_status end
     if data.payment_status ~= nil then update_data.payment_status = data.payment_status end
     if data.reference_id   ~= nil then update_data.reference_id   = data.reference_id end
+    if data.attachments    ~= nil then update_data.attachments    = data.attachments end
     if data.stockin_date   ~= nil then update_data.stockin_date   = to_sqlite_datetime(data.stockin_date) end
 
     -- Resolve vendor
@@ -5384,8 +5386,18 @@ end
 --- @field param fun(key: string): string
 --- @field type fun(): string -- "http"
 
+local _schema_migrated = false
+local function ensure_schema_migrations()
+    if _schema_migrated then return end
+    _schema_migrated = true
+    pcall(function()
+        potato.db.run_ddl("ALTER TABLE ProductStockIn ADD COLUMN attachments TEXT NOT NULL DEFAULT '';")
+    end)
+end
+
 --- @param ctx HttpContext
 function on_http(ctx)
+    ensure_schema_migrations()
     local req    = ctx.request()
     local path   = ctx.param("subpath")
     local method = ctx.param("method")

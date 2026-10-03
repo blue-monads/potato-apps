@@ -85,6 +85,52 @@ export function isImageFile(nameOrMime?: string): boolean {
 }
 
 /**
+ * Checks if a filename or path corresponds to a PDF
+ */
+export function isPdfFile(nameOrPath?: string): boolean {
+    if (!nameOrPath) return false;
+    const lower = nameOrPath.toLowerCase();
+    return lower.endsWith('.pdf') || lower.includes('/pdf');
+}
+
+/**
+ * Extracts a readable file name from a path or URL
+ */
+export function getFileName(fileIdOrUrl?: string): string {
+    if (!fileIdOrUrl) return 'Attachment';
+    const clean = fileIdOrUrl.split('?')[0];
+    const parts = clean.split('/');
+    return parts[parts.length - 1] || 'Attachment';
+}
+
+/**
+ * Parses an attachments string (comma-separated or JSON array) into an array of file URLs or paths
+ */
+export function parseAttachments(attachmentsStr?: string): string[] {
+    if (!attachmentsStr) return [];
+    const trimmed = attachmentsStr.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+            const arr = JSON.parse(trimmed);
+            if (Array.isArray(arr)) {
+                return arr.map((s) => String(s).trim()).filter(Boolean);
+            }
+        } catch {
+            // fallback to comma separated
+        }
+    }
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Serializes an array of attachments into a comma-separated string
+ */
+export function serializeAttachments(attachments: string[]): string {
+    return attachments.map((s) => s.trim()).filter(Boolean).join(',');
+}
+
+/**
  * Checks whether the libspace.js file picker modal is available in current window
  */
 export function hasSpaceFilePicker(): boolean {

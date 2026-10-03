@@ -146,6 +146,7 @@ create table ProductStockIn(
     reference_id TEXT NOT NULL DEFAULT '',
     vendor_contact_id INTEGER,
     vendor_alt_name TEXT NOT NULL DEFAULT '',
+    attachments TEXT NOT NULL DEFAULT '',
     stockin_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by INTEGER NOT NULL,
     updated_by INTEGER NOT NULL,

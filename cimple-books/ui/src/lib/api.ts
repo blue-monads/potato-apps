@@ -748,6 +748,7 @@ export interface ProductStockIn {
     vendor_id?: number;
     vendor_name?: string;
     reference_id?: string;
+    attachments?: string;
     stockin_date?: string;
     payment_account_id?: number;
     created_by: number;
