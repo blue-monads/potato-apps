@@ -27,19 +27,12 @@ import {
   Search,
   HelpCircle,
   Sparkles,
-  FileText,
-  StickyNote,
-  Image as ImageIcon,
-  Link2,
-  Quote,
-  CheckSquare,
   X,
   Database,
   CloudCheck,
-  FolderOpen,
   Upload,
 } from 'lucide-react';
-import { openSpaceFilePicker, uploadSpaceFile, isImageFile } from '../lib/spaceFile';
+import { uploadSpaceFile, isImageFile } from '../lib/spaceFile';
 import type { SpaceFile } from '../lib/spaceFile';
 
 const LOCAL_STORAGE_KEY = 'cimple-inficanvas-state';
@@ -66,7 +59,6 @@ export const Home: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'offline'>('saved');
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Dragging card or Panning canvas
   const isDraggingCardRef = useRef<{
@@ -597,88 +589,6 @@ export const Home: React.FC = () => {
   );
 
   // -------------------------------------------------------------
-  // Auto-Layout Algorithm (Hierarchical Mindmap)
-  // -------------------------------------------------------------
-  const handleAutoLayout = useCallback(() => {
-    if (cards.length === 0) return;
-
-    // Build adjacency list
-    const incomingCount: Record<number, number> = {};
-    const adj: Record<number, number[]> = {};
-
-    cards.forEach((c) => {
-      incomingCount[c.id] = 0;
-      adj[c.id] = [];
-    });
-
-    links.forEach((l) => {
-      if (adj[l.source_card_id]) {
-        adj[l.source_card_id].push(l.linked_card_id);
-      }
-      incomingCount[l.linked_card_id] = (incomingCount[l.linked_card_id] || 0) + 1;
-    });
-
-    // Root nodes: 0 incoming, or card with ID 1
-    const roots = cards.filter((c) => incomingCount[c.id] === 0);
-    const primaryRoots = roots.length > 0 ? roots : [cards[0]];
-
-    const visited = new Set<number>();
-    const newPositions: Record<number, { x: number; y: number }> = {};
-
-    let rootY = 150;
-    primaryRoots.forEach((root) => {
-      let currentLevelY = rootY;
-
-      const placeTree = (nodeId: number, level: number) => {
-        if (visited.has(nodeId)) return;
-        visited.add(nodeId);
-
-        const card = cards.find((c) => c.id === nodeId);
-        if (!card) return;
-
-        newPositions[nodeId] = {
-          x: 200 + level * 380,
-          y: currentLevelY,
-        };
-
-        const children = adj[nodeId] || [];
-        children.forEach((childId) => {
-          placeTree(childId, level + 1);
-        });
-
-        currentLevelY += card.size_y + 50;
-      };
-
-      placeTree(root.id, 0);
-      rootY = currentLevelY + 100;
-    });
-
-    // Any remaining disconnected nodes
-    cards.forEach((c) => {
-      if (!visited.has(c.id)) {
-        newPositions[c.id] = {
-          x: 200,
-          y: rootY,
-        };
-        rootY += c.size_y + 50;
-      }
-    });
-
-    const updatedCards = cards.map((c) => {
-      const pos = newPositions[c.id];
-      return pos ? { ...c, position_x: pos.x, position_y: pos.y } : c;
-    });
-
-    setCards(updatedCards);
-    persistChanges(updatedCards, links);
-
-    // Sync positions
-    updatedCards.forEach((c) => {
-      cardsApi.update(c.id, { position_x: c.position_x, position_y: c.position_y }).catch(() => {});
-    });
-  }, [cards, links, persistChanges]);
-
-  // -------------------------------------------------------------
   // Canvas Zoom & Pan Controls
   // -------------------------------------------------------------
   const handleZoom = useCallback(
@@ -1069,15 +979,6 @@ export const Home: React.FC = () => {
 
           <div className="h-5 w-px bg-slate-200 mx-1" />
 
-          {/* Auto-Layout */}
-          <button
-            onClick={handleAutoLayout}
-            title="Auto-arrange mindmap nodes"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Auto-Layout
-          </button>
 
           {/* Fit View */}
           <button
@@ -1336,80 +1237,7 @@ export const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* ============================================================ */}
-        {/* FLOATING QUICK ADD DOCK */}
-        {/* ============================================================ */}
-        <div className="absolute left-1/2 bottom-5 -translate-x-1/2 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-xl p-1.5 flex items-center gap-1 z-20">
-          <button
-            onClick={() => handleAddCard('text')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-          >
-            <FileText className="w-3.5 h-3.5 text-blue-500" />
-            Note
-          </button>
-          <button
-            onClick={() => handleAddCard('note')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-          >
-            <StickyNote className="w-3.5 h-3.5 text-amber-500" />
-            Sticky
-          </button>
-          <button
-            onClick={() => handleAddCard('image')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-          >
-            <ImageIcon className="w-3.5 h-3.5 text-purple-500" />
-            Image
-          </button>
-          <button
-            onClick={() => {
-              const opened = openSpaceFilePicker((file) => handleAddSpaceImage(file));
-              if (!opened) {
-                fileInputRef.current?.click();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-indigo-50 text-xs font-semibold text-indigo-700 transition-colors"
-            title="Pick or upload file from Potatoverse (libspace.js)"
-          >
-            <FolderOpen className="w-3.5 h-3.5 text-indigo-600" />
-            Space File
-          </button>
-          <button
-            onClick={() => handleAddCard('link')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-          >
-            <Link2 className="w-3.5 h-3.5 text-emerald-500" />
-            Link
-          </button>
-          <button
-            onClick={() => handleAddCard('quote')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-          >
-            <Quote className="w-3.5 h-3.5 text-amber-600" />
-            Quote
-          </button>
-          <button
-            onClick={() => handleAddCard('list')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-          >
-            <CheckSquare className="w-3.5 h-3.5 text-rose-500" />
-            Checklist
-          </button>
 
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/*"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              const uploaded = await uploadSpaceFile(file, 'cimple-inficanvas/images');
-              await handleAddSpaceImage(uploaded);
-              e.target.value = '';
-            }}
-          />
-        </div>
 
         {/* ============================================================ */}
         {/* BOTTOM RIGHT: MINIMAP & ZOOM CONTROLS */}
