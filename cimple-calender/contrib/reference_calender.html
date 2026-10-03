@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Calendar — Single File</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#fff;--line:#e5e7eb;--text:#20242b;--muted:#7a818c;
+  --accent:#4f6ef7;--accent-soft:#eef2ff;--danger:#e05252;--shadow:0 8px 30px rgba(30,35,50,.08);
+}
+*{box-sizing:border-box} html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);background:var(--bg)}
+button,input,textarea,select{font:inherit} button{cursor:pointer}
+.app{height:100%;display:flex;flex-direction:column}
+.topbar{height:64px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 22px;gap:16px;flex:none}
+.logo{font-weight:800;letter-spacing:-.5px;font-size:19px;display:flex;align-items:center;gap:9px}.logo-dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.navbtn,.iconbtn,.today{border:1px solid var(--line);background:#fff;border-radius:8px;height:36px;padding:0 11px;color:#4e5560}
+.iconbtn{width:36px;padding:0;font-size:18px}.navbtn:hover,.iconbtn:hover,.today:hover{background:#f8f9fb}
+.navcluster{display:flex;gap:6px;align-items:center}.monthtitle{font-size:20px;font-weight:750;letter-spacing:-.4px;min-width:190px}
+.spacer{flex:1}.views{display:flex;background:#f1f2f5;border-radius:9px;padding:3px;gap:2px}.viewbtn{border:0;background:transparent;border-radius:7px;padding:7px 12px;color:#737984;font-weight:650}.viewbtn.active{background:#fff;color:#20242b;box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.main{display:flex;min-height:0;flex:1}
+.sidebar{width:235px;background:#fff;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:22px;flex:none;overflow:auto}
+.side-title{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9aa0aa;font-weight:750;margin:0 7px 8px}
+.mini{font-size:12px}.mini-head{display:flex;justify-content:space-between;color:#747b85;font-weight:650;margin-bottom:8px;padding:0 4px}.mini-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}.mini-grid span{height:26px;display:grid;place-items:center;border-radius:5px;color:#6d737d}.mini-grid .dow{font-size:9px;color:#a1a6ae;font-weight:700}.mini-grid .selected{background:var(--accent);color:white}.mini-grid .today-dot{font-weight:800;color:var(--accent)}
+.tagrow{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px}.tagrow:hover{background:#f5f6f8}.tagdot{width:9px;height:9px;border-radius:3px}.tagcount{margin-left:auto;color:#9da2ab;font-size:11px}.addtag{border:0;background:none;color:var(--accent);font-weight:650;padding:6px 7px}
+.content{min-width:0;flex:1;display:flex;flex-direction:column;overflow:hidden}
+.calendar{flex:1;min-height:0;overflow:auto;background:#fff}
+.monthgrid{min-width:820px;height:100%;display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));grid-template-rows:32px repeat(6,minmax(105px,1fr))}
+.weekhead{position:sticky;top:0;z-index:4;background:#fafbfc;border-bottom:1px solid var(--line);padding:9px 10px;font-size:11px;color:#858b95;font-weight:750}
+.day{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px;overflow:hidden;min-height:0}.day:nth-child(7n){border-right:0}.day.out{background:#fafafa;color:#b4b8bf}.daynum{font-size:12px;font-weight:700;color:#6c727c;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;margin-bottom:4px}.day.current .daynum{background:var(--accent);color:white}
+.event{border:0;width:100%;text-align:left;padding:4px 6px;margin:2px 0;border-radius:5px;background:#edf1ff;color:#4257b8;font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.event:hover{filter:brightness(.97)}.event .time{opacity:.7;margin-right:4px}
+.event.work{background:#eaf7ee;color:#307647}.event.personal{background:#fff0e7;color:#ad602d}.event.focus{background:#f4ecff;color:#754bb0}.event.other{background:#edf0f3;color:#59616b}
+.more{font-size:10px;color:#8b919a;padding:3px 5px}
+.weekview,.dayview{min-width:820px;height:100%;display:grid;grid-template-columns:58px 1fr;grid-template-rows:40px 1fr}
+.weektop{grid-column:2;display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:3}.weektop>div{padding:10px;text-align:center;font-size:11px;color:#747b85;border-left:1px solid var(--line)}.weektop .wdnum{display:block;font-size:15px;color:#343941;margin-top:2px}.weektop .todaynum{color:var(--accent);font-weight:800}
+.times{overflow:hidden;border-right:1px solid var(--line)}.time{height:60px;font-size:10px;color:#9ca1aa;text-align:right;padding:5px 8px 0}.slots{position:relative;overflow:auto;background:repeating-linear-gradient(to bottom,#fff 0,#fff 59px,#eceef1 60px);}.weekcols{height:1440px;display:grid;grid-template-columns:repeat(7,1fr)}.col{position:relative;border-left:1px solid var(--line)}.dayevent{position:absolute;left:4px;right:4px;border-radius:6px;padding:5px 6px;font-size:11px;overflow:hidden;background:#edf1ff;color:#4257b8;border-left:3px solid var(--accent)}.dayevent.work{background:#eaf7ee;color:#307647;border-left-color:#46a86a}.dayevent.personal{background:#fff0e7;color:#ad602d;border-left-color:#df8b4c}.dayevent.focus{background:#f4ecff;color:#754bb0;border-left-color:#9b6ad0}
+.dayview .weektop{grid-template-columns:1fr}.dayview .weektop>div{border-left:0}.dayview .weekcols{grid-template-columns:1fr}
+.yearview{padding:20px;display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:18px;min-width:900px;align-content:start}.yearmonth{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}.ymtitle{font-weight:750;font-size:13px;margin-bottom:9px}.ymgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}.ymgrid div{height:22px;display:grid;place-items:center;font-size:9px;color:#7d838d;border-radius:4px}.ymgrid .head{color:#adb1b8;font-weight:700}.ymgrid .has{background:#eef2ff;color:#4d63cf;font-weight:700}.ymgrid .today{background:var(--accent);color:white;font-weight:800}
+.overlay{position:fixed;inset:0;background:rgba(20,25,35,.25);display:none;align-items:center;justify-content:center;z-index:20}.overlay.show{display:flex}.modal{width:430px;background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:20px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal h2{margin:0;font-size:18px}.close{border:0;background:#f2f3f5;border-radius:7px;width:30px;height:30px}.field{margin:12px 0}.field label{display:block;font-size:11px;color:#747a84;font-weight:700;margin-bottom:5px}.field input,.field textarea,.field select{width:100%;border:1px solid #dfe2e7;border-radius:7px;padding:9px 10px;outline:none;background:#fff}.field textarea{height:75px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;justify-content:space-between;margin-top:18px}.save{border:0;background:var(--accent);color:#fff;border-radius:8px;padding:9px 15px;font-weight:700}.delete{border:0;background:#fff0f0;color:var(--danger);border-radius:8px;padding:9px 12px;font-weight:650}
+@media(max-width:900px){.sidebar{display:none}.yearview{grid-template-columns:repeat(3,minmax(210px,1fr))}}
+@media(max-width:650px){.topbar{padding:0 10px}.monthtitle{min-width:auto;font-size:16px}.views .viewbtn{padding:7px 8px}.today{display:none}.yearview{grid-template-columns:repeat(2,minmax(210px,1fr));padding:12px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="logo"><span class="logo-dot"></span>Calendar</div>
+  <div class="navcluster">
+    <button class="today" id="todayBtn">Today</button>
+    <button class="iconbtn" id="prev">‹</button><button class="iconbtn" id="next">›</button>
+  </div>
+  <div class="monthtitle" id="title"></div>
+  <div class="spacer"></div>
+  <div class="views">
+    <button class="viewbtn active" data-view="month">Month</button>
+    <button class="viewbtn" data-view="week">Week</button>
+    <button class="viewbtn" data-view="day">Day</button>
+    <button class="viewbtn" data-view="year">Year</button>
+  </div>
+  <button class="save" id="newBtn">＋ New</button>
+</header>
+<div class="main">
+<aside class="sidebar">
+  <div>
+    <div class="side-title">Mini calendar</div>
+    <div class="mini" id="mini"></div>
+  </div>
+  <div>
+    <div class="side-title">Tags</div>
+    <div id="tags"></div>
+    <button class="addtag" id="addTag">＋ Add tag</button>
+  </div>
+</aside>
+<main class="content"><div class="calendar" id="calendar"></div></main>
+</div>
+</div>
+
+<div class="overlay" id="overlay">
+<div class="modal">
+  <div class="modalhead"><h2 id="modalTitle">New event</h2><button class="close" id="close">×</button></div>
+  <div class="field"><label>Title</label><input id="fTitle" placeholder="What is happening?"></div>
+  <div class="row">
+    <div class="field"><label>Date</label><input id="fDate" type="date"></div>
+    <div class="field"><label>Time</label><input id="fTime" type="time"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>Tag</label><select id="fTag"></select></div>
+    <div class="field"><label>Color / type</label><select id="fType"><option value="default">Default</option><option value="work">Work</option><option value="personal">Personal</option><option value="focus">Focus</option><option value="other">Other</option></select></div>
+  </div>
+  <div class="field"><label>Notes</label><textarea id="fNotes" placeholder="Optional notes..."></textarea></div>
+  <div class="actions"><button class="delete" id="deleteBtn">Delete</button><button class="save" id="saveBtn">Save event</button></div>
+</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const startOfWeek=d=>{let x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-x.getDay());return x};
+let cursor=new Date(); cursor.setHours(0,0,0,0);
+let view='month', editing=null;
+
+const defaultTags=[
+ {id:'work',name:'Work',color:'#46a86a'},{id:'personal',name:'Personal',color:'#df8b4c'},
+ {id:'focus',name:'Focus',color:'#9b6ad0'},{id:'other',name:'Other',color:'#7c8795'}
+];
+let tags=JSON.parse(localStorage.getItem('cal-tags')||'null')||defaultTags;
+let events=JSON.parse(localStorage.getItem('cal-events')||'null')||[
+ {id:1,title:'Team standup',date:iso(cursor),time:'10:00',tag:'work',type:'work',notes:''},
+ {id:2,title:'Deep work',date:iso(cursor),time:'13:30',tag:'focus',type:'focus',notes:''},
+ {id:3,title:'Dinner',date:iso(new Date(cursor.getFullYear(),cursor.getMonth(),cursor.getDate()+2)),time:'19:00',tag:'personal',type:'personal',notes:''}
+];
+function save(){localStorage.setItem('cal-events',JSON.stringify(events));localStorage.setItem('cal-tags',JSON.stringify(tags))}
+function monthName(d,full=true){return d.toLocaleString(undefined,{month:full?'long':'short'})}
+function render(){
+ $('.title') // noop
+ $('#title').textContent=view==='year'?cursor.getFullYear():view==='day'?cursor.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}):view==='week'?`Week of ${cursor.toLocaleDateString(undefined,{month:'short',day:'numeric'})}`:`${monthName(cursor)} ${cursor.getFullYear()}`;
+ document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+ renderMini();renderTags();
+ $('#calendar').innerHTML=view==='month'?monthView():view==='year'?yearView():timeView(view);
+ bindEvents();
+}
+function renderMini(){
+ let y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),last=new Date(y,m+1,0);
+ let s=`<div class="mini-head"><span>${monthName(cursor)} ${y}</span><span>${last.getDate()} days</span></div><div class="mini-grid">`;
+ ['S','M','T','W','T','F','S'].forEach(x=>s+=`<span class="dow">${x}</span>`);
+ for(let i=0;i<first.getDay();i++)s+='<span></span>';
+ for(let d=1;d<=last.getDate();d++){let dt=new Date(y,m,d),cl=iso(dt)===iso(new Date())?'today-dot ':'';cl+=iso(dt)===iso(cursor)?'selected':'';s+=`<span class="${cl}" data-mini="${iso(dt)}">${d}</span>`}
+ s+='</div>';$('#mini').innerHTML=s;
+ document.querySelectorAll('[data-mini]').forEach(x=>x.onclick=()=>{cursor=new Date(x.dataset.mini+'T00:00');if(view==='year'){} render()});
+}
+function renderTags(){
+ $('#tags').innerHTML=tags.map(t=>`<div class="tagrow"><i class="tagdot" style="background:${t.color}"></i><span>${esc(t.name)}</span><span class="tagcount">${events.filter(e=>e.tag===t.id).length}</span></div>`).join('');
+}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function eventsFor(date){return events.filter(e=>e.date===iso(date)).sort((a,b)=>(a.time||'').localeCompare(b.time||''))}
+function eventHTML(e){return `<button class="event ${e.type||''}" data-id="${e.id}">${e.time?`<span class="time">${e.time}</span>`:''}${esc(e.title)}</button>`}
+function monthView(){
+ let y=cursor.getFullYear(),m=cursor.getMonth(),first=new Date(y,m,1),start=new Date(first);start.setDate(1-first.getDay());
+ let s='<div class="monthgrid">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<div class="weekhead">${x}</div>`).join('');
+ for(let i=0;i<42;i++){let d=new Date(start);d.setDate(start.getDate()+i),out=d.getMonth()!==m,ev=eventsFor(d);s+=`<div class="day ${out?'out':''} ${iso(d)===iso(new Date())?'current':''}" data-date="${iso(d)}"><div class="daynum">${d.getDate()}</div>${ev.slice(0,4).map(eventHTML).join('')}${ev.length>4?`<div class="more">+${ev.length-4} more</div>`:''}</div>`}
+ return s+'</div>';
+}
+function yearView(){
+ let y=cursor.getFullYear(),s='<div class="yearview">';
+ for(let m=0;m<12;m++){let first=new Date(y,m,1),last=new Date(y,m+1,0),html=`<div class="yearmonth"><div class="ymtitle">${monthName(first)}</div><div class="ymgrid">`;
+ ['S','M','T','W','T','F','S'].forEach(x=>html+=`<div class="head">${x}</div>`);
+ for(let i=0;i<first.getDay();i++)html+='<div></div>';
+ for(let d=1;d<=last.getDate();d++){let dt=new Date(y,m,d),has=eventsFor(dt).length,cl=iso(dt)===iso(new Date())?'today ':'';html+=`<div class="${cl}${has?'has':''}" title="${has} event(s)">${d}</div>`}
+ s+=html+'</div></div>'}
+ return s+'</div>';
+}
+function timeView(kind){
+ let base=kind==='week'?startOfWeek(cursor):new Date(cursor), days=kind==='week'?7:1;
+ let names='',cols='';
+ for(let i=0;i<days;i++){let d=new Date(base);d.setDate(base.getDate()+i);names+=`<div><span>${d.toLocaleDateString(undefined,{weekday:'short'}).toUpperCase()}</span><span class="wdnum ${iso(d)===iso(new Date())?'todaynum':''}">${d.getDate()}</span></div>`;cols+=`<div class="col">${eventsFor(d).map(e=>{let [h,mi]=(e.time||'09:00').split(':').map(Number);let top=(h*60+mi),height=45;return `<button class="dayevent ${e.type||''}" data-id="${e.id}" style="top:${top}px;height:${height}px">${e.time||''} ${esc(e.title)}</button>`}).join('')}</div>`}
+ let times='';for(let h=0;h<24;h++)times+=`<div class="time">${pad(h)}:00</div>`;
+ return `<div class="${kind}view"><div></div><div class="weektop">${names}</div><div class="times">${times}</div><div class="slots"><div class="weekcols">${cols}</div></div></div>`;
+}
+function bindEvents(){
+ document.querySelectorAll('.event,.dayevent').forEach(b=>b.onclick=e=>{e.stopPropagation();openEvent(events.find(x=>String(x.id)===b.dataset.id))});
+ document.querySelectorAll('.day').forEach(d=>d.onclick=()=>openEvent(null,d.dataset.date));
+}
+function openEvent(e=null,date=null){
+ editing=e?e.id:null;$('#modalTitle').textContent=e?'Edit event':'New event';$('#fTitle').value=e?.title||'';$('#fDate').value=e?.date||date||iso(cursor);$('#fTime').value=e?.time||'09:00';$('#fNotes').value=e?.notes||'';$('#fType').value=e?.type||'default';
+ $('#fTag').innerHTML=tags.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');$('#fTag').value=e?.tag||tags[0]?.id||'other';$('#deleteBtn').style.display=e?'block':'none';$('#overlay').classList.add('show');setTimeout(()=>$('#fTitle').focus(),30)
+}
+function close(){ $('#overlay').classList.remove('show') }
+$('#close').onclick=close;$('#overlay').onclick=e=>{if(e.target.id==='overlay')close()};
+$('#saveBtn').onclick=()=>{let title=$('#fTitle').value.trim();if(!title)return;let obj={id:editing||Date.now(),title,date:$('#fDate').value,time:$('#fTime').value,tag:$('#fTag').value,type:$('#fType').value,notes:$('#fNotes').value};if(editing)events=events.map(e=>e.id===editing?obj:e);else events.push(obj);save();close();render()};
+$('#deleteBtn').onclick=()=>{if(editing){events=events.filter(e=>e.id!==editing);save();close();render()}};
+$('#newBtn').onclick=()=>openEvent();
+$('#todayBtn').onclick=()=>{cursor=new Date();cursor.setHours(0,0,0,0);render()};
+$('#prev').onclick=()=>move(-1);$('#next').onclick=()=>move(1);
+function move(n){if(view==='month')cursor.setMonth(cursor.getMonth()+n);else if(view==='year')cursor.setFullYear(cursor.getFullYear()+n);else if(view==='week')cursor.setDate(cursor.getDate()+7*n);else cursor.setDate(cursor.getDate()+n);render()}
+document.querySelectorAll('.viewbtn').forEach(b=>b.onclick=()=>{view=b.dataset.view;render()});
+$('#addTag').onclick=()=>{let name=prompt('Tag name');if(!name?.trim())return;let id='tag-'+Date.now();let color=['#4f6ef7','#e56b6f','#e4a72c','#42a477','#8b65c8'][tags.length%5];tags.push({id,name:name.trim(),color});save();render()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')close();if(e.key.toLowerCase()==='n'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))openEvent()});
+render();
+</script>
+</body>
+</html>
