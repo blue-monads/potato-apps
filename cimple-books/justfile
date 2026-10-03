@@ -6,3 +6,11 @@ build_app:
 deploy_app:
 	potatoverse package build
 	potatoverse package push
+
+# Run API tests against an already-running dev server
+test:
+	potatoverse dev tests server/tests/api_test.lua
+
+# Start dev server, push package, run tests, and exit
+run_and_test:
+	potatoverse dev run-and-tests server/tests/api_test.lua --port=0 --delay=1s

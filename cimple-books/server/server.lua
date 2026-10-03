@@ -98,6 +98,11 @@ local function require_param(req, name, value)
     return true
 end
 
+-- Helper to check if is_deleted flag is set (handles both boolean true and integer 1)
+local function is_deleted_val(v)
+    return v == true or v == 1 or v == "1"
+end
+
 -- Resolve and validate an account ID against allowed types.
 -- Returns (resolved_id, nil) on success, or (nil, err_msg) on failure.
 -- Passing an empty / zero / false value clears the field (returns nil, nil).
@@ -113,7 +118,7 @@ local function validate_account_id(raw_id, allowed_types)
     end
 
     local acc, _ = potato.db.find_by_id("Accounts", id)
-    if not acc or acc.is_deleted == 1 then
+    if not acc or is_deleted_val(acc.is_deleted) then
         return nil, "Account not found or deleted"
     end
 
@@ -132,10 +137,11 @@ end
 
 -- Soft-delete a record by setting is_deleted = 1.
 local function soft_delete(table_name, id, userId)
-    return potato.db.update_by_id(table_name, id, {
-        is_deleted = 1,
-        updated_by = userId
-    })
+    local data = { is_deleted = 1 }
+    if table_name ~= "Accounts" and userId ~= nil then
+        data.updated_by = userId
+    end
+    return potato.db.update_by_id(table_name, id, data)
 end
 
 -- Fetch an entity and attach its child lines into entity.lines.
@@ -901,7 +907,7 @@ function transaction_update(ctx, txn_id)
         req.json(404, { error = "Transaction not found" })
         return
     end
-    if txn.is_deleted == 1 then
+    if is_deleted_val(txn.is_deleted) then
         req.json(400, { error = "Cannot update deleted transaction" })
         return
     end
@@ -972,7 +978,7 @@ function transaction_delete(ctx, txn_id)
         req.json(404, { error = "Transaction not found" })
         return
     end
-    if txn.is_deleted == 1 then
+    if is_deleted_val(txn.is_deleted) then
         req.json(400, { error = "Transaction already deleted" })
         return
     end
@@ -1258,7 +1264,7 @@ function get_contact(ctx, contact_id)
     if not require_param(req, "contact_id", contact_id) then return end
 
     local contact, err = potato.db.find_by_id("Contacts", contact_id)
-    if err ~= nil or contact == nil or contact.is_deleted == 1 then
+    if err ~= nil or contact == nil or is_deleted_val(contact.is_deleted) then
         req.json(404, { error = "Contact not found" })
         return
     end
@@ -1315,7 +1321,7 @@ function update_contact(ctx, contact_id)
     if not require_param(req, "contact_id", contact_id) then return end
 
     local existing, err = potato.db.find_by_id("Contacts", contact_id)
-    if err ~= nil or existing == nil or existing.is_deleted == 1 then
+    if err ~= nil or existing == nil or is_deleted_val(existing.is_deleted) then
         req.json(404, { error = "Contact not found" })
         return
     end
@@ -1669,7 +1675,7 @@ function get_product(ctx, product_id)
     if not require_param(req, "product_id", product_id) then return end
 
     local product, err = potato.db.find_by_id("Products", product_id)
-    if err ~= nil or product == nil or product.is_deleted == 1 then
+    if err ~= nil or product == nil or is_deleted_val(product.is_deleted) then
         req.json(404, { error = "Product not found" })
         return
     end
@@ -2030,7 +2036,7 @@ function adjust_product_stock_endpoint(ctx, product_id)
     if not require_param(req, "product_id", product_id) then return end
 
     local product, err = potato.db.find_by_id("Products", product_id)
-    if err ~= nil or product == nil or product.is_deleted == 1 then
+    if err ~= nil or product == nil or is_deleted_val(product.is_deleted) then
         req.json(404, { error = "Product not found" })
         return
     end
@@ -2076,7 +2082,7 @@ function adjust_variant_stock_endpoint(ctx, variant_id)
     if not require_param(req, "variant_id", variant_id) then return end
 
     local variant, err = potato.db.find_by_id("ProductVariants", variant_id)
-    if err ~= nil or variant == nil or variant.is_deleted == 1 then
+    if err ~= nil or variant == nil or is_deleted_val(variant.is_deleted) then
         req.json(404, { error = "Variant not found" })
         return
     end
@@ -3978,7 +3984,7 @@ end
 
 local function perform_scrap_product(req, product_id, data, userId)
     local product, err = potato.db.find_by_id("Products", product_id)
-    if err ~= nil or product == nil or product.is_deleted == 1 then
+    if err ~= nil or product == nil or is_deleted_val(product.is_deleted) then
         req.json(404, { error = "Product not found" })
         return
     end
@@ -3994,7 +4000,7 @@ local function perform_scrap_product(req, product_id, data, userId)
     local variant = nil
     if variant_id ~= nil then
         variant, err = potato.db.find_by_id("ProductVariants", variant_id)
-        if err ~= nil or variant == nil or variant.is_deleted == 1 or variant.product_id ~= product_id then
+        if err ~= nil or variant == nil or is_deleted_val(variant.is_deleted) or variant.product_id ~= product_id then
             req.json(404, { error = "Variant not found for this product" })
             return
         end
@@ -4136,7 +4142,7 @@ function scrap_variant_endpoint(ctx, variant_id)
     if not require_param(req, "variant_id", variant_id) then return end
 
     local variant, err = potato.db.find_by_id("ProductVariants", variant_id)
-    if err ~= nil or variant == nil or variant.is_deleted == 1 then
+    if err ~= nil or variant == nil or is_deleted_val(variant.is_deleted) then
         req.json(404, { error = "Variant not found" })
         return
     end
