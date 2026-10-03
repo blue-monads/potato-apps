@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Research Canvas</title>
+<style>
+  :root{
+    --bg:#f7f8fa;
+    --surface:#ffffff;
+    --surface-2:#f2f4f7;
+    --text:#20252b;
+    --muted:#727a84;
+    --border:#dfe3e8;
+    --border-strong:#cbd1d8;
+    --accent:#3f7cff;
+    --accent-soft:#eaf1ff;
+    --danger:#d94b57;
+    --shadow:0 6px 20px rgba(31,35,40,.08), 0 1px 3px rgba(31,35,40,.07);
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    overflow:hidden;
+    font-size:15px;
+  }
+  button,input,textarea,select{font:inherit}
+  button{cursor:pointer}
+  .app{height:100%;display:grid;grid-template-rows:58px 1fr}
+  .topbar{
+    height:58px;background:rgba(255,255,255,.95);backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);display:flex;align-items:center;
+    padding:0 16px;gap:12px;z-index:30;
+  }
+  .brand{display:flex;align-items:center;gap:10px;min-width:220px}
+  .brand-mark{width:30px;height:30px;border:1px solid #d7dce2;border-radius:8px;background:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+  .brand-copy{line-height:1.05}
+  .brand-title{font-weight:700;letter-spacing:-.02em}
+  .brand-sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .toolbar{display:flex;align-items:center;gap:7px;flex:1}
+  .tool-btn{
+    border:1px solid transparent;background:transparent;color:#414850;border-radius:8px;
+    height:34px;padding:0 10px;display:flex;align-items:center;gap:7px;font-weight:600;
+  }
+  .tool-btn:hover{background:#f0f2f5;border-color:#e2e5e9}
+  .tool-btn.primary{background:var(--text);color:white;border-color:var(--text)}
+  .tool-btn.primary:hover{background:#11151a}
+  .tool-btn.active{background:var(--accent-soft);color:#235bc4;border-color:#cfe0ff}
+  .divider{width:1px;height:24px;background:var(--border);margin:0 3px}
+  .status{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#47ae72;box-shadow:0 0 0 3px #e7f6ec}
+
+  .workspace{position:relative;overflow:hidden;background-color:#f8f9fb;
+    background-image:radial-gradient(#dfe3e8 1px,transparent 1px);background-size:24px 24px;
+  }
+  #canvas{position:absolute;inset:0;overflow:hidden;cursor:grab;}
+  #canvas.grabbing{cursor:grabbing}
+  #world{position:absolute;left:0;top:0;transform-origin:0 0;}
+  #connections{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+  #cardsLayer{position:absolute;left:0;top:0}
+
+  .card{position:absolute;width:300px;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow);overflow:visible;user-select:none;
+    transition:box-shadow .12s,border-color .12s;
+  }
+  .card.selected{border-color:#90b4ff;box-shadow:0 0 0 2px rgba(63,124,255,.17),var(--shadow)}
+  .card.connecting{border-color:#6f9fff}
+  .card-head{height:39px;padding:0 10px 0 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #edf0f3;cursor:move}
+  .type-dot{width:10px;height:10px;border-radius:3px;background:#c4cad1;flex:0 0 auto}
+  .type-dot.text{background:#5076c8}.type-dot.image{background:#8b6cc6}.type-dot.link{background:#53a376}.type-dot.quote{background:#c48342}.type-dot.list{background:#d26776}.type-dot.note{background:#71808f}
+  .card-title{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+  .card-menu{border:0;background:transparent;width:28px;height:28px;border-radius:6px;color:#9aa1a8;font-size:17px}
+  .card-menu:hover{background:#f2f4f6;color:#454b52}
+  .card-body{padding:12px;font-size:14px;line-height:1.5;color:#343a40;user-select:text}
+  .card-body[contenteditable="true"]{outline:none;min-height:76px}
+  .card-body[contenteditable="true"]:focus{box-shadow:inset 0 0 0 1px #cfdcff;border-radius:6px}
+  .image-wrap{padding:10px 10px 0}.image-wrap img{display:block;width:100%;height:160px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:#f1f3f5}
+  .image-caption{padding:9px 12px 12px;color:var(--muted);font-size:12px}
+  .link-card .link-domain{font-size:11px;color:#6e7781;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .link-card .link-title{font-size:15px;font-weight:700;margin-bottom:6px}
+  .link-card .link-url{font-size:12px;color:#5477af;word-break:break-all}
+  .quote-body{font-size:18px;line-height:1.45;font-weight:600;letter-spacing:-.01em;position:relative;padding-left:18px}
+  .quote-body:before{content:'“';position:absolute;left:-2px;top:-8px;font-size:34px;color:#c5cad1}
+  .quote-source{margin-top:12px;color:var(--muted);font-size:12px}
+  .list-body{padding:8px 12px 12px}
+  .list-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0}
+  .list-item input{margin-top:4px;accent-color:var(--accent)}
+  .list-item span{flex:1;outline:none}
+
+  .handle{position:absolute;width:12px;height:12px;border:2px solid #fff;background:#7d8894;border-radius:50%;z-index:5;opacity:0;transition:opacity .12s;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+  .card:hover .handle,.card.selected .handle{opacity:1}
+  .handle.r{right:-7px;top:50%;margin-top:-6px}.handle.l{left:-7px;top:50%;margin-top:-6px}
+  .handle.t{top:-7px;left:50%;margin-left:-6px}.handle.b{bottom:-7px;left:50%;margin-left:-6px}
+
+  .empty-state{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#727a84;pointer-events:none}
+  .empty-icon{width:58px;height:58px;margin:0 auto 14px;border:1px dashed #c8ced5;border-radius:15px;display:grid;place-items:center;font-size:25px;background:rgba(255,255,255,.65)}
+  .empty-state strong{color:#373d44;display:block;font-size:15px;margin-bottom:5px}.empty-state span{font-size:13px}
+
+  .right-panel{position:absolute;right:16px;top:16px;width:280px;background:rgba(255,255,255,.97);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);z-index:20;display:none;overflow:hidden}
+  .right-panel.open{display:block}
+  .panel-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}.panel-head strong{font-size:13px}.panel-close{margin-left:auto;width:28px;height:28px;border:0;background:transparent;border-radius:6px;color:#7b838c}.panel-close:hover{background:#f2f4f6}
+  .panel-body{padding:12px;display:flex;flex-direction:column;gap:10px}
+  .field label{display:block;font-size:11px;color:#737b85;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+  .field input,.field textarea,.field select{width:100%;border:1px solid var(--border-strong);background:#fff;border-radius:7px;padding:9px 10px;font-size:13px;outline:none}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:#8eb1ff;box-shadow:0 0 0 3px #edf3ff}
+  .field textarea{resize:vertical;min-height:90px}
+  .panel-actions{display:flex;gap:7px}.panel-actions button{flex:1;height:34px;border-radius:7px;border:1px solid var(--border-strong);background:#fff;font-weight:700}.panel-actions .save{background:var(--text);border-color:var(--text);color:#fff}.panel-actions .danger{color:var(--danger)}
+
+  .bottom-right{position:absolute;right:16px;bottom:16px;display:flex;gap:8px;z-index:15}
+  .zoom-box{display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow);overflow:hidden}
+  .zoom-box button{border:0;background:#fff;width:36px;height:34px;color:#525960;font-size:16px}.zoom-box button:hover{background:#f4f5f6}
+  .zoom-value{min-width:55px;text-align:center;font-size:12px;font-weight:700;color:#666f79}
+  .mini-hint{background:#fff;border:1px solid var(--border);border-radius:9px;padding:7px 10px;box-shadow:var(--shadow);font-size:11px;color:#7a828b}
+
+  .context{position:fixed;display:none;z-index:100;width:185px;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 10px 28px rgba(31,35,40,.15);padding:5px}
+  .context.open{display:block}.context button{width:100%;border:0;background:#fff;padding:8px 9px;border-radius:6px;text-align:left;font-size:12px;color:#3f464d}.context button:hover{background:#f2f4f6}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(24,29,34,.28);backdrop-filter:blur(3px);z-index:80;display:none;align-items:center;justify-content:center}
+  .modal-backdrop.open{display:flex}
+  .modal{width:420px;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 60px rgba(31,35,40,.24);overflow:hidden}
+  .modal-head{padding:15px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center}.modal-head strong{font-size:14px}.modal-body{padding:15px 17px;display:grid;gap:11px}.modal-foot{padding:12px 17px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}.modal-foot button{height:35px;border-radius:8px;padding:0 13px;border:1px solid var(--border-strong);background:#fff;font-weight:700}.modal-foot .primary{background:var(--text);color:#fff;border-color:var(--text)}
+  .type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.type-choice{border:1px solid var(--border);background:#fff;border-radius:8px;padding:10px 8px;text-align:left}.type-choice:hover{border-color:#aeb7c1;background:#fafbfc}.type-choice strong{display:block;font-size:12px}.type-choice span{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+
+  .floating-add{position:absolute;left:50%;bottom:17px;transform:translateX(-50%);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:5px;display:flex;gap:4px;z-index:15}
+  .floating-add button{height:32px;border:0;background:#fff;border-radius:7px;padding:0 10px;font-size:12px;font-weight:700;color:#454c54}.floating-add button:hover{background:#f1f3f5}
+  .selection-box{position:absolute;border:1px dashed #6f9fff;background:rgba(111,159,255,.08);pointer-events:none;display:none;z-index:10}
+
+  @media (max-width:900px){.brand{min-width:140px}.brand-sub{display:none}.tool-label{display:none}.mini-hint{display:none}.right-panel{width:300px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark">RC</div><div class="brand-copy"><div class="brand-title">Research Canvas</div><div class="brand-sub">A place to think in public</div></div></div>
+    <div class="toolbar">
+      <button class="tool-btn primary" id="addBtn">＋ <span class="tool-label">Add card</span></button>
+      <button class="tool-btn" id="connectBtn">↗ <span class="tool-label">Connect</span></button>
+      <div class="divider"></div>
+      <button class="tool-btn" id="fitBtn">⌗ <span class="tool-label">Fit</span></button>
+      <button class="tool-btn" id="resetBtn">↺ <span class="tool-label">Reset view</span></button>
+      <button class="tool-btn" id="helpBtn">?</button>
+      <div class="status"><span class="dot"></span><span id="saveStatus">Saved locally</span></div>
+    </div>
+  </header>
+  <main class="workspace" id="workspace">
+    <div id="canvas">
+      <div id="world">
+        <svg id="connections" width="1" height="1" aria-hidden="true"></svg>
+        <div id="cardsLayer"></div>
+      </div>
+      <div class="empty-state" id="emptyState"><div class="empty-icon">✦</div><strong>Start mapping an idea</strong><span>Add a card, drag it around, then connect thoughts with strings.</span></div>
+      <div class="selection-box" id="selectionBox"></div>
+      <div class="floating-add" id="floatingAdd">
+        <button data-add="text">Text</button><button data-add="image">Image</button><button data-add="link">Link</button><button data-add="quote">Quote</button><button data-add="list">List</button>
+      </div>
+      <div class="bottom-right">
+        <div class="mini-hint">Space + drag to pan · Wheel to zoom · Double-click empty space to add</div>
+        <div class="zoom-box"><button id="zoomOut">−</button><div class="zoom-value" id="zoomValue">100%</div><button id="zoomIn">＋</button></div>
+      </div>
+    </div>
+    <aside class="right-panel" id="panel">
+      <div class="panel-head"><strong>Edit card</strong><button class="panel-close" id="panelClose">×</button></div>
+      <div class="panel-body" id="panelBody"></div>
+    </aside>
+  </main>
+</div>
+
+<div class="context" id="contextMenu"><button data-cmd="edit">Edit card</button><button data-cmd="duplicate">Duplicate</button><button data-cmd="connect">Connect from here</button><button data-cmd="delete">Delete</button></div>
+
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-head"><strong>Add to canvas</strong><button class="panel-close" style="margin-left:auto" id="modalClose">×</button></div>
+    <div class="modal-body">
+      <div class="type-grid">
+        <button class="type-choice" data-type="text"><strong>Text</strong><span>Notes & research</span></button>
+        <button class="type-choice" data-type="image"><strong>Image</strong><span>Visual reference</span></button>
+        <button class="type-choice" data-type="link"><strong>Link</strong><span>Web reference</span></button>
+        <button class="type-choice" data-type="quote"><strong>Quote</strong><span>Highlighted passage</span></button>
+        <button class="type-choice" data-type="list"><strong>List</strong><span>Tasks / findings</span></button>
+        <button class="type-choice" data-type="note"><strong>Sticky</strong><span>Quick thought</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="helpModal"><div class="modal"><div class="modal-head"><strong>Research Canvas</strong><button class="panel-close" style="margin-left:auto" id="helpClose">×</button></div><div class="modal-body" style="font-size:13px;line-height:1.65;color:#555f68"><div><b>Move:</b> drag a card by its header.</div><div><b>Pan:</b> hold Space and drag, or drag empty canvas.</div><div><b>Zoom:</b> mouse wheel / trackpad or the controls at bottom-right.</div><div><b>Connect:</b> click Connect, then click a card's left/right handle.</div><div><b>Edit:</b> right-click a card or double-click its body.</div><div><b>Delete:</b> select a card and press Delete / Backspace.</div><div><b>Persist:</b> everything is stored in this browser's localStorage.</div></div></div></div>
+
+<script>
+(() => {
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+  const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4);
+  const stateKey = 'research-canvas-v1';
+  const workspace = $('#workspace'), canvas = $('#canvas'), world = $('#world'), cardsLayer = $('#cardsLayer'), svg = $('#connections');
+  const panel = $('#panel'), panelBody = $('#panelBody'), context = $('#contextMenu');
+  const addModal = $('#addModal'), helpModal = $('#helpModal'), emptyState = $('#emptyState');
+  const saveStatus = $('#saveStatus'), zoomValue = $('#zoomValue');
+
+  const defaults = {
+    view:{x:80,y:60,scale:1}, cards:[], connections:[]
+  };
+  let state = load();
+  let selected = null;
+  let connectMode = false;
+  let connectFrom = null;
+  let drag = null;
+  let pan = null;
+  let saveTimer = null;
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(stateKey);
+      if(!raw) return structuredClone(defaults);
+      const d = JSON.parse(raw);
+      return {view:{...defaults.view,...(d.view||{})},cards:d.cards||[],connections:d.connections||[]};
+    }catch(e){return structuredClone(defaults)}
+  }
+  function save(){
+    clearTimeout(saveTimer);
+    saveStatus.textContent = 'Saving…';
+    saveTimer = setTimeout(() => {
+      localStorage.setItem(stateKey, JSON.stringify(state));
+      saveStatus.textContent = 'Saved locally';
+    }, 200);
+  }
+  function cardTitle(c){return c.title || ({text:'Research note',image:'Image reference',link:'Web reference',quote:'Quote',list:'Checklist',note:'Quick thought'}[c.type]||'Card')}
+  function defaultCard(type, x, y){
+    const base = {id:uid(),type,x,y,title:'',body:'',w:300};
+    if(type==='text') return {...base,title:'Research note',body:'Start typing a note, source excerpt, hypothesis, or argument…'};
+    if(type==='image') return {...base,title:'Image reference',url:'https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=900&q=80',caption:'Replace with an image URL and caption.'};
+    if(type==='link') return {...base,title:'Web reference',url:'https://example.com',domain:'example.com',linkTitle:'A useful source or article'};
+    if(type==='quote') return {...base,title:'Quote',body:'A sentence worth keeping.',source:'Source / author'};
+    if(type==='list') return {...base,title:'Checklist',items:[{text:'Interesting finding',done:false},{text:'Question to investigate',done:false},{text:'Follow-up source',done:false}]};
+    return {...base,title:'Quick thought',body:'A loose thought or sticky note.'};
+  }
+  function addCard(type, point){
+    const p = point || screenToWorld(workspace.clientWidth/2, workspace.clientHeight/2);
+    const c = defaultCard(type,p.x-150,p.y-90);
+    state.cards.push(c); selected = c.id; closeAllMenus(); render(); save(); openEditor(c.id);
+  }
+  function screenToWorld(sx,sy){return {x:(sx-state.view.x)/state.view.scale,y:(sy-state.view.y)/state.view.scale};}
+  function worldToScreen(x,y){return {x:x*state.view.scale+state.view.x,y:y*state.view.scale+state.view.y};}
+
+  function render(){
+    world.style.transform = `translate(${state.view.x}px,${state.view.y}px) scale(${state.view.scale})`;
+    zoomValue.textContent = Math.round(state.view.scale*100)+'%';
+    renderCards(); renderConnections();
+    emptyState.style.display = state.cards.length ? 'none':'block';
+    $$('.card').forEach(el => el.classList.toggle('selected',el.dataset.id===selected));
+  }
+
+  function renderCards(){
+    cardsLayer.innerHTML='';
+    state.cards.forEach(c=>{
+      const el=document.createElement('div'); el.className='card'; el.dataset.id=c.id;
+      el.style.left=c.x+'px';el.style.top=c.y+'px';el.style.width=(c.w||300)+'px';
+      const type = c.type;
+      el.innerHTML = `<div class="card-head"><span class="type-dot ${type}"></span><div class="card-title"></div><button class="card-menu" title="Menu">⋯</button></div>`;
+      $('.card-title',el).textContent=cardTitle(c);
+      const body=document.createElement('div'); body.className='card-body';
+      if(type==='image'){
+        const wrap=document.createElement('div');wrap.className='image-wrap';
+        const img=document.createElement('img');img.src=c.url||'';img.alt='';img.onerror=()=>{img.style.opacity='.35'};wrap.appendChild(img);body.appendChild(wrap);
+        const cap=document.createElement('div');cap.className='image-caption';cap.textContent=c.caption||'';body.appendChild(cap);
+      } else if(type==='link'){
+        body.classList.add('link-card');
+        body.innerHTML=`<div class="link-domain"></div><div class="link-title"></div><div class="link-url"></div>`;
+        $('.link-domain',body).textContent=c.domain||safeDomain(c.url)||'LINK';$('.link-title',body).textContent=c.linkTitle||'Untitled source';$('.link-url',body).textContent=c.url||'';
+      } else if(type==='quote'){
+        body.innerHTML=`<div class="quote-body"></div><div class="quote-source"></div>`;$('.quote-body',body).textContent=c.body||'';$('.quote-source',body).textContent='— '+(c.source||'Source');
+      } else if(type==='list'){
+        body.className='list-body';
+        (c.items||[]).forEach((it,i)=>{const row=document.createElement('div');row.className='list-item';row.innerHTML=`<input type="checkbox" ${it.done?'checked':''}><span contenteditable="true"></span>`;row.querySelector('span').textContent=it.text;row.querySelector('input').addEventListener('change',e=>{it.done=e.target.checked;save()});row.querySelector('span').addEventListener('input',e=>{it.text=e.target.innerText;save()});body.appendChild(row)});
+        const add=document.createElement('button');add.textContent='＋ Add item';add.style.cssText='margin-top:5px;border:0;background:transparent;color:#6b7480;font-size:12px;font-weight:700;padding:4px 0';add.onclick=()=>{c.items.push({text:'New item',done:false});render();save()};body.appendChild(add);
+      } else {
+        body.contentEditable='true'; body.spellcheck=true; body.innerHTML = c.body||'';
+        body.addEventListener('input',()=>{c.body=body.innerHTML;save()});
+      }
+      el.appendChild(body);
+      for(const pos of ['l','r','t','b']){
+        const h=document.createElement('div');h.className=`handle ${pos}`;h.dataset.handle=pos;h.title='Connection point';
+        h.addEventListener('click',e=>{e.stopPropagation();handleConnect(c.id,pos)});el.appendChild(h);
+      }
+      $('.card-head',el).addEventListener('mousedown',e=>startCardDrag(e,c.id));
+      $('.card-menu',el).addEventListener('click',e=>{e.stopPropagation();showContext(e.clientX,e.clientY,c.id)});
+      el.addEventListener('mousedown',e=>{if(e.target.closest('[contenteditable="true"]') || e.target.closest('input')) return; if(e.button===0) selectCard(c.id)});
+      el.addEventListener('dblclick',e=>{if(e.target.closest('.card-head')) return;openEditor(c.id)});
+      cardsLayer.appendChild(el);
+    });
+  }
+  function renderConnections(){
+    if(!state.cards.length){svg.setAttribute('width',1);svg.setAttribute('height',1);svg.innerHTML='';return}
+    svg.setAttribute('width','3000');svg.setAttribute('height','3000');
+    svg.innerHTML='';
+    state.connections.forEach(conn=>{
+      const a=state.cards.find(c=>c.id===conn.from), b=state.cards.find(c=>c.id===conn.to); if(!a||!b)return;
+      const sa=anchor(a,conn.fromSide||'r'), sb=anchor(b,conn.toSide||'l');
+      const d = curve(sa.x,sa.y,sb.x,sb.y,conn.fromSide||'r',conn.toSide||'l');
+      const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke','#a9b1ba');p.setAttribute('stroke-width','2.2');p.setAttribute('stroke-linecap','round');
+      const hit=p.cloneNode();hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width','14');hit.style.pointerEvents='stroke';hit.addEventListener('dblclick',()=>{state.connections=state.connections.filter(x=>x.id!==conn.id);render();save()});
+      svg.appendChild(p);svg.appendChild(hit);
+    });
+    if(connectMode && connectFrom){
+      const a=state.cards.find(c=>c.id===connectFrom.cardId); if(a){const s=anchor(a,connectFrom.side); const end=lastPointerWorld||{x:s.x+80,y:s.y}; const d=curve(s.x,s.y,end.x,end.y,connectFrom.side,'l');const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke','#6d9cff');p.setAttribute('stroke-width','2.2');p.setAttribute('stroke-dasharray','6 7');p.setAttribute('stroke-linecap','round');svg.appendChild(p)}
+    }
+  }
+  function anchor(c,side){
+    const w=c.w||300,h=cardHeight(c);
+    if(side==='r') return {x:c.x+w,y:c.y+h/2}; if(side==='l') return {x:c.x,y:c.y+h/2}; if(side==='t') return {x:c.x+w/2,y:c.y}; return {x:c.x+w/2,y:c.y+h};
+  }
+  function cardHeight(c){return Math.max(90, (document.querySelector(`.card[data-id="${c.id}"]`)?.offsetHeight||130) / Math.max(state.view.scale,.0001))}
+  function curve(x1,y1,x2,y2,s1,s2){
+    const dist=Math.max(50,Math.min(180,Math.hypot(x2-x1,y2-y1)*.45));
+    const vec=(side)=>({r:[dist,0],l:[-dist,0],t:[0,-dist],b:[0,dist]})[side]; const v1=vec(s1),v2=vec(s2);
+    return `M ${x1} ${y1} C ${x1+v1[0]} ${y1+v1[1]}, ${x2+v2[0]} ${y2+v2[1]}, ${x2} ${y2}`;
+  }
+  function safeDomain(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch{return ''}}
+  function selectCard(id){selected=id;render()}
+
+  function startCardDrag(e,id){
+    if(e.button!==0)return; selectCard(id); const c=state.cards.find(x=>x.id===id); const start=screenToWorld(e.clientX,e.clientY); drag={id,dx:start.x-c.x,dy:start.y-c.y};
+    window.addEventListener('mousemove',moveCard); window.addEventListener('mouseup',endCardDrag,{once:true});
+  }
+  function moveCard(e){if(!drag)return; const p=screenToWorld(e.clientX,e.clientY),c=state.cards.find(x=>x.id===drag.id); if(!c)return;c.x=p.x-drag.dx;c.y=p.y-drag.dy;const el=document.querySelector(`.card[data-id="${c.id}"]`); if(el){el.style.left=c.x+'px';el.style.top=c.y+'px'};renderConnections();}
+  function endCardDrag(){drag=null;window.removeEventListener('mousemove',moveCard);save()}
+
+  let lastPointerWorld=null;
+  canvas.addEventListener('pointermove',e=>{lastPointerWorld=screenToWorld(e.clientX,e.clientY); if(connectMode) renderConnections()});
+  canvas.addEventListener('mousedown',e=>{
+    closeAllMenus();
+    if(e.target.closest('.card')||e.target.closest('.floating-add')||e.target.closest('.bottom-right'))return;
+    if(e.button===0){pan={sx:e.clientX,sy:e.clientY,x:state.view.x,y:state.view.y};canvas.classList.add('grabbing');window.addEventListener('mousemove',movePan);window.addEventListener('mouseup',endPan,{once:true})}
+  });
+  function movePan(e){if(!pan)return;state.view.x=pan.x+e.clientX-pan.sx;state.view.y=pan.y+e.clientY-pan.sy;render()}
+  function endPan(){pan=null;canvas.classList.remove('grabbing');save()}
+  canvas.addEventListener('wheel',e=>{e.preventDefault(); zoomAt(e.deltaY<0?1.1:.9,e.clientX,e.clientY)},{passive:false});
+  canvas.addEventListener('dblclick',e=>{if(e.target.closest('.card')||e.target.closest('.floating-add')||e.target.closest('.bottom-right'))return;addCard('text',screenToWorld(e.clientX,e.clientY))});
+
+  function zoomAt(f,sx,sy){const before=screenToWorld(sx,sy); state.view.scale=Math.max(.25,Math.min(2.5,state.view.scale*f));const after=worldToScreen(before.x,before.y);state.view.x += sx-after.x;state.view.y += sy-after.y;render();save()}
+  $('#zoomIn').onclick=()=>zoomAt(1.15,workspace.clientWidth/2,workspace.clientHeight/2);
+  $('#zoomOut').onclick=()=>zoomAt(.87,workspace.clientWidth/2,workspace.clientHeight/2);
+  $('#resetBtn').onclick=()=>{state.view={...defaults.view};render();save()};
+  $('#fitBtn').onclick=fitAll;
+  function fitAll(){
+    if(!state.cards.length){state.view={...defaults.view};render();return}
+    const minX=Math.min(...state.cards.map(c=>c.x)),minY=Math.min(...state.cards.map(c=>c.y));
+    const maxX=Math.max(...state.cards.map(c=>c.x+(c.w||300))),maxY=Math.max(...state.cards.map(c=>c.y+cardHeight(c)));
+    const pad=90, vw=workspace.clientWidth-pad*2,vh=workspace.clientHeight-pad*2;
+    const scale=Math.max(.35,Math.min(1.65,vw/(maxX-minX),vh/(maxY-minY)));
+    state.view.scale=scale;state.view.x=pad+(vw-(maxX-minX)*scale)/2-minX*scale;state.view.y=pad+(vh-(maxY-minY)*scale)/2-minY*scale;render();save();
+  }
+
+  $('#addBtn').onclick=()=>addModal.classList.add('open');
+  $('#modalClose').onclick=()=>addModal.classList.remove('open');
+  $$('.type-choice').forEach(b=>b.addEventListener('click',()=>{addModal.classList.remove('open');addCard(b.dataset.type)}));
+  $$('#floatingAdd button').forEach(b=>b.addEventListener('click',()=>addCard(b.dataset.add)));
+  $('#helpBtn').onclick=()=>helpModal.classList.add('open');$('#helpClose').onclick=()=>helpModal.classList.remove('open');
+  [addModal,helpModal].forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.remove('open')}));
+
+  function handleConnect(id,side){
+    if(!connectMode){connectMode=true;connectFrom={cardId:id,side};$('#connectBtn').classList.add('active');render();return}
+    if(connectFrom && connectFrom.cardId===id && connectFrom.side===side){connectMode=false;connectFrom=null;$('#connectBtn').classList.remove('active');render();return}
+    if(connectFrom){
+      const duplicate=state.connections.some(c=>c.from===connectFrom.cardId&&c.to===id);
+      if(!duplicate) state.connections.push({id:uid(),from:connectFrom.cardId,to:id,fromSide:connectFrom.side,toSide:opposite(side)});
+      connectMode=false;connectFrom=null;$('#connectBtn').classList.remove('active');render();save();
+    }
+  }
+  function opposite(side){return side==='r'?'l':side==='l'?'r':side==='t'?'b':'t'}
+  $('#connectBtn').onclick=()=>{connectMode=!connectMode;connectFrom=null;$('#connectBtn').classList.toggle('active',connectMode);render()};
+
+  function openEditor(id){
+    const c=state.cards.find(x=>x.id===id);if(!c)return;selected=id;
+    const title=c.title || cardTitle(c);
+    panelBody.innerHTML='';
+    panelBody.insertAdjacentHTML('beforeend', `<div class="field"><label>Title</label><input id="editTitle" value=""></div>`);
+    $('#editTitle',panelBody).value=title;
+    if(c.type==='text'||c.type==='note'||c.type==='quote'){
+      panelBody.insertAdjacentHTML('beforeend',`<div class="field"><label>${c.type==='quote'?'Quote':'Content'}</label><textarea id="editBody"></textarea></div>`);$('#editBody',panelBody).value=stripHtml(c.body||'');
+      if(c.type==='quote') panelBody.insertAdjacentHTML('beforeend',`<div class="field"><label>Source</label><input id="editSource" value=""></div>`),$('#editSource',panelBody).value=c.source||'';
+    }
+    if(c.type==='image'){
+      panelBody.insertAdjacentHTML('beforeend',`<div class="field"><label>Image URL</label><input id="editUrl" value=""></div><div class="field"><label>Caption</label><input id="editCaption" value=""></div>`);$('#editUrl',panelBody).value=c.url||'';$('#editCaption',panelBody).value=c.caption||'';
+    }
+    if(c.type==='link'){
+      panelBody.insertAdjacentHTML('beforeend',`<div class="field"><label>URL</label><input id="editUrl" value=""></div><div class="field"><label>Display title</label><input id="editLinkTitle" value=""></div>`);$('#editUrl',panelBody).value=c.url||'';$('#editLinkTitle',panelBody).value=c.linkTitle||'';
+    }
+    if(c.type==='list'){
+      panelBody.insertAdjacentHTML('beforeend',`<div class="field"><label>Tip</label><div style="font-size:12px;color:#717a83;line-height:1.5">Edit list items directly on the card. Use the footer button to add another row.</div></div>`)
+    }
+    const actions=document.createElement('div');actions.className='panel-actions';actions.innerHTML='<button id="delCard" class="danger">Delete</button><button id="saveCard" class="save">Save</button>';panelBody.appendChild(actions);
+    $('#saveCard').onclick=()=>{
+      c.title=$('#editTitle').value.trim();
+      if(c.type==='text'||c.type==='note'||c.type==='quote') c.body=escapeText($('#editBody')?.value||'');
+      if(c.type==='quote') c.source=$('#editSource').value.trim();
+      if(c.type==='image'){c.url=$('#editUrl').value.trim();c.caption=$('#editCaption').value.trim()}
+      if(c.type==='link'){c.url=$('#editUrl').value.trim();c.linkTitle=$('#editLinkTitle').value.trim();c.domain=safeDomain(c.url)}
+      panel.classList.remove('open');render();save();
+    };
+    $('#delCard').onclick=()=>{deleteCard(id);panel.classList.remove('open')};
+    panel.classList.add('open');render();
+  }
+  function stripHtml(s){const d=document.createElement('div');d.innerHTML=s;return d.innerText}
+  function escapeText(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/\n/g,'<br>')}
+  $('#panelClose').onclick=()=>panel.classList.remove('open');
+
+  function deleteCard(id){state.cards=state.cards.filter(c=>c.id!==id);state.connections=state.connections.filter(c=>c.from!==id&&c.to!==id);if(selected===id)selected=null;render();save()}
+  function duplicateCard(id){const c=state.cards.find(x=>x.id===id);if(!c)return;const n=JSON.parse(JSON.stringify(c));n.id=uid();n.x+=35;n.y+=35;state.cards.push(n);selected=n.id;render();save()}
+  function showContext(x,y,id){context.dataset.id=id;context.style.left=Math.min(window.innerWidth-195,x)+'px';context.style.top=Math.min(window.innerHeight-175,y)+'px';context.classList.add('open');selectCard(id)}
+  function closeAllMenus(){context.classList.remove('open')}
+  context.addEventListener('click',e=>{const cmd=e.target.dataset.cmd,id=context.dataset.id;if(!cmd||!id)return;context.classList.remove('open');if(cmd==='edit')openEditor(id);if(cmd==='duplicate')duplicateCard(id);if(cmd==='delete')deleteCard(id);if(cmd==='connect'){connectMode=true;connectFrom={cardId:id,side:'r'};$('#connectBtn').classList.add('active');render()}});
+  canvas.addEventListener('contextmenu',e=>{const card=e.target.closest('.card');if(card){e.preventDefault();showContext(e.clientX,e.clientY,card.dataset.id)}});
+  window.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){addModal.classList.remove('open');helpModal.classList.remove('open');panel.classList.remove('open');context.classList.remove('open');if(connectMode){connectMode=false;connectFrom=null;$('#connectBtn').classList.remove('active');render()}}
+    if((e.key==='Delete'||e.key==='Backspace') && selected && !e.target.closest('input,textarea,[contenteditable="true"]')){e.preventDefault();deleteCard(selected)}
+    if((e.key==='='||e.key==='+') && !e.target.matches('input,textarea')) zoomAt(1.12,workspace.clientWidth/2,workspace.clientHeight/2);
+    if(e.key==='-' && !e.target.matches('input,textarea')) zoomAt(.89,workspace.clientWidth/2,workspace.clientHeight/2);
+    if(e.code==='Space' && !e.repeat){canvas.dataset.space='1';}
+  });
+  window.addEventListener('keyup',e=>{if(e.code==='Space')delete canvas.dataset.space});
+
+  // Space-drag pan overrides blank-area pan naturally by checking the key state.
+  canvas.addEventListener('mousedown',e=>{if(canvas.dataset.space==='1' && !e.target.closest('.card')){pan={sx:e.clientX,sy:e.clientY,x:state.view.x,y:state.view.y};canvas.classList.add('grabbing');window.addEventListener('mousemove',movePan);window.addEventListener('mouseup',endPan,{once:true})}});
+
+  new ResizeObserver(()=>renderConnections()).observe(workspace);
+  render();
+})();
+</script>
+</body>
+</html>

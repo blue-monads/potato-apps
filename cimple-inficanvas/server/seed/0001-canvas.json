@@ -1,0 +1,118 @@
+[
+  {
+    "table_name": "Cards",
+    "data": [
+      {
+        "title": "Mindmap & Research Hub",
+        "description": "Infinite canvas for brainstorming, organizing research, and connecting thoughts in public.",
+        "card_type": "text",
+        "size_x": 320,
+        "size_y": 180,
+        "position_x": 420,
+        "position_y": 260,
+        "color": "#3b82f6",
+        "card_data": "{}"
+      },
+      {
+        "title": "Visual References",
+        "description": "Curated visual ideas and diagrams for rapid synthesis.",
+        "card_type": "image",
+        "size_x": 320,
+        "size_y": 280,
+        "position_x": 30,
+        "position_y": 80,
+        "color": "#8b5cf6",
+        "card_data": "{\"url\":\"https://images.unsplash.com/photo-1507842229451-7f01be7fe0ab?auto=format&fit=crop&w=800&q=80\",\"caption\":\"Exploring architectures and mental models\"}"
+      },
+      {
+        "title": "Knowledge Repositories",
+        "description": "Essential links and documentation.",
+        "card_type": "link",
+        "size_x": 320,
+        "size_y": 190,
+        "position_x": 860,
+        "position_y": 100,
+        "color": "#10b981",
+        "card_data": "{\"url\":\"https://en.wikipedia.org/wiki/Mind_map\",\"linkTitle\":\"Mind Map Theory & Cognition\",\"domain\":\"wikipedia.org\"}"
+      },
+      {
+        "title": "Guiding Principle",
+        "description": "Simplicity is prerequisite for reliability.",
+        "card_type": "quote",
+        "size_x": 320,
+        "size_y": 190,
+        "position_x": 40,
+        "position_y": 440,
+        "color": "#f59e0b",
+        "card_data": "{\"source\":\"Edsger W. Dijkstra\"}"
+      },
+      {
+        "title": "Action Checklist",
+        "description": "Key next milestones for exploration.",
+        "card_type": "list",
+        "size_x": 320,
+        "size_y": 240,
+        "position_x": 860,
+        "position_y": 380,
+        "color": "#ec4899",
+        "card_data": "{\"items\":[{\"id\":\"1\",\"text\":\"Structure main research branches\",\"done\":true},{\"id\":\"2\",\"text\":\"Connect supporting hypotheses\",\"done\":true},{\"id\":\"3\",\"text\":\"Synthesize actionable insights\",\"done\":false}]}"
+      },
+      {
+        "title": "Eureka Note!",
+        "description": "Connecting disparate nodes creates unexpected cognitive sparks. Keep notes atomic!",
+        "card_type": "note",
+        "size_x": 260,
+        "size_y": 190,
+        "position_x": 450,
+        "position_y": 20,
+        "color": "#eab308",
+        "card_data": "{}"
+      }
+    ]
+  },
+  {
+    "table_name": "CardLinks",
+    "data": [
+      {
+        "source_card_id": 1,
+        "linked_card_id": 2,
+        "source_handle": "l",
+        "linked_handle": "r",
+        "label": "visuals",
+        "color": "#8b5cf6"
+      },
+      {
+        "source_card_id": 1,
+        "linked_card_id": 3,
+        "source_handle": "r",
+        "linked_handle": "l",
+        "label": "references",
+        "color": "#10b981"
+      },
+      {
+        "source_card_id": 1,
+        "linked_card_id": 4,
+        "source_handle": "l",
+        "linked_handle": "r",
+        "label": "philosophy",
+        "color": "#f59e0b"
+      },
+      {
+        "source_card_id": 1,
+        "linked_card_id": 5,
+        "source_handle": "r",
+        "linked_handle": "l",
+        "label": "milestones",
+        "color": "#ec4899"
+      },
+      {
+        "source_card_id": 1,
+        "linked_card_id": 6,
+        "source_handle": "t",
+        "linked_handle": "b",
+        "label": "spark",
+        "color": "#eab308"
+      }
+    ]
+  }
+]

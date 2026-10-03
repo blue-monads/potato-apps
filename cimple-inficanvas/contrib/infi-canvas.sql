@@ -1,0 +1,28 @@
+
+-- sqlite3
+
+CREATE TABLE Cards (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    card_type TEXT NOT NULL DEFAULT 'text', 
+    size_x INTEGER NOT NULL,
+    size_y INTEGER NOT NULL,
+    position_x INTEGER NOT NULL,
+    position_y INTEGER NOT NULL,
+    color TEXT NOT NULL,
+    card_data JSON NOT DEFAULT '{}'
+
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE CardLinks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    source_card_id INTEGER NOT NULL,
+    linked_card_id INTEGER NOT NULL,
+    color TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
