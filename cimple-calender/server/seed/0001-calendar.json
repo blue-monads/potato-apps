@@ -1,0 +1,68 @@
+[
+  {
+    "table_name": "CalTags",
+    "data": [
+      {
+        "id": "work",
+        "name": "Work",
+        "color": "#46a86a"
+      },
+      {
+        "id": "personal",
+        "name": "Personal",
+        "color": "#df8b4c"
+      },
+      {
+        "id": "focus",
+        "name": "Focus",
+        "color": "#9b6ad0"
+      },
+      {
+        "id": "other",
+        "name": "Other",
+        "color": "#7c8795"
+      }
+    ]
+  },
+  {
+    "table_name": "CalEvents",
+    "data": [
+      {
+        "title": "Team Standup",
+        "description": "Weekly alignment and updates across the engineering and design teams.",
+        "start_date": "2026-10-03 10:00:00",
+        "end_date": "2026-10-03 10:45:00",
+        "all_day": 0,
+        "tag_id": "work",
+        "color_type": "work"
+      },
+      {
+        "title": "Deep Work - App Architecture",
+        "description": "Calendar view optimization and performance tuning.",
+        "start_date": "2026-10-03 13:30:00",
+        "end_date": "2026-10-03 15:30:00",
+        "all_day": 0,
+        "tag_id": "focus",
+        "color_type": "focus"
+      },
+      {
+        "title": "Dinner with Friends",
+        "description": "Meeting up downtown for dinner and catching up.",
+        "start_date": "2026-10-05 19:00:00",
+        "end_date": "2026-10-05 21:00:00",
+        "all_day": 0,
+        "tag_id": "personal",
+        "color_type": "personal"
+      },
+      {
+        "title": "Product Strategy Review",
+        "description": "Review roadmap, features, and release milestones.",
+        "start_date": "2026-10-08 14:00:00",
+        "end_date": "2026-10-08 15:00:00",
+        "all_day": 0,
+        "tag_id": "work",
+        "color_type": "work"
+      }
+    ]
+  }
+]
